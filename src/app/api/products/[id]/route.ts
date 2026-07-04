@@ -12,7 +12,7 @@ export async function GET(
   const product = await prisma.product.findUnique({
     where: { id: Number(id) },
     include: {
-      category: true,
+      categories: true,
       tags: true,
       listings: { include: { variants: true, images: true, reviews: true } },
     },
@@ -26,7 +26,7 @@ export async function GET(
 const updateSchema = z.object({
   name: z.string().optional(), // rỗng = chưa đặt tên, chờ AI hoặc tự gõ sau
   description: z.string().nullable().optional(),
-  categoryId: z.number().nullable().optional(),
+  categoryIds: z.array(z.number()).optional(), // thay toàn bộ ngành hàng của sản phẩm
   tagIds: z.array(z.number()).optional(), // thay toàn bộ tag của sản phẩm
   aiSummary: z.string().nullable().optional(), // người dùng sửa bản AI
   aiAudience: z.string().nullable().optional(),
@@ -51,12 +51,13 @@ export async function PATCH(
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
-  const { tagIds, ...data } = parsed.data;
+  const { tagIds, categoryIds, ...data } = parsed.data;
   const product = await prisma.product.update({
     where: { id: Number(id) },
     data: {
       ...data,
       ...(tagIds ? { tags: { set: tagIds.map((tid) => ({ id: tid })) } } : {}),
+      ...(categoryIds ? { categories: { set: categoryIds.map((cid) => ({ id: cid })) } } : {}),
     },
   });
   await logActivity("product.update", `Sửa sản phẩm "${product.name}" (#${product.id})`);

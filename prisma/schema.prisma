@@ -34,6 +34,7 @@ model User {
 model Category {
   id       Int       @id @default(autoincrement())
   name     String    @unique
+  icon     String? // emoji đại diện, vd "👗" — hiển thị ghép "emoji + tên"
   products Product[]
 }
 
@@ -82,8 +83,7 @@ model Product {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  category    Category? @relation(fields: [categoryId], references: [id])
-  categoryId  Int?
+  categories  Category[] // cho phép gắn NHIỀU ngành hàng (giống Tag)
   tags        Tag[]
   listings    Listing[]
 }

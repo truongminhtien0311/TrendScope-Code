@@ -11,7 +11,9 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null);
-  const parsed = z.object({ name: z.string().min(1) }).safeParse(body);
+  const parsed = z
+    .object({ name: z.string().min(1), icon: z.string().optional() })
+    .safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }

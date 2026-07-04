@@ -1,10 +1,11 @@
-// Thẻ sản phẩm trên Dashboard: ảnh đại diện, khoảng giá VNĐ,
-// tag, ngành hàng, lượt bán.
+// Thẻ sản phẩm trên Dashboard: ảnh đại diện, giá bán lẻ/giá nhập tách
+// riêng, tag, ngành hàng, lượt bán.
 // Ảnh đại diện chọn theo luật trong src/lib/product-image.ts
 // (ưu tiên shop bán lẻ thêm sớm nhất, hoặc link người dùng chọn tay).
 import Link from "next/link";
 import { cnyToVnd, formatVnd } from "@/lib/currency";
 import { resolveProductImage } from "@/lib/product-image";
+import BadgeOverflowList from "@/components/BadgeOverflowList";
 
 // Kiểu dữ liệu khớp với query trong src/app/page.tsx
 export interface ProductCardData {
@@ -12,7 +13,7 @@ export interface ProductCardData {
   name: string;
   createdAt: Date;
   mainImageListingId: number | null;
-  category: { name: string } | null;
+  categories: { id: number; name: string; icon: string | null }[];
   tags: { id: number; name: string; color: string | null }[];
   listings: {
     id: number;
@@ -24,6 +25,14 @@ export interface ProductCardData {
   }[];
 }
 
+function priceRangeText(prices: number[], rate: number): string | null {
+  if (prices.length === 0) return null;
+  const min = Math.min(...prices);
+  const max = Math.max(...prices);
+  const minText = formatVnd(cnyToVnd(min, rate));
+  return max > min ? `${minText} ~ ${formatVnd(cnyToVnd(max, rate))}` : minText;
+}
+
 export default function ProductCard({
   product,
   rate,
@@ -31,9 +40,14 @@ export default function ProductCard({
   product: ProductCardData;
   rate: number;
 }) {
-  const allPrices = product.listings.flatMap((l) => l.variants.map((v) => v.priceCny));
-  const minPrice = allPrices.length ? Math.min(...allPrices) : null;
-  const maxPrice = allPrices.length ? Math.max(...allPrices) : null;
+  const retailPrices = product.listings
+    .filter((l) => l.sourceType === "RETAIL")
+    .flatMap((l) => l.variants.map((v) => v.priceCny));
+  const factoryPrices = product.listings
+    .filter((l) => l.sourceType === "MANUFACTURER")
+    .flatMap((l) => l.variants.map((v) => v.priceCny));
+  const retailText = priceRangeText(retailPrices, rate);
+  const factoryText = priceRangeText(factoryPrices, rate);
 
   const mainImage = resolveProductImage(product.listings, product.mainImageListingId);
 
@@ -58,28 +72,40 @@ export default function ProductCard({
           {product.name || <span className="text-slate-400 italic">(Chưa đặt tên)</span>}
         </h3>
 
-        {minPrice !== null && maxPrice !== null && (
-          <p className="text-blue-600 dark:text-blue-400 font-semibold text-sm">
-            {formatVnd(cnyToVnd(minPrice, rate))}
-            {maxPrice > minPrice && ` ~ ${formatVnd(cnyToVnd(maxPrice, rate))}`}
-          </p>
+        {(retailText || factoryText) && (
+          <div className="text-xs space-y-0.5">
+            {retailText && (
+              <p className="text-blue-600 dark:text-blue-400 font-semibold">
+                Giá bán lẻ (tham khảo): {retailText}
+              </p>
+            )}
+            {factoryText && (
+              <p className="text-emerald-600 dark:text-emerald-400 font-semibold">
+                Giá nhập (tham khảo): {factoryText}
+              </p>
+            )}
+          </div>
         )}
 
         <div className="flex flex-wrap gap-1">
-          {product.category && (
-            <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-              {product.category.name}
-            </span>
-          )}
-          {product.tags.map((tag) => (
-            <span
-              key={tag.id}
-              className="text-xs px-2 py-0.5 rounded-full text-white"
-              style={{ backgroundColor: tag.color ?? "#64748b" }}
-            >
-              {tag.name}
-            </span>
-          ))}
+          <BadgeOverflowList
+            items={product.categories.map((c) => ({
+              key: `cat-${c.id}`,
+              label: c.icon ? `${c.icon} ${c.name}` : c.name,
+              className:
+                "text-xs px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300",
+            }))}
+            max={2}
+          />
+          <BadgeOverflowList
+            items={product.tags.map((tag) => ({
+              key: `tag-${tag.id}`,
+              label: tag.name,
+              className: "text-xs px-2 py-0.5 rounded-full text-white",
+              style: { backgroundColor: tag.color ?? "#64748b" },
+            }))}
+            max={2}
+          />
         </div>
 
         <p className="text-xs text-slate-500 dark:text-slate-400">

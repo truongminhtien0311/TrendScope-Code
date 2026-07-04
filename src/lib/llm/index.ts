@@ -65,6 +65,11 @@ export interface AiAnalysisResult {
     listings: { id: number; titleVi?: string; descriptionVi?: string }[];
     variants: { id: number; nameVi?: string }[];
   };
+  // (I) Gợi ý ngành hàng — VIỆC RIÊNG (việc 3), độc lập với 7 mục phân
+  // tích và với việc dịch. Chỉ được chọn ĐÚNG 1 tên trong danh sách
+  // ngành hàng app cung cấp (ép bằng "enum" của Gemini) — không tự bịa
+  // tên ngành khác. Rỗng nếu danh sách ngành hàng app cung cấp rỗng.
+  categorySuggestion?: string;
 }
 
 // ------------------------------------------------------------
@@ -282,6 +287,25 @@ ${listingsText}
 `.trim();
 }
 
+// ------------------------------------------------------------
+// VIỆC 3 — GỢI Ý NGÀNH HÀNG: cũng GHÉP vào CHUNG 1 request (không tốn
+// thêm lượt gọi API). Độc lập với việc 1 (phân tích) và việc 2 (dịch).
+// AI CHỈ được chọn đúng 1 tên trong danh sách app cung cấp (ép cứng
+// bằng "enum" trong RESULT_SCHEMA — Gemini không thể trả tên khác dù
+// có muốn), không tự đặt tên ngành hàng mới.
+// ------------------------------------------------------------
+function buildCategoryTask(availableCategories: string[]): string {
+  if (availableCategories.length === 0) return "";
+  return `
+---
+VIỆC 3 (ĐỘC LẬP HOÀN TOÀN VỚI VIỆC 1 VÀ VIỆC 2 Ở TRÊN): dựa vào ảnh +
+toàn bộ dữ liệu sản phẩm, chọn ĐÚNG 1 ngành hàng PHÙ HỢP NHẤT trong
+danh sách sau, trả vào field "categorySuggestion" (chỉ được chọn nguyên
+văn 1 tên trong danh sách, không tự đặt tên khác):
+${availableCategories.map((c) => `- ${c}`).join("\n")}
+`.trim();
+}
+
 // Giới hạn KỸ THUẬT thật của Gemini: tối đa 3.600 ảnh và ~100MB payload
 // mỗi request. Không giới hạn theo tốc độ — ưu tiên gửi ĐỦ dữ liệu để
 // AI phân tích chính xác nhất, chậm hơn không sao (người dùng không
@@ -292,65 +316,76 @@ ${listingsText}
 const MAX_TOTAL_IMAGE_BYTES = 80 * 1024 * 1024; // chừa margin dưới trần 100MB thật
 const MAX_IMAGE_COUNT = 500; // chặn kỹ thuật cho trường hợp cực đoan, còn xa trần 3.600
 
-const RESULT_SCHEMA = {
-  type: Type.OBJECT,
-  properties: {
-    summary: { type: Type.STRING },
-    audience: { type: Type.STRING },
-    channels: { type: Type.STRING },
-    customization: { type: Type.STRING },
-    importInfo: { type: Type.STRING },
-    shipping: { type: Type.STRING },
-    feasibility: { type: Type.STRING },
-    // Việc 2 (dịch thuần túy) — độc lập với 7 mục phân tích ở trên
-    translations: {
-      type: Type.OBJECT,
-      properties: {
-        productName: { type: Type.STRING },
-        listings: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              id: { type: Type.NUMBER },
-              titleVi: { type: Type.STRING },
-              descriptionVi: { type: Type.STRING },
+// Schema tạo động vì "categorySuggestion" cần ép enum theo ĐÚNG danh
+// sách ngành hàng thật đang có trong database tại thời điểm phân tích
+// (không cố định cứng trong code — người dùng vẫn thêm/sửa ngành hàng
+// tùy ý ở trang "Tag & Ngành hàng").
+function buildResultSchema(availableCategories: string[]) {
+  return {
+    type: Type.OBJECT,
+    properties: {
+      summary: { type: Type.STRING },
+      audience: { type: Type.STRING },
+      channels: { type: Type.STRING },
+      customization: { type: Type.STRING },
+      importInfo: { type: Type.STRING },
+      shipping: { type: Type.STRING },
+      feasibility: { type: Type.STRING },
+      // Việc 2 (dịch thuần túy) — độc lập với 7 mục phân tích ở trên
+      translations: {
+        type: Type.OBJECT,
+        properties: {
+          productName: { type: Type.STRING },
+          listings: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                id: { type: Type.NUMBER },
+                titleVi: { type: Type.STRING },
+                descriptionVi: { type: Type.STRING },
+              },
+              required: ["id"],
             },
-            required: ["id"],
+          },
+          variants: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                id: { type: Type.NUMBER },
+                nameVi: { type: Type.STRING },
+              },
+              required: ["id"],
+            },
           },
         },
-        variants: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              id: { type: Type.NUMBER },
-              nameVi: { type: Type.STRING },
-            },
-            required: ["id"],
-          },
-        },
+        required: ["productName", "listings", "variants"],
       },
-      required: ["productName", "listings", "variants"],
+      // Việc 3 (gợi ý ngành hàng) — độc lập, ép enum theo danh sách thật
+      ...(availableCategories.length > 0
+        ? { categorySuggestion: { type: Type.STRING, enum: availableCategories } }
+        : {}),
     },
-  },
-  required: [
-    "summary",
-    "audience",
-    "channels",
-    "customization",
-    "importInfo",
-    "shipping",
-    "feasibility",
-    "translations",
-  ],
-};
+    required: [
+      "summary",
+      "audience",
+      "channels",
+      "customization",
+      "importInfo",
+      "shipping",
+      "feasibility",
+      "translations",
+    ],
+  };
+}
 
 export async function generateProductAnalysis(
   input: AnalysisInput,
   apiKey: string,
   promptTemplate: string = DEFAULT_PROMPT_TEMPLATE,
-  costAssumptions: CostAssumptions = DEFAULT_COST_ASSUMPTIONS
+  costAssumptions: CostAssumptions = DEFAULT_COST_ASSUMPTIONS,
+  availableCategories: string[] = []
 ): Promise<AiAnalysisResult> {
   const ai = new GoogleGenAI({ apiKey });
 
@@ -358,9 +393,12 @@ export async function generateProductAnalysis(
   const { parts: imageParts, includedUrls } = await fetchImagesAsParts(allImageUrls);
 
   const analysisPrompt = fillTemplate(promptTemplate, input, includedUrls, costAssumptions);
-  const prompt = `${analysisPrompt}\n\n${buildTranslationTask(input)}`;
+  const prompt = `${analysisPrompt}\n\n${buildTranslationTask(input)}\n\n${buildCategoryTask(availableCategories)}`;
   const contents = [{ role: "user", parts: [{ text: prompt }, ...imageParts] }];
-  const baseConfig = { responseMimeType: "application/json", responseSchema: RESULT_SCHEMA } as const;
+  const baseConfig = {
+    responseMimeType: "application/json",
+    responseSchema: buildResultSchema(availableCategories),
+  } as const;
 
   // Ưu tiên bật Google Search Grounding để mục "importInfo" tra cứu được
   // luật/thuế hiện hành thật. Một số tài khoản Google Cloud CHƯA liên

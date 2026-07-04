@@ -43,6 +43,7 @@ export default async function ManagePage() {
             categories={categories.map((c) => ({
               id: c.id,
               name: c.name,
+              icon: c.icon,
               productCount: c._count.products,
             }))}
           />

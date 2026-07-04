@@ -25,10 +25,10 @@ export default async function DashboardPage({
       // với ký tự tiếng Việt có dấu) — lọc bằng JS bên dưới thay vào đó.
       where: {
         ...(tag ? { tags: { some: { id: Number(tag) } } } : {}),
-        ...(category ? { categoryId: Number(category) } : {}),
+        ...(category ? { categories: { some: { id: Number(category) } } } : {}),
       },
       include: {
-        category: true,
+        categories: true,
         tags: true,
         listings: {
           select: {

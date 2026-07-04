@@ -71,9 +71,10 @@ export async function POST(
 
   // Prompt: dùng bản người dùng tự sửa trong Cài đặt nếu có, không thì
   // dùng mặc định (generateProductAnalysis tự fallback khi bỏ trống)
-  const [promptSetting, costSetting] = await Promise.all([
+  const [promptSetting, costSetting, allCategories] = await Promise.all([
     prisma.setting.findUnique({ where: { key: "ai_prompt_template" } }),
     prisma.setting.findUnique({ where: { key: "business_cost_assumptions" } }),
+    prisma.category.findMany({ select: { id: true, name: true } }),
   ]);
 
   let costAssumptions: CostAssumptions = DEFAULT_COST_ASSUMPTIONS;
@@ -92,7 +93,8 @@ export async function POST(
       input,
       provider.apiKey,
       promptSetting?.value || undefined,
-      costAssumptions
+      costAssumptions,
+      allCategories.map((c) => c.name)
     );
   } catch (err) {
     await logActivity("product.ai_analyze_failed", `Gemini lỗi cho sản phẩm #${product.id}: ${String(err)}`);
@@ -121,6 +123,10 @@ export async function POST(
     })
     .filter((p): p is NonNullable<typeof p> => p !== null);
 
+  // Gợi ý ngành hàng (việc 3) — CHỈ THÊM vào, không thay thế/xóa các
+  // ngành hàng người dùng đã tự gắn tay trước đó.
+  const suggestedCategory = allCategories.find((c) => c.name === result.categorySuggestion);
+
   const updated = await prisma.product.update({
     where: { id: product.id },
     data: {
@@ -135,6 +141,7 @@ export async function POST(
       // ở dashboard; nếu người dùng đã tự đặt tên thì giữ nguyên, không
       // ghi đè (vẫn tự sửa lại bất cứ lúc nào qua "✏️ Sửa").
       ...(product.name.trim() ? {} : { name: result.translations.productName }),
+      ...(suggestedCategory ? { categories: { connect: [{ id: suggestedCategory.id }] } } : {}),
     },
   });
   await Promise.all([...listingUpdates, ...variantUpdates]);

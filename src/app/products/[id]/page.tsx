@@ -21,6 +21,7 @@ import VariantTable, { type VariantData } from "@/components/VariantTable";
 import ImageManager from "@/components/ImageManager";
 import ReviewManager from "@/components/ReviewManager";
 import ListingActions from "@/components/ListingActions";
+import BadgeOverflowList from "@/components/BadgeOverflowList";
 
 export const dynamic = "force-dynamic";
 
@@ -34,7 +35,7 @@ export default async function ProductDetailPage({
     prisma.product.findUnique({
       where: { id: Number(id) },
       include: {
-        category: true,
+        categories: true,
         tags: true,
         listings: {
           include: {
@@ -88,28 +89,28 @@ export default async function ProductDetailPage({
         {product.description && (
           <p className="text-slate-600 dark:text-slate-300 mt-1">{product.description}</p>
         )}
-        <div className="flex flex-wrap gap-1 mt-2">
-          {product.category && (
-            <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800">
-              {product.category.name}
-            </span>
-          )}
-          {product.tags.map((t) => (
-            <span
-              key={t.id}
-              className="text-xs px-2 py-0.5 rounded-full text-white"
-              style={{ backgroundColor: t.color ?? "#64748b" }}
-            >
-              {t.name}
-            </span>
-          ))}
+        <div className="flex flex-wrap gap-2 mt-2">
+          <BadgeOverflowList
+            items={product.categories.map((c) => ({
+              key: `cat-${c.id}`,
+              label: c.icon ? `${c.icon} ${c.name}` : c.name,
+            }))}
+          />
+          <BadgeOverflowList
+            items={product.tags.map((t) => ({
+              key: `tag-${t.id}`,
+              label: t.name,
+              className: "text-xs px-2 py-0.5 rounded-full text-white",
+              style: { backgroundColor: t.color ?? "#64748b" },
+            }))}
+          />
         </div>
         <EditProductForm
           product={{
             id: product.id,
             name: product.name,
             description: product.description,
-            categoryId: product.categoryId,
+            categoryIds: product.categories.map((c) => c.id),
             tagIds: product.tags.map((t) => t.id),
           }}
           allTags={allTags}
@@ -120,11 +121,11 @@ export default async function ProductDetailPage({
       {/* ---- Thông tin phụ tham khảo ---- */}
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard
-          label="Giá shop bán lẻ"
+          label="Giá bán lẻ (tham khảo)"
           value={retailRange ? `${formatVnd(retailRange.min)} ~ ${formatVnd(retailRange.max)}` : "—"}
         />
         <StatCard
-          label="Giá nhà sản xuất"
+          label="Giá nhập (tham khảo)"
           value={factoryRange ? `${formatVnd(factoryRange.min)} ~ ${formatVnd(factoryRange.max)}` : "—"}
         />
         <StatCard label="Tổng lượt bán" value={soldTotal ? soldTotal.toLocaleString("vi-VN") : "—"} />

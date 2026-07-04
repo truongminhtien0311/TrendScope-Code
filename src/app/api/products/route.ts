@@ -6,7 +6,7 @@ import { logActivity } from "@/lib/log";
 
 export async function GET() {
   const products = await prisma.product.findMany({
-    include: { category: true, tags: true },
+    include: { categories: true, tags: true },
     orderBy: { createdAt: "desc" },
   });
   return NextResponse.json(products);
@@ -18,7 +18,7 @@ export async function GET() {
 const createSchema = z.object({
   name: z.string().optional(),
   description: z.string().optional(),
-  categoryId: z.number().optional(),
+  categoryIds: z.array(z.number()).optional(), // 1 sản phẩm gắn được nhiều ngành hàng
 });
 
 export async function POST(request: NextRequest) {
@@ -28,8 +28,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
+  const { categoryIds, ...rest } = parsed.data;
   const product = await prisma.product.create({
-    data: { ...parsed.data, name: parsed.data.name?.trim() || "" },
+    data: {
+      ...rest,
+      name: parsed.data.name?.trim() || "",
+      ...(categoryIds ? { categories: { connect: categoryIds.map((id) => ({ id })) } } : {}),
+    },
   });
   await logActivity(
     "product.create",

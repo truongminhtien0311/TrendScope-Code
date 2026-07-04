@@ -26,12 +26,41 @@ async function main() {
     create: { key: "cny_vnd_rate", value: "3650" }, // 1 CNY ≈ 3.650 VNĐ
   });
 
-  // --- Ngành hàng & Tag mẫu ---
-  const [giaDung, phuKien] = await Promise.all(
-    ["Gia dụng", "Phụ kiện điện thoại", "Mẹ và bé"].map((name) =>
-      prisma.category.upsert({ where: { name }, update: {}, create: { name } })
+  // --- Ngành hàng mặc định — gộp từ danh mục thật của Shopee VN (23
+  // ngành hàng, 5 nhóm chính thức) + đối chiếu TikTok Shop VN, mỗi
+  // ngành có emoji đại diện để hiển thị đẹp hơn (emoji + tên ghép lại).
+  // Người dùng vẫn tự thêm/sửa/xóa được ở trang "Tag & Ngành hàng".
+  const DEFAULT_CATEGORIES: { name: string; icon: string }[] = [
+    { name: "Thời trang nữ", icon: "👗" },
+    { name: "Phụ kiện & Túi ví nữ", icon: "👜" },
+    { name: "Giày dép nữ", icon: "👠" },
+    { name: "Thời trang nam", icon: "👔" },
+    { name: "Giày dép nam", icon: "👞" },
+    { name: "Thời trang trẻ em", icon: "🧒" },
+    { name: "Đồng hồ", icon: "⌚" },
+    { name: "Thể thao & Du lịch", icon: "🏃" },
+    { name: "Điện thoại & Phụ kiện", icon: "📱" },
+    { name: "Thiết bị điện tử", icon: "🔌" },
+    { name: "Máy tính & Laptop", icon: "💻" },
+    { name: "Máy ảnh", icon: "📷" },
+    { name: "Điện gia dụng", icon: "🧺" },
+    { name: "Sắc đẹp & Sức khỏe", icon: "💄" },
+    { name: "Mẹ và bé", icon: "👶" },
+    { name: "Giặt giũ & Chăm sóc nhà cửa", icon: "🧼" },
+    { name: "Bách hóa Online", icon: "🛒" },
+    { name: "Chăm sóc thú cưng", icon: "🐾" },
+    { name: "Nhà cửa & Đời sống", icon: "🏠" },
+    { name: "Ô tô, xe máy & Phụ kiện", icon: "🏍️" },
+    { name: "Đồ chơi", icon: "🧸" },
+    { name: "Nhà sách Online", icon: "📚" },
+  ];
+  const categories = await Promise.all(
+    DEFAULT_CATEGORIES.map((c) =>
+      prisma.category.upsert({ where: { name: c.name }, update: { icon: c.icon }, create: c })
     )
   );
+  const dienGiaDung = categories.find((c) => c.name === "Điện gia dụng")!;
+  const dienThoai = categories.find((c) => c.name === "Điện thoại & Phụ kiện")!;
   const [tagHot, tagCanKiemTra] = await Promise.all([
     prisma.tag.upsert({
       where: { name: "Hot" },
@@ -51,11 +80,14 @@ async function main() {
   ]);
 
   // --- Sản phẩm mẫu 1: có cả link shop bán lẻ + nhà sản xuất ---
-  const sp1 = await prisma.product.create({
+  // Chỉ tạo nếu CHƯA có (kiểm tra theo tên) — chạy seed lại nhiều lần
+  // không được tự nhân đôi sản phẩm giả.
+  const existingSp1 = await prisma.product.findFirst({ where: { name: "Máy hút bụi mini cầm tay" } });
+  const sp1 = existingSp1 ?? await prisma.product.create({
     data: {
       name: "Máy hút bụi mini cầm tay",
       description: "Hàng test dữ liệu giả — dùng để xem giao diện.",
-      categoryId: giaDung.id,
+      categories: { connect: [{ id: dienGiaDung.id }] },
       tags: { connect: [{ id: tagHot.id }] },
       listings: {
         create: [
@@ -122,11 +154,12 @@ async function main() {
     },
   });
 
-  // --- Sản phẩm mẫu 2 ---
-  await prisma.product.create({
+  // --- Sản phẩm mẫu 2 (cũng chỉ tạo nếu chưa có) ---
+  const existingSp2 = await prisma.product.findFirst({ where: { name: "Giá đỡ điện thoại để bàn" } });
+  if (!existingSp2) await prisma.product.create({
     data: {
       name: "Giá đỡ điện thoại để bàn",
-      categoryId: phuKien.id,
+      categories: { connect: [{ id: dienThoai.id }] },
       tags: { connect: [{ id: tagCanKiemTra.id }] },
       listings: {
         create: [

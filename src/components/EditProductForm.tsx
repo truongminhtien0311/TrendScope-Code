@@ -11,11 +11,11 @@ interface Props {
     id: number;
     name: string;
     description: string | null;
-    categoryId: number | null;
+    categoryIds: number[];
     tagIds: number[];
   };
   allTags: { id: number; name: string; color: string | null }[];
-  allCategories: { id: number; name: string }[];
+  allCategories: { id: number; name: string; icon: string | null }[];
 }
 
 export default function EditProductForm({ product, allTags, allCategories }: Props) {
@@ -24,14 +24,18 @@ export default function EditProductForm({ product, allTags, allCategories }: Pro
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState(product.name);
   const [description, setDescription] = useState(product.description ?? "");
-  const [categoryId, setCategoryId] = useState<string>(
-    product.categoryId ? String(product.categoryId) : ""
-  );
+  const [categoryIds, setCategoryIds] = useState<number[]>(product.categoryIds);
   const [tagIds, setTagIds] = useState<number[]>(product.tagIds);
 
   function toggleTag(id: number) {
     setTagIds((prev) =>
       prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]
+    );
+  }
+
+  function toggleCategory(id: number) {
+    setCategoryIds((prev) =>
+      prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]
     );
   }
 
@@ -44,7 +48,7 @@ export default function EditProductForm({ product, allTags, allCategories }: Pro
       body: JSON.stringify({
         name: name.trim(),
         description: description.trim() || null,
-        categoryId: categoryId ? Number(categoryId) : null,
+        categoryIds,
         tagIds,
       }),
     });
@@ -119,20 +123,34 @@ export default function EditProductForm({ product, allTags, allCategories }: Pro
 
           <div>
             <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
-              Ngành hàng
+              Ngành hàng (gắn được nhiều)
             </label>
-            <select
-              value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value)}
-              className={inputClass}
-            >
-              <option value="">— Chưa phân loại —</option>
+            <div className="flex flex-wrap gap-2">
+              {allCategories.length === 0 && (
+                <p className="text-xs text-slate-400">
+                  Chưa có ngành hàng nào — thêm ở trang &quot;Tag &amp; Ngành hàng&quot;.
+                </p>
+              )}
               {allCategories.map((c) => (
-                <option key={c.id} value={String(c.id)}>
+                <label
+                  key={c.id}
+                  className={`cursor-pointer text-xs px-2.5 py-1 rounded-full border transition ${
+                    categoryIds.includes(c.id)
+                      ? "bg-blue-600 text-white border-transparent"
+                      : "border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={categoryIds.includes(c.id)}
+                    onChange={() => toggleCategory(c.id)}
+                    className="hidden"
+                  />
+                  {c.icon ? `${c.icon} ` : ""}
                   {c.name}
-                </option>
+                </label>
               ))}
-            </select>
+            </div>
           </div>
 
           <div>

@@ -10,12 +10,14 @@ import { useRouter } from "next/navigation";
 interface CategoryItem {
   id: number;
   name: string;
+  icon: string | null;
   productCount: number;
 }
 
 export default function CategoryManager({ categories }: { categories: CategoryItem[] }) {
   const router = useRouter();
   const [name, setName] = useState("");
+  const [icon, setIcon] = useState("");
   const [busy, setBusy] = useState(false);
 
   async function add(e: React.FormEvent) {
@@ -25,11 +27,12 @@ export default function CategoryManager({ categories }: { categories: CategoryIt
     const res = await fetch("/api/categories", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: name.trim() }),
+      body: JSON.stringify({ name: name.trim(), icon: icon.trim() || undefined }),
     });
     setBusy(false);
     if (res.ok) {
       setName("");
+      setIcon("");
       router.refresh();
     } else {
       const data = await res.json().catch(() => null);
@@ -55,6 +58,14 @@ export default function CategoryManager({ categories }: { categories: CategoryIt
     <div className="space-y-3">
       <form onSubmit={add} className="flex gap-2">
         <input
+          value={icon}
+          onChange={(e) => setIcon(e.target.value)}
+          placeholder="😀"
+          maxLength={4}
+          title="Emoji đại diện (dán 1 emoji vào đây)"
+          className="w-14 shrink-0 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-2 text-sm text-center"
+        />
+        <input
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Tên ngành hàng mới..."
@@ -79,6 +90,7 @@ export default function CategoryManager({ categories }: { categories: CategoryIt
               className="flex items-center justify-between rounded-lg border border-slate-200 dark:border-slate-800 px-3 py-2"
             >
               <span className="text-sm">
+                {c.icon ? `${c.icon} ` : ""}
                 {c.name}
                 <span className="text-xs text-slate-400 ml-2">{c.productCount} sản phẩm</span>
               </span>

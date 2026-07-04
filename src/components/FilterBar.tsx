@@ -8,7 +8,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 interface Props {
   tags: { id: number; name: string }[];
-  categories: { id: number; name: string }[];
+  categories: { id: number; name: string; icon: string | null }[];
 }
 
 export default function FilterBar({ tags, categories }: Props) {
@@ -75,6 +75,7 @@ export default function FilterBar({ tags, categories }: Props) {
         <option value="">Tất cả ngành hàng</option>
         {categories.map((c) => (
           <option key={c.id} value={String(c.id)}>
+            {c.icon ? `${c.icon} ` : ""}
             {c.name}
           </option>
         ))}
