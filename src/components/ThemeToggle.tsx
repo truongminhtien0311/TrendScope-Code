@@ -10,6 +10,8 @@ export default function ThemeToggle() {
   const [dark, setDark] = useState(false);
 
   useEffect(() => {
+    // Đọc trạng thái dark mode từ DOM (được script trong layout.tsx set trước khi hydrate)
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- đồng bộ từ DOM/browser, không có trên server nên không thể tính lúc render
     setDark(document.documentElement.classList.contains("dark"));
   }, []);
 

@@ -42,6 +42,8 @@ function ValueInput({ value, onChange }: { value: number; onChange: (n: number) 
   const [focused, setFocused] = useState(false);
 
   useEffect(() => {
+    // Đồng bộ ô nhập từ prop value bên ngoài, chỉ khi không đang gõ (focused=false).
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- đồng bộ từ prop ngoài, không thể tính trong lúc render vì phụ thuộc trạng thái focus
     if (!focused) setText(formatValue(value));
   }, [value, focused]);
 
