@@ -24,6 +24,7 @@ export default function TaobaoLoginPanel() {
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- tải trạng thái đăng nhập 1 lần lúc mount, không phải vòng lặp render
     loadStatus();
     return () => {
       if (pollTimer.current) clearInterval(pollTimer.current);

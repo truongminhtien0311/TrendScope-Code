@@ -12,27 +12,27 @@
 //   3. Google chuyển hướng lại /api/storage/google/callback?code=...
 //      -> đổi code lấy access_token + refresh_token -> lưu refresh_token
 //      vào ApiProvider.configJson (bảng Cài đặt > API, kind "STORAGE").
-//   4. Mỗi lần cần upload ảnh: dùng refresh_token đổi lấy access_token
-//      mới (access_token chỉ sống ~1 giờ, refresh_token sống lâu dài).
+//   4. Mỗi lần cần upload: dùng refresh_token đổi lấy access_token mới
+//      (access_token chỉ sống ~1 giờ, refresh_token sống lâu dài).
 //
 // Scope dùng: "drive.file" — CHỈ truy cập được file do CHÍNH APP này
 // tạo ra, không đụng tới các file khác sẵn có trong Drive của người
 // dùng (an toàn hơn, và không cần Google duyệt app kỹ như scope rộng).
 //
 // TỔ CHỨC FILE + TỐI ƯU DUNG LƯỢNG (theo yêu cầu: đủ dữ liệu nhưng tối
-// ưu dung lượng — xem thêm docs plan chặng 5):
-//   - Toàn bộ ảnh nằm trong 1 folder gốc cố định "ProductHunt-DoNotDelete"
+// ưu dung lượng):
+//   - Toàn bộ dữ liệu nằm trong 1 folder gốc cố định "ProductHunt-DoNotDelete"
 //     (đặt tên tiếng Anh, chèn "DoNotDelete" để tránh xóa nhầm), bên
-//     trong có folder con "images". ID 2 folder này lưu cache lại trong
-//     configJson (rootFolderId/imagesFolderId) để không tạo trùng mỗi
-//     lần upload — chỉ tạo 1 lần đầu tiên.
-//   - DEDUPE: đặt tên file trên Drive = hash SHA-256 của URL ảnh gốc
-//     (không phải tên gốc) -> trước khi upload, tìm trong folder xem
-//     đã có file trùng tên chưa, có rồi thì DÙNG LẠI, không tải/upload
-//     lại (tránh nhân đôi dung lượng khi "Cào lại" nhiều lần).
-//   - RESIZE: ảnh quá khổ (cạnh dài > 1600px) được thu nhỏ trước khi
-//     upload bằng sharp — giảm dung lượng đáng kể, gần như không ảnh
-//     hưởng khi xem trong app (không phải dùng để in ấn).
+//     trong có 2 folder con: "images" (ảnh sản phẩm) và "backups" (bản
+//     sao lưu database — xem src/lib/backup). ID các folder cache lại
+//     trong configJson để không tạo trùng mỗi lần dùng.
+//   - Ảnh: DEDUPE (đặt tên = hash SHA-256 của URL gốc, có rồi thì dùng
+//     lại, không upload lại) + RESIZE (ảnh quá khổ >1600px thu nhỏ
+//     bằng sharp trước khi upload) — xem hàm saveImage() bên dưới.
+//
+// Các hàm helper thao tác Drive (ensureFolder/uploadBuffer/makePublic/...)
+// được export ra để src/lib/backup dùng chung, tránh viết lại y hệt
+// logic gọi REST API Drive ở 2 nơi.
 // ============================================================
 import crypto from "node:crypto";
 import sharp from "sharp";
@@ -53,6 +53,7 @@ export interface GoogleDriveConfig {
   connectedEmail?: string;
   rootFolderId?: string;
   imagesFolderId?: string;
+  backupsFolderId?: string;
 }
 
 async function getConfigRow(): Promise<{ id: number; config: GoogleDriveConfig } | null> {
@@ -134,6 +135,22 @@ export async function fetchConnectedEmail(accessToken: string): Promise<string |
   return data.email;
 }
 
+// Đổi refresh_token đã lưu -> access_token mới dùng ngay + thông tin
+// provider/config gốc — dùng chung cho cả saveImage() và src/lib/backup.
+export async function getAccessToken(): Promise<{
+  accessToken: string;
+  providerId: number;
+  config: GoogleDriveConfig;
+}> {
+  const result = await getConfigRow();
+  const { clientId, clientSecret, refreshToken } = result?.config ?? {};
+  if (!result || !clientId || !clientSecret || !refreshToken) {
+    throw new Error("Chưa kết nối Google Drive — vào Cài đặt > Lưu trữ để kết nối trước.");
+  }
+  const accessToken = await refreshAccessToken(clientId, clientSecret, refreshToken);
+  return { accessToken, providerId: result.id, config: result.config };
+}
+
 async function findFolder(name: string, parentId: string | undefined, accessToken: string): Promise<string | null> {
   const parentClause = parentId ? ` and '${parentId}' in parents` : " and 'root' in parents";
   const q = `name='${name}' and mimeType='application/vnd.google-apps.folder' and trashed=false${parentClause}`;
@@ -160,22 +177,41 @@ async function createFolder(name: string, parentId: string | undefined, accessTo
   return data.id;
 }
 
+async function ensureRootFolder(providerId: number, config: GoogleDriveConfig, accessToken: string): Promise<string> {
+  if (config.rootFolderId) return config.rootFolderId;
+  let rootFolderId = (await findFolder(ROOT_FOLDER_NAME, undefined, accessToken)) ?? undefined;
+  if (!rootFolderId) rootFolderId = await createFolder(ROOT_FOLDER_NAME, undefined, accessToken);
+  await saveConfig(providerId, { ...config, rootFolderId });
+  return rootFolderId;
+}
+
 // Lấy (hoặc tạo mới lần đầu) folder gốc + folder con "images", cache lại
 // id vào configJson để các lần sau không tạo trùng.
 async function ensureImagesFolder(providerId: number, config: GoogleDriveConfig, accessToken: string): Promise<string> {
   if (config.imagesFolderId) return config.imagesFolderId;
-
-  let rootFolderId = config.rootFolderId;
-  if (!rootFolderId) {
-    rootFolderId = (await findFolder(ROOT_FOLDER_NAME, undefined, accessToken)) ?? undefined;
-    if (!rootFolderId) rootFolderId = await createFolder(ROOT_FOLDER_NAME, undefined, accessToken);
-  }
-
+  const rootFolderId = await ensureRootFolder(providerId, config, accessToken);
   let imagesFolderId = (await findFolder(IMAGES_FOLDER_NAME, rootFolderId, accessToken)) ?? undefined;
   if (!imagesFolderId) imagesFolderId = await createFolder(IMAGES_FOLDER_NAME, rootFolderId, accessToken);
-
   await saveConfig(providerId, { ...config, rootFolderId, imagesFolderId });
   return imagesFolderId;
+}
+
+// Dùng chung cho src/lib/backup — lấy (hoặc tạo mới) 1 folder con bất kỳ
+// dưới folder gốc "ProductHunt-DoNotDelete", cache theo tên field truyền vào.
+export async function ensureNamedFolder(
+  providerId: number,
+  config: GoogleDriveConfig,
+  accessToken: string,
+  folderName: string,
+  cacheField: "backupsFolderId"
+): Promise<string> {
+  const cached = config[cacheField];
+  if (cached) return cached;
+  const rootFolderId = await ensureRootFolder(providerId, config, accessToken);
+  let folderId = (await findFolder(folderName, rootFolderId, accessToken)) ?? undefined;
+  if (!folderId) folderId = await createFolder(folderName, rootFolderId, accessToken);
+  await saveConfig(providerId, { ...config, rootFolderId, [cacheField]: folderId });
+  return folderId;
 }
 
 // Tên file trên Drive = hash URL gốc -> dùng để dò trùng (dedupe),
@@ -186,7 +222,7 @@ function hashedFileName(originalUrl: string, mimeType: string): string {
   return `${hash}.${ext}`;
 }
 
-async function findExistingFile(name: string, folderId: string, accessToken: string): Promise<string | null> {
+export async function findExistingFile(name: string, folderId: string, accessToken: string): Promise<string | null> {
   const q = `name='${name}' and '${folderId}' in parents and trashed=false`;
   const res = await fetch(
     `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id)`,
@@ -194,6 +230,66 @@ async function findExistingFile(name: string, folderId: string, accessToken: str
   );
   const data = await res.json();
   return data.files?.[0]?.id ?? null;
+}
+
+export async function listFilesInFolder(
+  folderId: string,
+  accessToken: string
+): Promise<{ id: string; name: string; createdTime: string; size?: string }[]> {
+  const q = `'${folderId}' in parents and trashed=false`;
+  const res = await fetch(
+    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name,createdTime,size)&orderBy=createdTime desc`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  const data = await res.json();
+  if (!res.ok) throw new Error(`Không lấy được danh sách file: ${JSON.stringify(data)}`);
+  return data.files ?? [];
+}
+
+export async function deleteFile(fileId: string, accessToken: string): Promise<void> {
+  await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+}
+
+// Upload 1 buffer bất kỳ (không riêng ảnh) lên Drive, trả về fileId.
+export async function uploadBuffer(
+  buffer: Buffer,
+  fileName: string,
+  mimeType: string,
+  folderId: string,
+  accessToken: string
+): Promise<string> {
+  const boundary = "product_scrap_boundary";
+  const metadata = JSON.stringify({ name: fileName, parents: [folderId] });
+  const body = Buffer.concat([
+    Buffer.from(
+      `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadata}\r\n` +
+        `--${boundary}\r\nContent-Type: ${mimeType}\r\n\r\n`
+    ),
+    buffer,
+    Buffer.from(`\r\n--${boundary}--`),
+  ]);
+
+  const uploadRes = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": `multipart/related; boundary=${boundary}` },
+    body,
+  });
+  const uploaded = await uploadRes.json();
+  if (!uploadRes.ok) throw new Error(`Google Drive từ chối upload: ${JSON.stringify(uploaded)}`);
+  return uploaded.id as string;
+}
+
+// Cho phép "ai có link cũng xem được" — cần thiết để hiển thị ảnh trực
+// tiếp trong app (thẻ <img>) mà không cần đăng nhập Google.
+export async function makePublic(fileId: string, accessToken: string): Promise<void> {
+  await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/permissions`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ role: "reader", type: "anyone" }),
+  });
 }
 
 // Thu nhỏ ảnh quá khổ để giảm dung lượng — giữ nguyên nếu đã đủ nhỏ.
@@ -212,13 +308,7 @@ export const googleDriveProvider: StorageProvider = {
   name: "Google Drive",
 
   async saveImage(url: string): Promise<string> {
-    const result = await getConfigRow();
-    const { clientId, clientSecret, refreshToken } = result?.config ?? {};
-    if (!result || !clientId || !clientSecret || !refreshToken) {
-      throw new Error("Chưa kết nối Google Drive — vào Cài đặt > Lưu trữ để kết nối trước.");
-    }
-    const { id: providerId, config } = result;
-    const accessToken = await refreshAccessToken(clientId, clientSecret, refreshToken);
+    const { accessToken, providerId, config } = await getAccessToken();
     const imagesFolderId = await ensureImagesFolder(providerId, config, accessToken);
 
     const imageRes = await fetch(url);
@@ -235,41 +325,8 @@ export const googleDriveProvider: StorageProvider = {
 
     const rawBuffer = Buffer.from(await imageRes.arrayBuffer());
     const buffer = await resizeIfNeeded(rawBuffer);
-
-    // Upload multipart: 1 phần metadata (tên file + folder cha) + 1 phần dữ liệu ảnh
-    const boundary = "product_scrap_boundary";
-    const metadata = JSON.stringify({ name: fileName, parents: [imagesFolderId] });
-    const body = Buffer.concat([
-      Buffer.from(
-        `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadata}\r\n` +
-          `--${boundary}\r\nContent-Type: ${mimeType}\r\n\r\n`
-      ),
-      buffer,
-      Buffer.from(`\r\n--${boundary}--`),
-    ]);
-
-    const uploadRes = await fetch(
-      "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": `multipart/related; boundary=${boundary}`,
-        },
-        body,
-      }
-    );
-    const uploaded = await uploadRes.json();
-    if (!uploadRes.ok) throw new Error(`Google Drive từ chối upload: ${JSON.stringify(uploaded)}`);
-    const fileId = uploaded.id as string;
-
-    // Cho phép "ai có link cũng xem được" — cần thiết để hiển thị ảnh
-    // trực tiếp trong app (thẻ <img>) mà không cần đăng nhập Google.
-    await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/permissions`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ role: "reader", type: "anyone" }),
-    });
+    const fileId = await uploadBuffer(buffer, fileName, mimeType, imagesFolderId, accessToken);
+    await makePublic(fileId, accessToken);
 
     return `https://drive.google.com/uc?export=view&id=${fileId}`;
   },

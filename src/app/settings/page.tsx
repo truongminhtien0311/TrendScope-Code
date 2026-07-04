@@ -13,6 +13,7 @@ import PromptEditor from "@/components/PromptEditor";
 import CostAssumptionsForm from "@/components/CostAssumptionsForm";
 import TaobaoLoginPanel from "@/components/TaobaoLoginPanel";
 import GoogleDriveConnectPanel from "@/components/GoogleDriveConnectPanel";
+import BackupPanel from "@/components/BackupPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -172,6 +173,17 @@ export default async function SettingsPage() {
           phía trên để dùng làm nơi lưu ảnh (chưa nối vào luồng tải ảnh tự động — chặng kế
           tiếp).
         </p>
+      </Section>
+
+      {/* ---- Sao lưu database ---- */}
+      <Section title="☁️ Sao lưu dữ liệu">
+        <p className="text-sm text-slate-500 dark:text-slate-400 mb-3">
+          Sao lưu toàn bộ database (sản phẩm, link, SKU, ảnh, phân tích AI...) lên
+          Google Drive dạng snapshot nén — bấm tay khi cần, không tự động đồng bộ liên
+          tục (tránh chụp phải lúc database đang ghi dở). Cần kết nối Google Drive ở mục
+          Lưu trữ phía trên trước.
+        </p>
+        <BackupPanel />
       </Section>
 
       {/* ---- Bảo mật ---- */}
