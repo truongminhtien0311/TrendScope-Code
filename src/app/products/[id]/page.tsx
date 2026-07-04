@@ -99,7 +99,7 @@ export default async function ProductDetailPage({
           <BadgeOverflowList
             items={product.tags.map((t) => ({
               key: `tag-${t.id}`,
-              label: t.name,
+              label: t.icon ? `${t.icon} ${t.name}` : t.name,
               className: "text-xs px-2 py-0.5 rounded-full text-white",
               style: { backgroundColor: t.color ?? "#64748b" },
             }))}

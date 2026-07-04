@@ -22,6 +22,24 @@ export async function POST(request: NextRequest) {
   return NextResponse.json(category, { status: 201 });
 }
 
+const updateSchema = z.object({
+  id: z.number(),
+  name: z.string().min(1).optional(),
+  icon: z.string().nullable().optional(),
+});
+
+export async function PATCH(request: NextRequest) {
+  const body = await request.json().catch(() => null);
+  const parsed = updateSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
+  }
+  const { id, ...data } = parsed.data;
+  const category = await prisma.category.update({ where: { id }, data });
+  await logActivity("category.update", `Sửa ngành hàng "${category.name}"`);
+  return NextResponse.json(category);
+}
+
 export async function DELETE(request: NextRequest) {
   const body = await request.json().catch(() => null);
   const parsed = z.object({ id: z.number() }).safeParse(body);

@@ -14,7 +14,7 @@ interface Props {
     categoryIds: number[];
     tagIds: number[];
   };
-  allTags: { id: number; name: string; color: string | null }[];
+  allTags: { id: number; name: string; color: string | null; icon: string | null }[];
   allCategories: { id: number; name: string; icon: string | null }[];
 }
 
@@ -179,6 +179,7 @@ export default function EditProductForm({ product, allTags, allCategories }: Pro
                     onChange={() => toggleTag(t.id)}
                     className="hidden"
                   />
+                  {t.icon ? `${t.icon} ` : ""}
                   {t.name}
                 </label>
               ))}

@@ -7,7 +7,7 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 interface Props {
-  tags: { id: number; name: string }[];
+  tags: { id: number; name: string; icon: string | null }[];
   categories: { id: number; name: string; icon: string | null }[];
 }
 
@@ -62,6 +62,7 @@ export default function FilterBar({ tags, categories }: Props) {
         <option value="">Tất cả tag</option>
         {tags.map((t) => (
           <option key={t.id} value={String(t.id)}>
+            {t.icon ? `${t.icon} ` : ""}
             {t.name}
           </option>
         ))}

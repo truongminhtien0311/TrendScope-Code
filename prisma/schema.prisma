@@ -42,6 +42,7 @@ model Tag {
   id       Int       @id @default(autoincrement())
   name     String    @unique
   color    String? // mã màu hex để hiển thị, vd "#f59e0b"
+  icon     String? // emoji đại diện, vd "🔥" — hiển thị ghép "emoji + tên"
   products Product[]
 }
 

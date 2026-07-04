@@ -12,6 +12,7 @@ export async function GET() {
 const createSchema = z.object({
   name: z.string().min(1),
   color: z.string().optional(),
+  icon: z.string().optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -23,6 +24,25 @@ export async function POST(request: NextRequest) {
   const tag = await prisma.tag.create({ data: parsed.data });
   await logActivity("tag.create", `Thêm tag "${tag.name}"`);
   return NextResponse.json(tag, { status: 201 });
+}
+
+const updateSchema = z.object({
+  id: z.number(),
+  name: z.string().min(1).optional(),
+  color: z.string().nullable().optional(),
+  icon: z.string().nullable().optional(),
+});
+
+export async function PATCH(request: NextRequest) {
+  const body = await request.json().catch(() => null);
+  const parsed = updateSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
+  }
+  const { id, ...data } = parsed.data;
+  const tag = await prisma.tag.update({ where: { id }, data });
+  await logActivity("tag.update", `Sửa tag "${tag.name}"`);
+  return NextResponse.json(tag);
 }
 
 export async function DELETE(request: NextRequest) {

@@ -32,6 +32,7 @@ export default async function ManagePage() {
               id: t.id,
               name: t.name,
               color: t.color,
+              icon: t.icon,
               productCount: t._count.products,
             }))}
           />

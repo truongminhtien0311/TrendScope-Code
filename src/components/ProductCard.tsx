@@ -14,7 +14,7 @@ export interface ProductCardData {
   createdAt: Date;
   mainImageListingId: number | null;
   categories: { id: number; name: string; icon: string | null }[];
-  tags: { id: number; name: string; color: string | null }[];
+  tags: { id: number; name: string; color: string | null; icon: string | null }[];
   listings: {
     id: number;
     sourceType: string;
@@ -100,7 +100,7 @@ export default function ProductCard({
           <BadgeOverflowList
             items={product.tags.map((tag) => ({
               key: `tag-${tag.id}`,
-              label: tag.name,
+              label: tag.icon ? `${tag.icon} ${tag.name}` : tag.name,
               className: "text-xs px-2 py-0.5 rounded-full text-white",
               style: { backgroundColor: tag.color ?? "#64748b" },
             }))}
