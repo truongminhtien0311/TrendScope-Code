@@ -1,0 +1,181 @@
+"use client";
+
+// Nút "✏️ Sửa" + "🗑️ Xóa" trên trang chi tiết sản phẩm.
+// Bấm Sửa mở form: đổi tên, mô tả, chọn ngành hàng, tick tag.
+// Mindmap: "Người dùng có thể tùy chỉnh, thay đổi tên và mô tả sản phẩm".
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+
+interface Props {
+  product: {
+    id: number;
+    name: string;
+    description: string | null;
+    categoryId: number | null;
+    tagIds: number[];
+  };
+  allTags: { id: number; name: string; color: string | null }[];
+  allCategories: { id: number; name: string }[];
+}
+
+export default function EditProductForm({ product, allTags, allCategories }: Props) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [name, setName] = useState(product.name);
+  const [description, setDescription] = useState(product.description ?? "");
+  const [categoryId, setCategoryId] = useState<string>(
+    product.categoryId ? String(product.categoryId) : ""
+  );
+  const [tagIds, setTagIds] = useState<number[]>(product.tagIds);
+
+  function toggleTag(id: number) {
+    setTagIds((prev) =>
+      prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]
+    );
+  }
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    const res = await fetch(`/api/products/${product.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: name.trim(),
+        description: description.trim() || null,
+        categoryId: categoryId ? Number(categoryId) : null,
+        tagIds,
+      }),
+    });
+    setSaving(false);
+    if (res.ok) {
+      setOpen(false);
+      router.refresh();
+    } else {
+      alert("Lưu thất bại, thử lại nhé.");
+    }
+  }
+
+  async function remove() {
+    if (
+      !confirm(
+        `Xóa sản phẩm "${product.name}"?\nToàn bộ link, ảnh, đánh giá đi kèm sẽ bị xóa theo. Không hoàn tác được.`
+      )
+    )
+      return;
+    const res = await fetch(`/api/products/${product.id}`, { method: "DELETE" });
+    if (res.ok) {
+      router.push("/");
+      router.refresh();
+    } else {
+      alert("Xóa thất bại, thử lại nhé.");
+    }
+  }
+
+  const inputClass =
+    "w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm";
+
+  return (
+    <div className="mt-3">
+      <div className="flex gap-2">
+        <button
+          onClick={() => setOpen(!open)}
+          className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-1.5 text-sm hover:bg-slate-100 dark:hover:bg-slate-800"
+        >
+          {open ? "Đóng" : "✏️ Sửa"}
+        </button>
+        <button
+          onClick={remove}
+          className="rounded-lg border border-red-300 dark:border-red-900 text-red-600 dark:text-red-400 px-3 py-1.5 text-sm hover:bg-red-50 dark:hover:bg-red-950"
+        >
+          🗑️ Xóa
+        </button>
+      </div>
+
+      {open && (
+        <form
+          onSubmit={save}
+          className="mt-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 space-y-3 max-w-xl"
+        >
+          <div>
+            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
+              Tên sản phẩm
+            </label>
+            <input value={name} onChange={(e) => setName(e.target.value)} className={inputClass} />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
+              Mô tả (tự viết)
+            </label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3}
+              className={inputClass}
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
+              Ngành hàng
+            </label>
+            <select
+              value={categoryId}
+              onChange={(e) => setCategoryId(e.target.value)}
+              className={inputClass}
+            >
+              <option value="">— Chưa phân loại —</option>
+              {allCategories.map((c) => (
+                <option key={c.id} value={String(c.id)}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
+              Tag
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {allTags.length === 0 && (
+                <p className="text-xs text-slate-400">
+                  Chưa có tag nào — thêm ở trang &quot;Tag &amp; Ngành hàng&quot;.
+                </p>
+              )}
+              {allTags.map((t) => (
+                <label
+                  key={t.id}
+                  className={`cursor-pointer text-xs px-2.5 py-1 rounded-full border transition ${
+                    tagIds.includes(t.id)
+                      ? "text-white border-transparent"
+                      : "border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300"
+                  }`}
+                  style={tagIds.includes(t.id) ? { backgroundColor: t.color ?? "#64748b" } : {}}
+                >
+                  <input
+                    type="checkbox"
+                    checked={tagIds.includes(t.id)}
+                    onChange={() => toggleTag(t.id)}
+                    className="hidden"
+                  />
+                  {t.name}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={saving}
+            className="rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-4 py-2 text-sm"
+          >
+            {saving ? "Đang lưu..." : "Lưu thay đổi"}
+          </button>
+        </form>
+      )}
+    </div>
+  );
+}

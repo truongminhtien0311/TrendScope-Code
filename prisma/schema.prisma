@@ -1,0 +1,182 @@
+// ============================================================
+// SCHEMA DATABASE — Product Scrap
+// Database: SQLite (1 file nằm trong prisma/dev.db)
+// Sau này nếu team đông người dùng chung, chỉ cần đổi
+// provider = "postgresql" và url tương ứng, cấu trúc giữ nguyên.
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ------------------------------------------------------------
+// NGƯỜI DÙNG (chuẩn bị sẵn cho nhiều người trong team,
+// hệ thống đăng nhập sẽ làm ở giai đoạn sau — xem docs/04-lo-trinh.md)
+// ------------------------------------------------------------
+model User {
+  id           Int           @id @default(autoincrement())
+  email        String        @unique
+  name         String
+  passwordHash String? // sẽ dùng khi làm chức năng đăng nhập
+  role         String        @default("member") // "admin" | "member"
+  createdAt    DateTime      @default(now())
+  logs         ActivityLog[]
+}
+
+// ------------------------------------------------------------
+// NGÀNH HÀNG & TAG — người dùng tự thêm/xóa được (theo mindmap)
+// ------------------------------------------------------------
+model Category {
+  id       Int       @id @default(autoincrement())
+  name     String    @unique
+  products Product[]
+}
+
+model Tag {
+  id       Int       @id @default(autoincrement())
+  name     String    @unique
+  color    String? // mã màu hex để hiển thị, vd "#f59e0b"
+  products Product[]
+}
+
+// ------------------------------------------------------------
+// SẢN PHẨM (Mục mẹ trong mindmap)
+// Một sản phẩm gom nhiều link nguồn: shop bán lẻ (Taobao, Tmall, JD)
+// và nhà sản xuất (Alibaba, 1688) — mỗi link là 1 Listing bên dưới.
+// ------------------------------------------------------------
+model Product {
+  id          Int       @id @default(autoincrement())
+  name        String // người dùng tự đặt/đổi tên
+  description String? // mô tả do người dùng tự viết
+
+  // ---- Kết quả AI: MỘT request LLM duy nhất, GỘP dữ liệu của TẤT CẢ
+  // các link (ảnh, mô tả, đánh giá...) rồi trả về cả 2 mục dưới đây.
+  // Chỉ có 1 mô tả AI cho mỗi sản phẩm, KHÔNG tách theo từng link.
+  aiSummary     String? // (A) mô tả tổng hợp (markdown, người dùng sửa được)
+  aiAudience    String? // (B) "Tệp" khách hàng mục tiêu (markdown): độ tuổi
+  // xếp hạng, giới tính, insight chính/phụ, vấn đề sản phẩm giải quyết,
+  // use case mở rộng, lý giải bằng số liệu thực tế.
+  aiChannels      String? // (C) Kênh bán hàng khả thi + hướng tiếp thị/tiếp
+  // cận khách hàng theo từng kênh (cửa hàng offline, TikTok, Shopee...)
+  aiCustomization String? // (D) Gợi ý tùy chỉnh CỤ THỂ cho sản phẩm này
+  // (không phải lời khuyên chung chung ngành hàng) để tăng trải nghiệm
+  aiImportInfo    String? // (E) HS Code, thuế nhập khẩu, VAT, yêu cầu kiểm
+  // định/công bố hợp quy, checklist giấy tờ — có tra cứu luật hiện hành
+  // qua Google Search grounding, trích dẫn điều khoản pháp luật cụ thể
+  aiShipping      String? // (F) Đóng gói + lưu ý vận chuyển nội địa VN
+  aiFeasibility   String? // (G) Đánh giá tổng thể tính khả thi kinh doanh:
+  // so sánh mô hình tổng kho vs tự bán online (bóc tách chi phí ẩn dựa
+  // trên Setting "business_cost_assumptions"), cơ hội/thách thức gồm cả
+  // vận chuyển/thông quan/kho bãi/kiểm hóa, chiến lược giá tăng dần
+
+  // Ảnh đại diện của sản phẩm lấy từ link nào (chọn tay).
+  // Để trống = theo luật mặc định: ưu tiên shop bán lẻ, shop nào
+  // thêm sớm nhất lấy trước; không có bán lẻ thì lấy nhà sản xuất.
+  // (xem src/lib/product-image.ts)
+  mainImageListingId Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  category    Category? @relation(fields: [categoryId], references: [id])
+  categoryId  Int?
+  tags        Tag[]
+  listings    Listing[]
+}
+
+// ------------------------------------------------------------
+// LISTING = 1 link sản phẩm trên 1 sàn (kết quả cào dữ liệu)
+// ------------------------------------------------------------
+model Listing {
+  id                  Int            @id @default(autoincrement())
+  product             Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId           Int
+  sourceType          String // "RETAIL" (shop bán lẻ) | "MANUFACTURER" (nhà sản xuất)
+  platform            String // "TAOBAO" | "TMALL" | "JD" | "ALIBABA" | "C1688"
+  url                 String
+  externalId          String? // uid sản phẩm lấy từ mã QR (theo mindmap)
+  sellerName          String?
+  titleOriginal       String? // tên gốc tiếng Trung
+  titleVi             String? // tên đã dịch sang tiếng Việt
+  descriptionOriginal String? // mô tả text người bán đăng
+  descriptionVi       String?
+  soldTotal           Int? // tổng lượt bán (nếu sàn có)
+  soldMonthly         Int? // lượt bán tháng (nếu sàn có)
+  lastScrapedAt       DateTime? // lần cào dữ liệu gần nhất
+  createdAt           DateTime       @default(now())
+  variants            Variant[]
+  images              ListingImage[]
+  reviews             Review[]
+}
+
+// Phân loại sản phẩm (màu, size...) + giá theo từng phân loại.
+// Giá chỉ lưu Nhân dân tệ; VNĐ được quy đổi lúc hiển thị theo
+// tỷ giá trong bảng Setting (key "cny_vnd_rate") để luôn cập nhật.
+// Người dùng sửa tay được tên/giá (giá quét về có thể sai — theo mindmap);
+// priceEdited đánh dấu giá đã sửa tay để lần cào lại không ghi đè mất.
+model Variant {
+  id           Int     @id @default(autoincrement())
+  listing      Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  listingId    Int
+  nameOriginal String
+  nameVi       String?
+  priceCny     Float
+  priceEdited  Boolean @default(false)
+}
+
+model ListingImage {
+  id        Int     @id @default(autoincrement())
+  listing   Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  listingId Int
+  url       String // link ảnh gốc trên sàn
+  localPath String? // đường dẫn sau khi tải về máy/cloud (làm sau)
+  kind      String // "MAIN" (đại diện) | "GALLERY" (ảnh phụ) | "DESCRIPTION" (ảnh trong mô tả)
+  sortOrder Int     @default(0)
+}
+
+model Review {
+  id              Int       @id @default(autoincrement())
+  listing         Listing   @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  listingId       Int
+  contentOriginal String
+  contentVi       String? // bản dịch tiếng Việt
+  rating          Int? // 1-5 sao nếu có
+  reviewedAt      DateTime?
+}
+
+// ------------------------------------------------------------
+// API BÊN THỨ BA — mục "Cài đặt > API" trong mindmap.
+// Mỗi dòng là 1 nhà cung cấp, bật/tắt và sửa key được.
+// ------------------------------------------------------------
+model ApiProvider {
+  id         Int      @id @default(autoincrement())
+  kind       String // "SCRAPER_RETAIL" | "SCRAPER_MANUFACTURER" | "LLM" | "TRANSLATE" | "STORAGE"
+  name       String // vd "Mock (dữ liệu giả để test)", "Gemini", "Google Drive"
+  baseUrl    String?
+  apiKey     String?
+  enabled    Boolean  @default(false)
+  configJson String? // cấu hình thêm dạng JSON nếu cần
+  createdAt  DateTime @default(now())
+}
+
+// Cài đặt chung dạng key-value (tỷ giá, theme mặc định, thư mục local...)
+model Setting {
+  key   String @id
+  value String
+}
+
+// ------------------------------------------------------------
+// LOG — ghi lại TOÀN BỘ lịch sử hoạt động (theo mindmap)
+// ------------------------------------------------------------
+model ActivityLog {
+  id        Int      @id @default(autoincrement())
+  action    String // vd "product.create", "listing.scrape", "provider.toggle"
+  detail    String? // mô tả chi tiết, dễ đọc
+  user      User?    @relation(fields: [userId], references: [id])
+  userId    Int?
+  createdAt DateTime @default(now())
+}

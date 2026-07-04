@@ -39,3 +39,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# ảnh người dùng tải lên/dán bằng tay (không commit)
+/public/uploads/*
+!/public/uploads/.gitkeep
+
+# database SQLite local (dữ liệu, không phải code — mỗi máy tự có riêng)
+/prisma/*.db
+/prisma/*.db-journal
