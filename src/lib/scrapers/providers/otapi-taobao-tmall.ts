@@ -76,7 +76,9 @@ async function fetchItemDetail(itemId: string, apiKey: string): Promise<OtapiIte
   }
   const data = (await res.json()) as OtapiResponse;
   if (data.ErrorCode !== "Ok" || !data.Result?.Item) {
-    throw new Error(`Otapi báo lỗi: ${data.ErrorCode}`);
+    // Hiện nguyên văn JSON lỗi (không chỉ mã lỗi ngắn gọn) để dễ tra —
+    // OTAPI thường kèm mô tả chi tiết hơn trong các field khác của response.
+    throw new Error(`Otapi báo lỗi: ${data.ErrorCode} — chi tiết: ${JSON.stringify(data)}`);
   }
   return data.Result.Item;
 }
