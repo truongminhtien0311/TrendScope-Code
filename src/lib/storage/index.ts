@@ -6,18 +6,24 @@
 // (getScraperFor) — không tự gọi database trong file provider, bên gọi
 // tự tra bảng ApiProvider rồi truyền provider phù hợp ra.
 //
-// LƯU Ý: route POST /api/uploads (upload ảnh tay từ máy) CHƯA được nối
-// qua registry này — vẫn ghi thẳng vào public/uploads/ như cũ. Việc nối
-// route đó + luồng cào ảnh tự động qua storage provider thật là việc
-// riêng (rủi ro cao hơn vì đụng luồng ảnh đang chạy ổn định), làm sau.
+// CHẶNG 5b: đã nối vào 2 luồng ảnh thật của app —
+//   1. Cào dữ liệu (src/app/api/scrape, rescrape) -> saveScrapedImages()
+//   2. Tải ảnh tay/dán clipboard (src/app/api/uploads) -> saveBuffer()
+// 1 ảnh lỗi (mạng, quota Drive...) KHÔNG được làm hỏng cả listing — rơi
+// về giữ nguyên URL gốc, log lại để biết, giống cách các scraper khác
+// xử lý lỗi từng phần (vd fetchReviews trả [] khi lỗi).
 // ============================================================
 import { prisma } from "@/lib/db";
+import type { ScrapedImage } from "@/lib/scrapers/types";
 
 export interface StorageProvider {
   id: string; // "local" | "google-drive" | "lark"
   name: string; // phải khớp CHÍNH XÁC với ApiProvider.name trong database
   // Tải ảnh từ url về nơi lưu trữ, trả về đường dẫn/URL mới
   saveImage: (url: string, fileName: string) => Promise<string>;
+  // Lưu buffer ảnh có sẵn (tải tay/dán clipboard) — provider nào không
+  // hỗ trợ thì để trống, bên gọi tự fallback ghi local.
+  saveBuffer?: (buffer: Buffer, fileName: string, mimeType: string) => Promise<string>;
 }
 
 export const localStorageProvider: StorageProvider = {
@@ -50,4 +56,25 @@ export async function getStorageProvider(): Promise<StorageProvider> {
     if (row) return provider;
   }
   return localStorageProvider;
+}
+
+// Dùng ngay sau khi cào dữ liệu (trước khi lưu DB) — với provider local
+// thì không làm gì (trả nguyên link gốc, y hệt hành vi cũ). Với provider
+// cloud: tải từng ảnh về rồi lưu qua provider đó, ảnh nào lỗi thì GIỮ
+// LẠI link gốc thay vì làm hỏng cả listing.
+export async function saveScrapedImages(images: ScrapedImage[]): Promise<ScrapedImage[]> {
+  const provider = await getStorageProvider();
+  if (provider.id === "local") return images;
+
+  return Promise.all(
+    images.map(async (img) => {
+      try {
+        const newUrl = await provider.saveImage(img.url, `${crypto.randomUUID()}`);
+        return { ...img, url: newUrl };
+      } catch (err) {
+        console.error(`Lưu ảnh qua ${provider.name} thất bại, giữ link gốc:`, img.url, err);
+        return img;
+      }
+    })
+  );
 }

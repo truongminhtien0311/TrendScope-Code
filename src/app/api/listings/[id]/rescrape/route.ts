@@ -14,6 +14,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { logActivity } from "@/lib/log";
 import { detectPlatform, getScraperFor } from "@/lib/scrapers";
+import { saveScrapedImages } from "@/lib/storage";
 
 export async function POST(
   _request: NextRequest,
@@ -48,6 +49,10 @@ export async function POST(
     await logActivity("listing.rescrape_failed", `Cào lại thất bại: ${listing.url}`);
     return NextResponse.json({ error: "Cào dữ liệu thất bại: " + String(err) }, { status: 502 });
   }
+
+  // Lưu ảnh qua storage đang bật (Google Drive...) nếu có — ảnh nào lỗi
+  // thì tự giữ nguyên link gốc, không chặn cả lần cào lại.
+  const savedImages = await saveScrapedImages(scraped.images);
 
   // Đối chiếu phân loại cũ/mới theo tên gốc tiếng Trung
   const oldByName = new Map(listing.variants.map((v) => [v.nameOriginal, v]));
@@ -102,7 +107,7 @@ export async function POST(
     // 3. Ảnh + đánh giá: thay toàn bộ
     await tx.listingImage.deleteMany({ where: { listingId: listing.id } });
     await tx.listingImage.createMany({
-      data: scraped.images.map((img, i) => ({
+      data: savedImages.map((img, i) => ({
         listingId: listing.id,
         url: img.url,
         kind: img.kind,

@@ -8,6 +8,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { logActivity } from "@/lib/log";
 import { detectPlatform, getScraperFor, platformToSourceType } from "@/lib/scrapers";
+import { saveScrapedImages } from "@/lib/storage";
 
 const schema = z.object({
   productId: z.number(),
@@ -51,7 +52,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Cào dữ liệu thất bại: " + String(err) }, { status: 502 });
   }
 
-  // 4. Lưu vào database (listing + phân loại + ảnh + đánh giá cùng lúc)
+  // 4. Lưu ảnh qua storage đang bật (Google Drive...) nếu có — ảnh nào
+  // lỗi thì tự giữ nguyên link gốc, không chặn cả listing.
+  const savedImages = await saveScrapedImages(scraped.images);
+
+  // 5. Lưu vào database (listing + phân loại + ảnh + đánh giá cùng lúc)
   const listing = await prisma.listing.create({
     data: {
       productId,
@@ -75,7 +80,7 @@ export async function POST(request: NextRequest) {
         })),
       },
       images: {
-        create: scraped.images.map((img, i) => ({
+        create: savedImages.map((img, i) => ({
           url: img.url,
           kind: img.kind,
           sortOrder: img.sortOrder ?? i,

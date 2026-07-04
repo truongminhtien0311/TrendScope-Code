@@ -330,4 +330,27 @@ export const googleDriveProvider: StorageProvider = {
 
     return `https://drive.google.com/uc?export=view&id=${fileId}`;
   },
+
+  // Ảnh tải tay/dán clipboard (đã có sẵn buffer, không phải fetch từ URL
+  // nguồn) — dùng cho POST /api/uploads. Dedupe theo hash NỘI DUNG buffer
+  // (không có URL gốc để hash như saveImage()).
+  async saveBuffer(rawBuffer: Buffer, _fileName: string, mimeType: string): Promise<string> {
+    const { accessToken, providerId, config } = await getAccessToken();
+    const imagesFolderId = await ensureImagesFolder(providerId, config, accessToken);
+
+    const hash = crypto.createHash("sha256").update(rawBuffer).digest("hex");
+    const ext = mimeType.split("/")[1]?.replace("jpeg", "jpg") || "jpg";
+    const driveFileName = `${hash}.${ext}`;
+
+    const existingId = await findExistingFile(driveFileName, imagesFolderId, accessToken);
+    if (existingId) {
+      return `https://drive.google.com/uc?export=view&id=${existingId}`;
+    }
+
+    const buffer = await resizeIfNeeded(rawBuffer);
+    const fileId = await uploadBuffer(buffer, driveFileName, mimeType, imagesFolderId, accessToken);
+    await makePublic(fileId, accessToken);
+
+    return `https://drive.google.com/uc?export=view&id=${fileId}`;
+  },
 };
