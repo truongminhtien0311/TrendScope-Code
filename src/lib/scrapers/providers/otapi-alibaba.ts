@@ -53,12 +53,14 @@ export const otapiAlibabaScraper: ScraperProvider = {
 
   supports: (platform: Platform) => platform === "ALIBABA",
 
-  async scrape(url: string, _externalId, config: ProviderConfig): Promise<ScrapedListing> {
+  async scrape(url: string, externalId, config: ProviderConfig): Promise<ScrapedListing> {
     if (!config.apiKey) {
       throw new Error("Chưa có API key cho Alibaba DataHub — vào Cài đặt > API để nhập.");
     }
 
-    const itemId = extractItemId(url);
+    // Ưu tiên UID quét từ mã QR (nếu người dùng đã quét) — chỉ tách từ
+    // URL khi không có UID nhập sẵn.
+    const itemId = externalId || extractItemId(url);
     if (!itemId) {
       throw new Error("Không tách được id sản phẩm từ URL Alibaba.com.");
     }

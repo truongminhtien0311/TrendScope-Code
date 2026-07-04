@@ -28,12 +28,14 @@ export const otapiTaobaoTmallScraper: ScraperProvider = {
   // API này chỉ phủ Taobao/Tmall, chưa có JD — JD cần provider khác
   supports: (platform: Platform) => platform === "TAOBAO" || platform === "TMALL",
 
-  async scrape(url: string, _externalId, config: ProviderConfig): Promise<ScrapedListing> {
+  async scrape(url: string, externalId, config: ProviderConfig): Promise<ScrapedListing> {
     if (!config.apiKey) {
       throw new Error("Chưa có API key cho Otapi — vào Cài đặt > API để nhập.");
     }
 
-    const itemId = extractItemId(url);
+    // Ưu tiên UID quét từ mã QR (nếu người dùng đã quét) — chỉ tách từ
+    // URL khi không có UID nhập sẵn.
+    const itemId = externalId || extractItemId(url);
     if (!itemId) {
       throw new Error("Không tách được id sản phẩm từ URL Taobao/Tmall.");
     }
