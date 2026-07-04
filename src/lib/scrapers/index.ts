@@ -3,6 +3,7 @@
 // provider phù hợp ĐANG BẬT trong Cài đặt để cào dữ liệu.
 // ============================================================
 import { prisma } from "@/lib/db";
+import { getUsdCnyRate } from "@/lib/currency";
 import type { Platform, SourceType, ScraperProvider, ProviderConfig } from "./types";
 import { mockScraper } from "./providers/mock";
 import { otapiTaobaoTmallScraper } from "./providers/otapi-taobao-tmall";
@@ -42,7 +43,11 @@ export async function getScraperFor(
       where: { kind, name: provider.dbName, enabled: true },
     });
     if (row) {
-      return { provider, config: { apiKey: row.apiKey ?? undefined, baseUrl: row.baseUrl ?? undefined } };
+      const usdCnyRate = await getUsdCnyRate();
+      return {
+        provider,
+        config: { apiKey: row.apiKey ?? undefined, baseUrl: row.baseUrl ?? undefined, usdCnyRate },
+      };
     }
   }
   return null;

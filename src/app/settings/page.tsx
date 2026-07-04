@@ -17,7 +17,6 @@ const KIND_LABELS: Record<string, string> = {
   SCRAPER_RETAIL: "Cào dữ liệu shop bán lẻ (Taobao, Tmall, JD)",
   SCRAPER_MANUFACTURER: "Cào dữ liệu nhà sản xuất (Alibaba, 1688)",
   LLM: "AI tổng hợp mô tả (LLM)",
-  TRANSLATE: "Dịch Trung → Việt",
   STORAGE: "Lưu trữ cloud",
 };
 

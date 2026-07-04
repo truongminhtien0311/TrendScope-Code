@@ -51,6 +51,10 @@ export interface ScrapedListing {
 export interface ProviderConfig {
   apiKey?: string;
   baseUrl?: string;
+  // Tỷ giá USD->CNY (Cài đặt > Tỷ giá) — provider KHÔNG được tự gọi
+  // database, nên bên gọi (getScraperFor) tự lấy sẵn rồi truyền vào đây.
+  // Chỉ cần cho sàn nào trả giá bằng USD thay vì CNY (vd Alibaba.com).
+  usdCnyRate?: number;
 }
 
 export interface ScraperProvider {

@@ -155,10 +155,9 @@ async function main() {
     { kind: "SCRAPER_RETAIL", name: "Mock - dữ liệu giả để test", enabled: true },
     { kind: "SCRAPER_RETAIL", name: "Otapi - Taobao & Tmall (RapidAPI)", enabled: false },
     { kind: "SCRAPER_MANUFACTURER", name: "Mock - dữ liệu giả để test", enabled: true },
-    { kind: "SCRAPER_MANUFACTURER", name: "Otapi - Alibaba.com (RapidAPI)", enabled: false },
+    { kind: "SCRAPER_MANUFACTURER", name: "Alibaba DataHub (RapidAPI)", enabled: false },
     { kind: "LLM", name: "Google Gemini", enabled: false },
     { kind: "LLM", name: "Grok (xAI)", enabled: false },
-    { kind: "TRANSLATE", name: "Google Translate", enabled: false },
     { kind: "STORAGE", name: "Google Drive", enabled: false },
     { kind: "STORAGE", name: "Lark Drive", enabled: false },
   ];
