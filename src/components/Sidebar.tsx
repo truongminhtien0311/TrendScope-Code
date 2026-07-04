@@ -3,7 +3,7 @@
 // Thanh điều hướng bên trái: 3 khu vực chính theo mindmap
 // (Dashboard, Cài đặt, Log) + nút đổi Dark/Light mode.
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import ThemeToggle from "./ThemeToggle";
 
 const navItems = [
@@ -13,8 +13,15 @@ const navItems = [
   { href: "/logs", label: "Log hoạt động", icon: "📜" },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ userEmail }: { userEmail?: string | null }) {
   const pathname = usePathname();
+  const router = useRouter();
+
+  async function logout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/login");
+    router.refresh();
+  }
 
   return (
     <aside className="w-56 shrink-0 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col">
@@ -48,7 +55,21 @@ export default function Sidebar() {
         })}
       </nav>
 
-      <div className="p-4 border-t border-slate-200 dark:border-slate-800">
+      <div className="p-4 border-t border-slate-200 dark:border-slate-800 space-y-2">
+        {userEmail && (
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs text-slate-500 dark:text-slate-400 truncate" title={userEmail}>
+              👤 {userEmail}
+            </span>
+            <button
+              onClick={logout}
+              className="text-xs text-red-500 hover:underline shrink-0"
+              title="Đăng xuất"
+            >
+              Đăng xuất
+            </button>
+          </div>
+        )}
         <ThemeToggle />
       </div>
     </aside>

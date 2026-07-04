@@ -14,6 +14,8 @@ import CostAssumptionsForm from "@/components/CostAssumptionsForm";
 import TaobaoLoginPanel from "@/components/TaobaoLoginPanel";
 import GoogleDriveConnectPanel from "@/components/GoogleDriveConnectPanel";
 import BackupPanel from "@/components/BackupPanel";
+import SecurityPanel from "@/components/SecurityPanel";
+import { getCurrentUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +27,7 @@ const KIND_LABELS: Record<string, string> = {
 };
 
 export default async function SettingsPage() {
+  const currentUser = await getCurrentUser();
   const [providers, rate, usdRate, promptSetting, costSetting] = await Promise.all([
     prisma.apiProvider.findMany({ orderBy: [{ kind: "asc" }, { id: "asc" }] }),
     getCnyVndRate(),
@@ -188,9 +191,11 @@ export default async function SettingsPage() {
 
       {/* ---- Bảo mật ---- */}
       <Section title="🔐 Bảo mật">
-        <p className="text-sm text-slate-400">
-          🔜 Đăng nhập tài khoản/mật khẩu cho team + chia sẻ qua Cloudflare Tunnel —
-          làm ở giai đoạn sau (xem docs/04-lo-trinh.md).
+        {currentUser && (
+          <SecurityPanel isAdmin={currentUser.role === "admin"} currentUserId={currentUser.id} />
+        )}
+        <p className="text-xs text-slate-400 mt-3">
+          🔜 Chia sẻ ra ngoài qua Cloudflare Tunnel — làm ở giai đoạn sau (xem docs/04-lo-trinh.md).
         </p>
       </Section>
     </div>

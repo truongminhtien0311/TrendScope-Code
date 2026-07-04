@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import "./globals.css";
 import Sidebar from "@/components/Sidebar";
+import { getCurrentUser } from "@/lib/auth";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -19,11 +20,14 @@ export const metadata: Metadata = {
   description: "Quản lý và nghiên cứu sản phẩm nguồn Trung Quốc",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Có thể null (vd đang ở trang /login, chưa đăng nhập) — Sidebar tự
+  // ẩn phần email/đăng xuất khi đó.
+  const user = await getCurrentUser().catch(() => null);
   return (
     <html
       lang="vi"
@@ -40,10 +44,15 @@ export default function RootLayout({
       </head>
       <body className="min-h-screen">
         <Toaster richColors position="top-right" />
-        <div className="flex min-h-screen">
-          <Sidebar />
-          <main className="flex-1 p-6 lg:p-8 overflow-x-hidden">{children}</main>
-        </div>
+        {user ? (
+          <div className="flex min-h-screen">
+            <Sidebar userEmail={user.email} />
+            <main className="flex-1 p-6 lg:p-8 overflow-x-hidden">{children}</main>
+          </div>
+        ) : (
+          // Chưa đăng nhập (trang /login) — không hiện khung sidebar/nav
+          children
+        )}
       </body>
     </html>
   );
