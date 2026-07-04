@@ -10,6 +10,7 @@ import ProviderRow from "@/components/ProviderRow";
 import RateForm from "@/components/RateForm";
 import PromptEditor from "@/components/PromptEditor";
 import CostAssumptionsForm from "@/components/CostAssumptionsForm";
+import TaobaoLoginPanel from "@/components/TaobaoLoginPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -122,6 +123,16 @@ export default async function SettingsPage() {
           sửa prompt.
         </p>
         <CostAssumptionsForm current={costAssumptions} />
+      </Section>
+
+      {/* ---- Đăng nhập Taobao (giải mã link rút gọn từ mobile) ---- */}
+      <Section title="🔑 Đăng nhập Taobao (giải mã link rút gọn từ mobile)">
+        <p className="text-sm text-slate-500 dark:text-slate-400 mb-3">
+          Link Taobao copy từ điện thoại thường là link rút gọn (dạng e.tb.cn/...),
+          không chứa id sản phẩm. Đăng nhập 1 lần bằng quét mã QR để app tự giải mã
+          link rút gọn ra link đầy đủ khi dán vào ô &quot;Dán link&quot; ở trang sản phẩm.
+        </p>
+        <TaobaoLoginPanel />
       </Section>
 
       {/* ---- Lưu trữ ---- */}

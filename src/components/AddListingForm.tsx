@@ -71,11 +71,34 @@ function ModeCard({
   );
 }
 
+// Domain link rút gọn Taobao từ mobile (vd https://e.tb.cn/h.xxxx) —
+// không chứa id sản phẩm, cần giải mã qua phiên đăng nhập Taobao trước.
+const SHORT_LINK_PATTERN = /e\.tb\.cn|m\.tb\.cn/i;
+
 function AutoForm({ productId }: { productId: number }) {
   const router = useRouter();
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resolving, setResolving] = useState(false);
   const [error, setError] = useState("");
+
+  async function resolveShortLink() {
+    setError("");
+    setResolving(true);
+    const res = await fetch("/api/taobao-login/resolve-link", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: url.trim() }),
+    });
+    setResolving(false);
+    if (res.ok) {
+      const { resolvedUrl } = await res.json();
+      setUrl(resolvedUrl);
+    } else {
+      const data = await res.json().catch(() => null);
+      setError(data?.error ?? "Giải mã link rút gọn thất bại.");
+    }
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -100,6 +123,8 @@ function AutoForm({ productId }: { productId: number }) {
     }
   }
 
+  const isShortLink = SHORT_LINK_PATTERN.test(url);
+
   return (
     <form onSubmit={submit} className="space-y-2">
       <div className="flex gap-2">
@@ -109,6 +134,17 @@ function AutoForm({ productId }: { productId: number }) {
           placeholder="Dán link Taobao / Tmall / JD / Alibaba / 1688..."
           className="flex-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm"
         />
+        {isShortLink && (
+          <button
+            type="button"
+            onClick={resolveShortLink}
+            disabled={resolving}
+            className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm whitespace-nowrap hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50"
+            title="Link rút gọn từ mobile — giải mã ra link đầy đủ trước khi cào"
+          >
+            {resolving ? "Đang giải mã..." : "🔓 Giải mã link"}
+          </button>
+        )}
         <button
           type="submit"
           disabled={loading}
@@ -117,6 +153,12 @@ function AutoForm({ productId }: { productId: number }) {
           {loading ? "Đang cào dữ liệu..." : "🔗 Thêm link"}
         </button>
       </div>
+      {isShortLink && (
+        <p className="text-xs text-amber-600 dark:text-amber-400">
+          ⚠️ Đây là link rút gọn (không có id sản phẩm) — bấm &quot;🔓 Giải mã link&quot;
+          trước (cần đăng nhập Taobao ở Cài đặt).
+        </p>
+      )}
       {error && <p className="text-sm text-red-500">{error}</p>}
       <p className="text-xs text-slate-500 dark:text-slate-400">
         💡 Nếu API cào lỗi/hết quota, chuyển sang &quot;✍️ Nhập tay&quot; ở trên.
