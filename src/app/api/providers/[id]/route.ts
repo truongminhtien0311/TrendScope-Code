@@ -9,6 +9,10 @@ const schema = z.object({
   apiKey: z.string().nullable().optional(),
   baseUrl: z.string().nullable().optional(),
   name: z.string().min(1).optional(),
+  // Cấu hình dạng JSON tự do — dùng cho provider cần nhiều hơn 1 khóa bí
+  // mật (vd Google Drive: clientId + clientSecret + refreshToken sau khi
+  // kết nối OAuth), thay vì chỉ có apiKey/baseUrl.
+  configJson: z.string().nullable().optional(),
 });
 
 export async function PATCH(

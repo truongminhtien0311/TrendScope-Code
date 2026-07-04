@@ -3,6 +3,7 @@
 //   Giao diện · API (bật/tắt từng bên) · Lưu trữ · Bảo mật · Tỷ giá
 // Các mục chưa làm được đánh dấu rõ để bổ sung ở giai đoạn sau.
 // ============================================================
+import { Suspense } from "react";
 import { prisma } from "@/lib/db";
 import { getCnyVndRate, getUsdCnyRate } from "@/lib/currency";
 import { DEFAULT_PROMPT_TEMPLATE, DEFAULT_COST_ASSUMPTIONS, type CostAssumptions } from "@/lib/llm";
@@ -11,6 +12,7 @@ import RateForm from "@/components/RateForm";
 import PromptEditor from "@/components/PromptEditor";
 import CostAssumptionsForm from "@/components/CostAssumptionsForm";
 import TaobaoLoginPanel from "@/components/TaobaoLoginPanel";
+import GoogleDriveConnectPanel from "@/components/GoogleDriveConnectPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -37,6 +39,22 @@ export default async function SettingsPage() {
       if (Array.isArray(parsed)) costAssumptions = parsed;
     } catch {
       // JSON hỏng thì dùng mặc định
+    }
+  }
+
+  // Provider Google Drive — parse configJson (clientId/secret/refreshToken)
+  const googleDriveProvider = providers.find((p) => p.kind === "STORAGE" && p.name === "Google Drive");
+  let googleDriveConfig: {
+    clientId?: string;
+    clientSecret?: string;
+    refreshToken?: string;
+    connectedEmail?: string;
+  } = {};
+  if (googleDriveProvider?.configJson) {
+    try {
+      googleDriveConfig = JSON.parse(googleDriveProvider.configJson);
+    } catch {
+      googleDriveConfig = {};
     }
   }
 
@@ -137,15 +155,23 @@ export default async function SettingsPage() {
 
       {/* ---- Lưu trữ ---- */}
       <Section title="💾 Lưu trữ">
-        <ul className="text-sm text-slate-600 dark:text-slate-300 space-y-1">
-          <li>
-            <strong>Local:</strong> database SQLite + ảnh lưu trên máy này.
-          </li>
-          <li className="text-slate-400">
-            🔜 Đăng nhập Google Drive / Lark để đồng bộ — làm ở giai đoạn sau
-            (bật/tắt ở mục API phía trên).
-          </li>
-        </ul>
+        <p className="text-sm text-slate-600 dark:text-slate-300 mb-3">
+          <strong>Local:</strong> database SQLite + ảnh lưu trên máy này (mặc định).
+        </p>
+        <Suspense>
+          <GoogleDriveConnectPanel
+            providerId={googleDriveProvider?.id ?? 0}
+            clientId={googleDriveConfig.clientId ?? ""}
+            clientSecret={googleDriveConfig.clientSecret ?? ""}
+            connectedEmail={googleDriveConfig.connectedEmail}
+            hasRefreshToken={!!googleDriveConfig.refreshToken}
+          />
+        </Suspense>
+        <p className="text-xs text-slate-400 mt-2">
+          🔜 Lark Drive — làm ở giai đoạn sau. Bật provider &quot;Google Drive&quot; ở mục API
+          phía trên để dùng làm nơi lưu ảnh (chưa nối vào luồng tải ảnh tự động — chặng kế
+          tiếp).
+        </p>
       </Section>
 
       {/* ---- Bảo mật ---- */}
