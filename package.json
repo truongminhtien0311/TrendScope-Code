@@ -1,6 +1,6 @@
 {
   "name": "product-scrap",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "main": "electron/main.js",
   "scripts": {
@@ -19,6 +19,7 @@
   "build": {
     "appId": "com.productscrap.app",
     "productName": "Product Scrap",
+    "icon": "build/icon.png",
     "files": [
       "electron/**/*",
       "package.json"

@@ -1,0 +1,21 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- nền xanh -->
+  <rect x="0" y="0" width="512" height="512" rx="100" ry="100" fill="#2563EB"/>
+
+  <!-- hộp carton nhìn chéo (isometric), 3 mặt: trên / phải / trái -->
+  <!-- mặt trên -->
+  <polygon points="256,71 406,161 256,251 106,161"
+           fill="#ECD3A8" stroke="#4A2E16" stroke-width="9" stroke-linejoin="round"/>
+  <!-- mặt phải -->
+  <polygon points="406,161 406,351 256,441 256,251"
+           fill="#D79F55" stroke="#4A2E16" stroke-width="9" stroke-linejoin="round"/>
+  <!-- mặt trái -->
+  <polygon points="106,161 106,351 256,441 256,251"
+           fill="#B87A3B" stroke="#4A2E16" stroke-width="9" stroke-linejoin="round"/>
+
+  <!-- đường băng keo dán giữa mặt trên -->
+  <line x1="256" y1="71" x2="256" y2="251" stroke="#4A2E16" stroke-width="6" stroke-linecap="round"/>
+
+  <!-- vệt nếp gấp nắp hộp, hình chữ V vắt qua 2 mặt bên -->
+  <polyline points="406,197 256,287 106,197" fill="none" stroke="#4A2E16" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/>
+</svg>

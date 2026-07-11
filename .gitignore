@@ -17,9 +17,6 @@
 /.next/
 /out/
 
-# production
-/build
-
 # electron build (bản cài đặt .exe quá nặng, đưa lên GitHub Release thay vì git)
 /dist
 
