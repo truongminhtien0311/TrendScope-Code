@@ -6,7 +6,9 @@
 // TODO giai đoạn sau: theme màu tùy chỉnh độ tương phản cao.
 import { useEffect, useState } from "react";
 
-export default function ThemeToggle() {
+// compact = true khi sidebar đang thu gọn (Sidebar.tsx) — chỉ hiện icon,
+// bỏ chữ + bỏ w-full để không ép rộng cột hẹp.
+export default function ThemeToggle({ compact = false }: { compact?: boolean }) {
   const [dark, setDark] = useState(false);
 
   useEffect(() => {
@@ -25,9 +27,12 @@ export default function ThemeToggle() {
   return (
     <button
       onClick={toggle}
-      className="w-full flex items-center justify-center gap-2 rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-800"
+      title={dark ? "Dark mode" : "Light mode"}
+      className={`flex items-center justify-center gap-2 rounded-lg border border-slate-300 dark:border-slate-700 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 ${
+        compact ? "px-2" : "w-full px-3"
+      }`}
     >
-      {dark ? "🌙 Dark mode" : "☀️ Light mode"}
+      {compact ? (dark ? "🌙" : "☀️") : dark ? "🌙 Dark mode" : "☀️ Light mode"}
     </button>
   );
 }

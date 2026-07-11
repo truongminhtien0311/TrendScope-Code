@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { logActivity } from "@/lib/log";
+import { getCurrentUser } from "@/lib/auth";
 
 export async function GET() {
   const products = await prisma.product.findMany({
@@ -36,9 +37,12 @@ export async function POST(request: NextRequest) {
       ...(categoryIds ? { categories: { connect: categoryIds.map((id) => ({ id })) } } : {}),
     },
   });
+  const currentUser = await getCurrentUser().catch(() => null);
   await logActivity(
     "product.create",
-    product.name ? `Tạo sản phẩm "${product.name}" (#${product.id})` : `Tạo sản phẩm chưa đặt tên (#${product.id})`
+    product.name ? `Tạo sản phẩm "${product.name}" (#${product.id})` : `Tạo sản phẩm chưa đặt tên (#${product.id})`,
+    currentUser?.id,
+    product.id
   );
   return NextResponse.json(product, { status: 201 });
 }

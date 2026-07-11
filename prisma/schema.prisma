@@ -1,8 +1,9 @@
 // ============================================================
 // SCHEMA DATABASE — Product Scrap
-// Database: SQLite (1 file nằm trong prisma/dev.db)
-// Sau này nếu team đông người dùng chung, chỉ cần đổi
-// provider = "postgresql" và url tương ứng, cấu trúc giữ nguyên.
+// Database: SQLite (1 file nằm trong prisma/dev.db) — mỗi người tự chạy
+// app độc lập trên máy riêng (không còn server/VPS chung), dữ liệu gộp
+// lại qua tính năng Đồng bộ (xuất/nhập qua Google Drive, xem src/lib/sync/).
+// Migration quản lý bằng `prisma migrate` (không dùng `db push`).
 // ============================================================
 
 generator client {
@@ -15,8 +16,12 @@ datasource db {
 }
 
 // ------------------------------------------------------------
-// NGƯỜI DÙNG (chuẩn bị sẵn cho nhiều người trong team,
-// hệ thống đăng nhập sẽ làm ở giai đoạn sau — xem docs/04-lo-trinh.md)
+// NGƯỜI DÙNG — role "admin" | "member" (member bị requireAdmin() chặn
+// các thao tác nhạy cảm, xem src/lib/auth.ts). isOwner đánh dấu tài
+// khoản gốc (chủ app, thường chỉ 1 người) — vẫn là admin bình thường ở
+// mọi nơi khác, chỉ khác 1 điểm: CHỈ owner mới xóa được tài khoản admin
+// khác (2 admin thường không xóa lẫn nhau được, tránh 1 admin phụ tự ý
+// xóa chủ tài khoản hoặc admin khác) — xem DELETE /api/auth/users/[id].
 // ------------------------------------------------------------
 model User {
   id           Int           @id @default(autoincrement())
@@ -24,6 +29,7 @@ model User {
   name         String
   passwordHash String? // sẽ dùng khi làm chức năng đăng nhập
   role         String        @default("member") // "admin" | "member"
+  isOwner      Boolean       @default(false)
   createdAt    DateTime      @default(now())
   logs         ActivityLog[]
 }
@@ -53,28 +59,17 @@ model Tag {
 // ------------------------------------------------------------
 model Product {
   id          Int       @id @default(autoincrement())
+  // Mã ổn định sinh 1 lần, dùng để nhận diện sản phẩm XUYÊN SUỐT các máy
+  // khác nhau khi đồng bộ (id tự tăng chỉ có ý nghĩa trong 1 database,
+  // không dùng để chống trùng giữa máy này với máy khác được) — xem
+  // src/lib/sync/index.ts.
+  uuid        String    @unique @default(uuid())
   name        String // người dùng tự đặt/đổi tên
   description String? // mô tả do người dùng tự viết
 
-  // ---- Kết quả AI: MỘT request LLM duy nhất, GỘP dữ liệu của TẤT CẢ
-  // các link (ảnh, mô tả, đánh giá...) rồi trả về cả 2 mục dưới đây.
-  // Chỉ có 1 mô tả AI cho mỗi sản phẩm, KHÔNG tách theo từng link.
-  aiSummary     String? // (A) mô tả tổng hợp (markdown, người dùng sửa được)
-  aiAudience    String? // (B) "Tệp" khách hàng mục tiêu (markdown): độ tuổi
-  // xếp hạng, giới tính, insight chính/phụ, vấn đề sản phẩm giải quyết,
-  // use case mở rộng, lý giải bằng số liệu thực tế.
-  aiChannels      String? // (C) Kênh bán hàng khả thi + hướng tiếp thị/tiếp
-  // cận khách hàng theo từng kênh (cửa hàng offline, TikTok, Shopee...)
-  aiCustomization String? // (D) Gợi ý tùy chỉnh CỤ THỂ cho sản phẩm này
-  // (không phải lời khuyên chung chung ngành hàng) để tăng trải nghiệm
-  aiImportInfo    String? // (E) HS Code, thuế nhập khẩu, VAT, yêu cầu kiểm
-  // định/công bố hợp quy, checklist giấy tờ — có tra cứu luật hiện hành
-  // qua Google Search grounding, trích dẫn điều khoản pháp luật cụ thể
-  aiShipping      String? // (F) Đóng gói + lưu ý vận chuyển nội địa VN
-  aiFeasibility   String? // (G) Đánh giá tổng thể tính khả thi kinh doanh:
-  // so sánh mô hình tổng kho vs tự bán online (bóc tách chi phí ẩn dựa
-  // trên Setting "business_cost_assumptions"), cơ hội/thách thức gồm cả
-  // vận chuyển/thông quan/kho bãi/kiểm hóa, chiến lược giá tăng dần
+  // Kết quả AI: xem model ProductAiAnalysis bên dưới — mỗi lần "Tạo bằng
+  // AI" tạo 1 dòng MỚI (giữ lịch sử tối đa 10 bản/sản phẩm) thay vì ghi
+  // đè 1 bộ cột duy nhất như trước.
 
   // Ảnh đại diện của sản phẩm lấy từ link nào (chọn tay).
   // Để trống = theo luật mặc định: ưu tiên shop bán lẻ, shop nào
@@ -87,6 +82,38 @@ model Product {
   categories  Category[] // cho phép gắn NHIỀU ngành hàng (giống Tag)
   tags        Tag[]
   listings    Listing[]
+  aiAnalyses    ProductAiAnalysis[]
+  activityLogs  ActivityLog[]
+}
+
+// ------------------------------------------------------------
+// LỊCH SỬ PHÂN TÍCH AI — mỗi lần bấm "Tạo bằng AI" tạo 1 dòng MỚI
+// (không ghi đè dòng cũ) để giữ lại nhiều góc nhìn so sánh được, tối đa
+// 10 dòng/sản phẩm (dòng cũ nhất tự bị xóa khi vượt quá, xem logic dọn
+// dẹp trong src/app/api/products/[id]/analyze/route.ts). Route tạo dòng
+// "PENDING" rồi trả response NGAY (không đợi Gemini) để hiển thị đồng hồ
+// đếm giờ thật (dựa vào startedAt) sống sót qua việc bấm rời trang/F5 lại
+// trang — xử lý Gemini chạy nền, xong thì cập nhật dòng này thành DONE/FAILED.
+model ProductAiAnalysis {
+  id        Int     @id @default(autoincrement())
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId Int
+  status    String  @default("PENDING") // "PENDING" | "DONE" | "FAILED"
+  presetName String? // tên preset Prompt AI dùng để tạo bản này (xem lại biết ngữ cảnh)
+
+  aiSummary       String?
+  aiAudience      String?
+  aiChannels      String?
+  aiCustomization String?
+  aiImportInfo    String?
+  aiShipping      String?
+  aiFeasibility   String?
+
+  errorMessage String? // lý do lỗi nếu status = FAILED
+  startedAt    DateTime  @default(now())
+  finishedAt   DateTime? // null khi còn PENDING
+
+  @@index([productId, startedAt])
 }
 
 // ------------------------------------------------------------
@@ -179,5 +206,12 @@ model ActivityLog {
   detail    String? // mô tả chi tiết, dễ đọc
   user      User?    @relation(fields: [userId], references: [id])
   userId    Int?
+  // Liên kết THẬT tới sản phẩm liên quan (thay vì dò "#123" trong "detail"
+  // bằng regex — dễ vỡ nếu câu chữ đổi sau này). Chỉ populate ở nơi cần
+  // (hiện tại: lúc tạo sản phẩm mới, cho trang /reports) — KHÔNG truy hồi
+  // gán cho các loại log khác. onDelete SetNull: xóa sản phẩm không làm
+  // mất dòng log lịch sử, chỉ mất liên kết.
+  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productId Int?
   createdAt DateTime @default(now())
 }

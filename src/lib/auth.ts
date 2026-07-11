@@ -16,6 +16,7 @@
 // ============================================================
 import { cookies } from "next/headers";
 import { getIronSession, type IronSession } from "iron-session";
+import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { sessionOptions, type SessionData } from "@/lib/session-config";
@@ -31,6 +32,23 @@ export async function getCurrentUser() {
   const session = await getSession();
   if (!session.userId) return null;
   return prisma.user.findUnique({ where: { id: session.userId } });
+}
+
+// Chặn thao tác chỉ-admin (sửa Cài đặt/API key, kết nối Drive, xóa sản
+// phẩm...) — dùng đầu API route: const { forbidden } = await requireAdmin();
+// if (forbidden) return forbidden;
+export async function requireAdmin(): Promise<
+  | { user: NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>; forbidden: null }
+  | { user: null; forbidden: NextResponse }
+> {
+  const user = await getCurrentUser();
+  if (!user || user.role !== "admin") {
+    return {
+      user: null,
+      forbidden: NextResponse.json({ error: "Chỉ admin được thao tác này" }, { status: 403 }),
+    };
+  }
+  return { user, forbidden: null };
 }
 
 export async function hashPassword(password: string): Promise<string> {

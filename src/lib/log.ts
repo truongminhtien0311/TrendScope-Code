@@ -3,9 +3,9 @@
 // mỗi khi có thao tác thêm/sửa/xóa/cào dữ liệu.
 import { prisma } from "./db";
 
-export async function logActivity(action: string, detail?: string, userId?: number) {
+export async function logActivity(action: string, detail?: string, userId?: number, productId?: number) {
   try {
-    await prisma.activityLog.create({ data: { action, detail, userId } });
+    await prisma.activityLog.create({ data: { action, detail, userId, productId } });
   } catch (err) {
     // Ghi log thất bại không được làm hỏng thao tác chính
     console.error("Không ghi được log:", err);

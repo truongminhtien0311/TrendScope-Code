@@ -4,6 +4,7 @@
 // người dùng về lại trang Cài đặt.
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getCurrentUser } from "@/lib/auth";
 import { logActivity } from "@/lib/log";
 import {
   exchangeCodeForTokens,
@@ -16,6 +17,12 @@ export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get("code");
   const errorParam = request.nextUrl.searchParams.get("error");
   const settingsUrl = new URL("/settings", request.nextUrl.origin);
+
+  const currentUser = await getCurrentUser();
+  if (!currentUser || currentUser.role !== "admin") {
+    settingsUrl.searchParams.set("google_drive_error", "Chỉ admin được kết nối Google Drive");
+    return NextResponse.redirect(settingsUrl);
+  }
 
   if (errorParam) {
     settingsUrl.searchParams.set("google_drive_error", errorParam);

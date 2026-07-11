@@ -11,11 +11,12 @@ async function main() {
   // --- Người dùng đầu tiên (admin) ---
   const admin = await prisma.user.upsert({
     where: { email: "truongminhtien0311@gmail.com" },
-    update: {},
+    update: { isOwner: true },
     create: {
       email: "truongminhtien0311@gmail.com",
       name: "Tiến",
       role: "admin",
+      isOwner: true,
     },
   });
 

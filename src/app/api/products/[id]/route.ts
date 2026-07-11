@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { logActivity } from "@/lib/log";
+import { requireAdmin } from "@/lib/auth";
 
 export async function GET(
   _request: NextRequest,
@@ -28,13 +29,9 @@ const updateSchema = z.object({
   description: z.string().nullable().optional(),
   categoryIds: z.array(z.number()).optional(), // thay toàn bộ ngành hàng của sản phẩm
   tagIds: z.array(z.number()).optional(), // thay toàn bộ tag của sản phẩm
-  aiSummary: z.string().nullable().optional(), // người dùng sửa bản AI
-  aiAudience: z.string().nullable().optional(),
-  aiChannels: z.string().nullable().optional(),
-  aiCustomization: z.string().nullable().optional(),
-  aiImportInfo: z.string().nullable().optional(),
-  aiShipping: z.string().nullable().optional(),
-  aiFeasibility: z.string().nullable().optional(),
+  // Sửa nội dung AI: xem PATCH /api/products/[id]/ai-analyses/[analysisId]
+  // (mỗi lần "Tạo bằng AI" giờ tạo 1 bản riêng, không còn 7 cột chung
+  // trên Product để sửa thẳng ở đây nữa).
   // Chọn tay link cấp ảnh đại diện; null = quay về luật mặc định
   // (ưu tiên shop bán lẻ thêm sớm nhất — xem src/lib/product-image.ts)
   mainImageListingId: z.number().nullable().optional(),
@@ -68,6 +65,9 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { forbidden } = await requireAdmin();
+  if (forbidden) return forbidden;
+
   const { id } = await params;
   const product = await prisma.product.delete({ where: { id: Number(id) } });
   await logActivity("product.delete", `Xóa sản phẩm "${product.name}" (#${product.id})`);

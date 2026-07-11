@@ -9,7 +9,9 @@
 // - Form dán link mới để cào dữ liệu
 // ============================================================
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { prisma } from "@/lib/db";
+import { getCurrentUser } from "@/lib/auth";
 import { getCnyVndRate, cnyToVnd, formatVnd } from "@/lib/currency";
 import { resolveImageSourceListingId } from "@/lib/product-image";
 import AddListingForm from "@/components/AddListingForm";
@@ -27,11 +29,17 @@ export const dynamic = "force-dynamic";
 
 export default async function ProductDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ from?: string }>;
 }) {
   const { id } = await params;
-  const [product, rate, allTags, allCategories] = await Promise.all([
+  const { from } = await searchParams;
+  // Chỉ nhận đường dẫn nội bộ (bắt đầu bằng "/") — tránh lỡ bị dùng để
+  // redirect ra ngoài nếu link này bị chia sẻ/sửa tay.
+  const backTo = from && from.startsWith("/") ? from : undefined;
+  const [product, rate, allTags, allCategories, currentUser] = await Promise.all([
     prisma.product.findUnique({
       where: { id: Number(id) },
       include: {
@@ -45,11 +53,15 @@ export default async function ProductDetailPage({
           },
           orderBy: { createdAt: "desc" },
         },
+        // Lịch sử phân tích AI — tối đa 10 bản/sản phẩm (xem evictOldAnalyses
+        // trong src/app/api/products/[id]/analyze/route.ts), mới nhất trước.
+        aiAnalyses: { orderBy: { startedAt: "desc" }, take: 10 },
       },
     }),
     getCnyVndRate(),
     prisma.tag.findMany({ orderBy: { name: "asc" } }),
     prisma.category.findMany({ orderBy: { name: "asc" } }),
+    getCurrentUser(),
   ]);
 
   if (!product) notFound();
@@ -81,6 +93,14 @@ export default async function ProductDetailPage({
 
   return (
     <div className="space-y-8 max-w-5xl">
+      {backTo && (
+        <Link
+          href={backTo}
+          className="inline-flex items-center gap-2 rounded-lg bg-slate-800 dark:bg-slate-100 text-white dark:text-slate-900 px-4 py-2 text-sm font-semibold hover:opacity-90"
+        >
+          ⬅ Quay lại báo cáo
+        </Link>
+      )}
       {/* ---- Đầu trang: tên, tag, ngành hàng ---- */}
       <div>
         <h1 className="text-2xl font-bold">
@@ -115,7 +135,18 @@ export default async function ProductDetailPage({
           }}
           allTags={allTags}
           allCategories={allCategories}
+          isAdmin={currentUser?.role === "admin"}
         />
+        {/* Dùng <a> thường (không phải next/link) — CỐ Ý bắt buộc tải lại
+            trang thật, vì Next.js giữ nguyên Sidebar đã render từ layout
+            gốc khi chuyển trang kiểu client-side, không nhận ra /report
+            cần ẩn Sidebar (xem src/app/layout.tsx) nếu chỉ soft-navigate. */}
+        <a
+          href={`/report?ids=${product.id}`}
+          className="inline-block mt-2 rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-1.5 text-sm hover:bg-slate-100 dark:hover:bg-slate-800"
+        >
+          📄 Xem báo cáo trình bày
+        </a>
       </div>
 
       {/* ---- Thông tin phụ tham khảo ---- */}
@@ -136,15 +167,11 @@ export default async function ProductDetailPage({
            AI gộp dữ liệu của TẤT CẢ các link vào 1 request, sinh đủ 6 mục ---- */}
       <AiAnalysisPanel
         productId={product.id}
-        fields={{
-          aiSummary: product.aiSummary,
-          aiAudience: product.aiAudience,
-          aiChannels: product.aiChannels,
-          aiCustomization: product.aiCustomization,
-          aiImportInfo: product.aiImportInfo,
-          aiShipping: product.aiShipping,
-          aiFeasibility: product.aiFeasibility,
-        }}
+        analyses={product.aiAnalyses.map((a) => ({
+          ...a,
+          startedAt: a.startedAt.toISOString(),
+          finishedAt: a.finishedAt ? a.finishedAt.toISOString() : null,
+        }))}
       />
 
       {/* ---- Thêm link mới ---- */}

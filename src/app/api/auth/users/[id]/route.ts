@@ -19,6 +19,14 @@ export async function DELETE(
     return NextResponse.json({ error: "Không thể tự xóa chính tài khoản đang đăng nhập." }, { status: 400 });
   }
 
+  const target = await prisma.user.findUnique({ where: { id: Number(id) } });
+  if (target?.role === "admin" && !current.isOwner) {
+    return NextResponse.json(
+      { error: "Chỉ Chủ tài khoản mới xóa được tài khoản admin khác." },
+      { status: 403 }
+    );
+  }
+
   try {
     const user = await prisma.user.delete({ where: { id: Number(id) } });
     await logActivity("auth.user_delete", `Xóa tài khoản "${user.email}"`, current.id);

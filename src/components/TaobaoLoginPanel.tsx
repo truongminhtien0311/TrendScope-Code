@@ -110,21 +110,27 @@ export default function TaobaoLoginPanel() {
           </button>
         </div>
       ) : (
-        <div className="flex gap-2">
-          <button
-            onClick={startLogin}
-            className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 text-sm"
-          >
-            {loggedIn ? "🔄 Đăng nhập lại" : "📱 Đăng nhập bằng QR"}
-          </button>
-          {loggedIn && (
+        <div className="space-y-2">
+          <div className="flex gap-2">
             <button
-              onClick={logout}
-              className="rounded-lg border border-red-300 dark:border-red-900 text-red-600 dark:text-red-400 px-3 py-1.5 text-sm"
+              onClick={startLogin}
+              className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 text-sm"
             >
-              🗑️ Xóa phiên đăng nhập
+              {loggedIn ? "🔄 Đăng nhập lại" : "📱 Đăng nhập bằng QR"}
             </button>
-          )}
+            {loggedIn && (
+              <button
+                onClick={logout}
+                className="rounded-lg border border-red-300 dark:border-red-900 text-red-600 dark:text-red-400 px-3 py-1.5 text-sm"
+              >
+                🗑️ Xóa phiên đăng nhập
+              </button>
+            )}
+          </div>
+          <p className="text-xs text-slate-400">
+            💡 Lần đầu dùng tính năng này có thể mất vài phút để tải trình duyệt ẩn (cần có
+            mạng) — các lần sau sẽ nhanh ngay.
+          </p>
         </div>
       )}
     </div>

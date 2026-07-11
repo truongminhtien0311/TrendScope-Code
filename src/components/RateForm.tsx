@@ -10,11 +10,13 @@ export default function RateForm({
   currentRate,
   fromLabel,
   toLabel,
+  isAdmin,
 }: {
   settingKey: string;
   currentRate: number;
   fromLabel: string;
   toLabel: string;
+  isAdmin: boolean;
 }) {
   const router = useRouter();
   const [rate, setRate] = useState(String(currentRate));
@@ -33,6 +35,17 @@ export default function RateForm({
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
     router.refresh();
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="flex items-center gap-2 text-sm">
+        <span>
+          1 {fromLabel} = {currentRate} {toLabel}
+        </span>
+        <span className="text-xs text-slate-400">(chỉ admin sửa được)</span>
+      </div>
+    );
   }
 
   return (

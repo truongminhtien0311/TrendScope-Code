@@ -16,9 +16,10 @@ interface Props {
   };
   allTags: { id: number; name: string; color: string | null; icon: string | null }[];
   allCategories: { id: number; name: string; icon: string | null }[];
+  isAdmin: boolean;
 }
 
-export default function EditProductForm({ product, allTags, allCategories }: Props) {
+export default function EditProductForm({ product, allTags, allCategories, isAdmin }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -89,12 +90,14 @@ export default function EditProductForm({ product, allTags, allCategories }: Pro
         >
           {open ? "Đóng" : "✏️ Sửa"}
         </button>
-        <button
-          onClick={remove}
-          className="rounded-lg border border-red-300 dark:border-red-900 text-red-600 dark:text-red-400 px-3 py-1.5 text-sm hover:bg-red-50 dark:hover:bg-red-950"
-        >
-          🗑️ Xóa
-        </button>
+        {isAdmin && (
+          <button
+            onClick={remove}
+            className="rounded-lg border border-red-300 dark:border-red-900 text-red-600 dark:text-red-400 px-3 py-1.5 text-sm hover:bg-red-50 dark:hover:bg-red-950"
+          >
+            🗑️ Xóa
+          </button>
+        )}
       </div>
 
       {open && (

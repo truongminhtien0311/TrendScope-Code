@@ -3,9 +3,13 @@
 // hướng thẳng trình duyệt sang link này (không phải fetch JSON).
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { requireAdmin } from "@/lib/auth";
 import { buildAuthUrl, GOOGLE_REDIRECT_PATH, type GoogleDriveConfig } from "@/lib/storage/providers/google-drive";
 
 export async function GET(request: NextRequest) {
+  const { forbidden } = await requireAdmin();
+  if (forbidden) return forbidden;
+
   const row = await prisma.apiProvider.findFirst({ where: { kind: "STORAGE", name: "Google Drive" } });
   let config: GoogleDriveConfig = {};
   try {

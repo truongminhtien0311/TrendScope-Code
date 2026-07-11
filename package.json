@@ -2,22 +2,73 @@
   "name": "product-scrap",
   "version": "0.1.0",
   "private": true,
+  "main": "electron/main.js",
   "scripts": {
     "dev": "node scripts/dev.js",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "db:studio": "prisma studio",
-    "db:reset": "prisma db push --force-reset && prisma db seed"
+    "db:reset": "prisma migrate reset --force",
+    "electron:dev": "electron .",
+    "electron:build": "next build && electron-builder"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
+  },
+  "build": {
+    "appId": "com.productscrap.app",
+    "productName": "Product Scrap",
+    "files": [
+      "electron/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": ".next/standalone",
+        "to": "standalone"
+      },
+      {
+        "from": ".next/static",
+        "to": "standalone/.next/static"
+      },
+      {
+        "from": "public",
+        "to": "standalone/public"
+      },
+      {
+        "from": "prisma/schema.prisma",
+        "to": "prisma/schema.prisma"
+      },
+      {
+        "from": "prisma/migrations",
+        "to": "prisma/migrations"
+      },
+      {
+        "from": "node_modules",
+        "to": "node_modules"
+      }
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "truongminhtien0311",
+      "repo": "Product-Scout-Code"
+    }
   },
   "dependencies": {
     "@google/genai": "^2.10.0",
     "@prisma/client": "^6.19.3",
     "@tailwindcss/typography": "^0.5.20",
     "bcryptjs": "^3.0.3",
+    "electron-updater": "^6.8.9",
+    "exceljs": "^4.4.0",
     "iron-session": "^8.0.4",
     "next": "16.2.10",
     "open": "^11.0.0",
@@ -36,6 +87,8 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "electron": "^43.1.0",
+    "electron-builder": "^26.15.3",
     "eslint": "^9",
     "eslint-config-next": "16.2.10",
     "tailwindcss": "^4",

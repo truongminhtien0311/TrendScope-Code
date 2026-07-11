@@ -12,9 +12,10 @@ interface Props {
   apiKey: string | null;
   baseUrl: string | null;
   isMock: boolean;
+  isAdmin: boolean;
 }
 
-export default function ProviderRow({ id, name, enabled, apiKey, baseUrl, isMock }: Props) {
+export default function ProviderRow({ id, name, enabled, apiKey, baseUrl, isMock, isAdmin }: Props) {
   const router = useRouter();
   const [busyToggle, setBusyToggle] = useState(false);
   const [open, setOpen] = useState(false);
@@ -68,7 +69,7 @@ export default function ProviderRow({ id, name, enabled, apiKey, baseUrl, isMock
           )}
         </span>
         <div className="flex items-center gap-2">
-          {!isMock && (
+          {!isMock && isAdmin && (
             <button
               onClick={() => setOpen(!open)}
               className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
@@ -76,13 +77,22 @@ export default function ProviderRow({ id, name, enabled, apiKey, baseUrl, isMock
               {open ? "Đóng" : "Cấu hình"}
             </button>
           )}
+          {!isAdmin && (
+            <span className="text-xs text-slate-400">(chỉ admin sửa được)</span>
+          )}
           <button
             onClick={toggle}
-            disabled={busyToggle}
+            disabled={busyToggle || !isAdmin}
             className={`relative w-11 h-6 rounded-full transition disabled:opacity-50 ${
               enabled ? "bg-green-500" : "bg-slate-300 dark:bg-slate-700"
             }`}
-            title={enabled ? "Đang bật — bấm để tắt" : "Đang tắt — bấm để bật"}
+            title={
+              !isAdmin
+                ? "Chỉ admin bật/tắt được"
+                : enabled
+                  ? "Đang bật — bấm để tắt"
+                  : "Đang tắt — bấm để bật"
+            }
           >
             <span
               className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all ${
@@ -93,7 +103,7 @@ export default function ProviderRow({ id, name, enabled, apiKey, baseUrl, isMock
         </div>
       </div>
 
-      {open && !isMock && (
+      {open && !isMock && isAdmin && (
         <form onSubmit={saveKey} className="mt-3 space-y-2 border-t border-slate-100 dark:border-slate-800 pt-3">
           <div>
             <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">

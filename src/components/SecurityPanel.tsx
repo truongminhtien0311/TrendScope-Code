@@ -11,14 +11,23 @@ interface UserRow {
   email: string;
   name: string;
   role: string;
+  isOwner: boolean;
   hasPassword: boolean;
 }
 
-export default function SecurityPanel({ isAdmin, currentUserId }: { isAdmin: boolean; currentUserId: number }) {
+export default function SecurityPanel({
+  isAdmin,
+  isOwner,
+  currentUserId,
+}: {
+  isAdmin: boolean;
+  isOwner: boolean;
+  currentUserId: number;
+}) {
   return (
     <div className="space-y-6">
       <ChangePasswordForm />
-      {isAdmin && <UserManagement currentUserId={currentUserId} />}
+      {isAdmin && <UserManagement currentUserId={currentUserId} isOwner={isOwner} />}
     </div>
   );
 }
@@ -82,12 +91,13 @@ function ChangePasswordForm() {
   );
 }
 
-function UserManagement({ currentUserId }: { currentUserId: number }) {
+function UserManagement({ currentUserId, isOwner }: { currentUserId: number; isOwner: boolean }) {
   const router = useRouter();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
+  const [role, setRole] = useState<"member" | "admin">("member");
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState("");
 
@@ -110,12 +120,13 @@ function UserManagement({ currentUserId }: { currentUserId: number }) {
     const res = await fetch("/api/auth/users", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: email.trim(), name: name.trim() }),
+      body: JSON.stringify({ email: email.trim(), name: name.trim(), role }),
     });
     setAdding(false);
     if (res.ok) {
       setEmail("");
       setName("");
+      setRole("member");
       load();
     } else {
       const data = await res.json().catch(() => null);
@@ -142,25 +153,33 @@ function UserManagement({ currentUserId }: { currentUserId: number }) {
         <p className="text-sm text-slate-400">Đang tải...</p>
       ) : (
         <ul className="text-sm space-y-1">
-          {users.map((u) => (
-            <li key={u.id} className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/50 py-1">
-              <span>
-                {u.name} · {u.email}{" "}
-                <span className="text-xs text-slate-400">
-                  ({u.role}{u.hasPassword ? "" : " — chưa đăng nhập lần nào"})
+          {users.map((u) => {
+            // Chỉ owner mới xóa được tài khoản admin khác (admin thường
+            // không xóa lẫn nhau được) — khớp với chặn ở API, ẩn nút cho
+            // gọn giao diện thay vì hiện rồi báo lỗi 403.
+            const canDelete = u.id !== currentUserId && (u.role !== "admin" || isOwner);
+            return (
+              <li key={u.id} className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/50 py-1">
+                <span>
+                  {u.name} · {u.email}{" "}
+                  <span className="text-xs text-slate-400">
+                    ({u.role}
+                    {u.isOwner ? " · ⭐ Chủ tài khoản" : ""}
+                    {u.hasPassword ? "" : " — chưa đăng nhập lần nào"})
+                  </span>
                 </span>
-              </span>
-              {u.id !== currentUserId && (
-                <button onClick={() => removeUser(u.id, u.email)} className="text-xs text-red-500 hover:underline">
-                  Xóa
-                </button>
-              )}
-            </li>
-          ))}
+                {canDelete && (
+                  <button onClick={() => removeUser(u.id, u.email)} className="text-xs text-red-500 hover:underline">
+                    Xóa
+                  </button>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
 
-      <form onSubmit={addUser} className="flex gap-2 items-start">
+      <form onSubmit={addUser} className="flex flex-wrap gap-2 items-start">
         <input
           type="email"
           placeholder="Email đồng nghiệp"
@@ -176,6 +195,14 @@ function UserManagement({ currentUserId }: { currentUserId: number }) {
           onChange={(e) => setName(e.target.value)}
           className="flex-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-1.5 text-sm"
         />
+        <select
+          value={role}
+          onChange={(e) => setRole(e.target.value as "member" | "admin")}
+          className="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-sm"
+        >
+          <option value="member">Nhân viên (member)</option>
+          <option value="admin">Admin (toàn quyền)</option>
+        </select>
         <button
           type="submit"
           disabled={adding}
@@ -187,7 +214,8 @@ function UserManagement({ currentUserId }: { currentUserId: number }) {
       {error && <p className="text-xs text-red-500">{error}</p>}
       <p className="text-xs text-slate-400">
         💡 Không cần đặt mật khẩu ngay — người được thêm tự đặt mật khẩu ở lần đăng nhập đầu
-        tiên bằng email này.
+        tiên bằng email này. Tài khoản "Admin" toàn quyền như mày, nhưng chỉ ⭐ Chủ tài khoản
+        mới xóa được tài khoản admin khác — admin thường không xóa lẫn nhau được.
       </p>
     </div>
   );

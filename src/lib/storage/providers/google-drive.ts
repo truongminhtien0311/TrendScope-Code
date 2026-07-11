@@ -54,6 +54,7 @@ export interface GoogleDriveConfig {
   rootFolderId?: string;
   imagesFolderId?: string;
   backupsFolderId?: string;
+  syncExportsFolderId?: string;
 }
 
 async function getConfigRow(): Promise<{ id: number; config: GoogleDriveConfig } | null> {
@@ -196,14 +197,15 @@ async function ensureImagesFolder(providerId: number, config: GoogleDriveConfig,
   return imagesFolderId;
 }
 
-// Dùng chung cho src/lib/backup — lấy (hoặc tạo mới) 1 folder con bất kỳ
-// dưới folder gốc "ProductHunt-DoNotDelete", cache theo tên field truyền vào.
+// Dùng chung cho src/lib/backup và src/lib/sync — lấy (hoặc tạo mới) 1
+// folder con bất kỳ dưới folder gốc "ProductHunt-DoNotDelete", cache
+// theo tên field truyền vào.
 export async function ensureNamedFolder(
   providerId: number,
   config: GoogleDriveConfig,
   accessToken: string,
   folderName: string,
-  cacheField: "backupsFolderId"
+  cacheField: "backupsFolderId" | "syncExportsFolderId"
 ): Promise<string> {
   const cached = config[cacheField];
   if (cached) return cached;
@@ -253,6 +255,16 @@ export async function deleteFile(fileId: string, accessToken: string): Promise<v
   });
 }
 
+// Tải nội dung thật của 1 file trên Drive (dùng cho src/lib/sync — đọc
+// lại file JSON đồng bộ do máy khác xuất lên).
+export async function downloadFile(fileId: string, accessToken: string): Promise<Buffer> {
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) throw new Error(`Không tải được file từ Drive (HTTP ${res.status})`);
+  return Buffer.from(await res.arrayBuffer());
+}
+
 // Upload 1 buffer bất kỳ (không riêng ảnh) lên Drive, trả về fileId.
 export async function uploadBuffer(
   buffer: Buffer,
@@ -283,13 +295,28 @@ export async function uploadBuffer(
 }
 
 // Cho phép "ai có link cũng xem được" — cần thiết để hiển thị ảnh trực
-// tiếp trong app (thẻ <img>) mà không cần đăng nhập Google.
+// tiếp trong app (thẻ <img>) mà không cần đăng nhập Google. Phải kiểm tra
+// res.ok — nếu Google từ chối (vd hết quota, sai quyền) mà bỏ qua thì ảnh
+// sẽ có link nhưng không xem được (thẻ <img> hiện icon lỗi).
 export async function makePublic(fileId: string, accessToken: string): Promise<void> {
-  await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/permissions`, {
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/permissions`, {
     method: "POST",
     headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
     body: JSON.stringify({ role: "reader", type: "anyone" }),
   });
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    throw new Error(`Không cấp được quyền xem công khai cho ảnh trên Drive: ${JSON.stringify(data)}`);
+  }
+}
+
+// Link "thumbnail" của Google Drive — dùng thay cho "uc?export=view" vì
+// đó là link Google dành cho TẢI VỀ, hay bị chặn/lỗi khi nhúng trực tiếp
+// vào thẻ <img> từ web khác (Google coi là truy cập bất thường). Link
+// "thumbnail" mới là link Google làm riêng để hiển thị ảnh ổn định trên
+// các trang web khác. "sz=w1000" = chiều rộng tối đa 1000px, đủ nét để xem.
+function toViewableUrl(fileId: string): string {
+  return `https://drive.google.com/thumbnail?id=${fileId}&sz=w1000`;
 }
 
 // Thu nhỏ ảnh quá khổ để giảm dung lượng — giữ nguyên nếu đã đủ nhỏ.
@@ -320,7 +347,7 @@ export const googleDriveProvider: StorageProvider = {
     // dùng lại luôn, không tải/upload lại.
     const existingId = await findExistingFile(fileName, imagesFolderId, accessToken);
     if (existingId) {
-      return `https://drive.google.com/uc?export=view&id=${existingId}`;
+      return toViewableUrl(existingId);
     }
 
     const rawBuffer = Buffer.from(await imageRes.arrayBuffer());
@@ -328,7 +355,7 @@ export const googleDriveProvider: StorageProvider = {
     const fileId = await uploadBuffer(buffer, fileName, mimeType, imagesFolderId, accessToken);
     await makePublic(fileId, accessToken);
 
-    return `https://drive.google.com/uc?export=view&id=${fileId}`;
+    return toViewableUrl(fileId);
   },
 
   // Ảnh tải tay/dán clipboard (đã có sẵn buffer, không phải fetch từ URL
@@ -344,13 +371,13 @@ export const googleDriveProvider: StorageProvider = {
 
     const existingId = await findExistingFile(driveFileName, imagesFolderId, accessToken);
     if (existingId) {
-      return `https://drive.google.com/uc?export=view&id=${existingId}`;
+      return toViewableUrl(existingId);
     }
 
     const buffer = await resizeIfNeeded(rawBuffer);
     const fileId = await uploadBuffer(buffer, driveFileName, mimeType, imagesFolderId, accessToken);
     await makePublic(fileId, accessToken);
 
-    return `https://drive.google.com/uc?export=view&id=${fileId}`;
+    return toViewableUrl(fileId);
   },
 };

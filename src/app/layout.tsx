@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
+import { headers } from "next/headers";
 import "./globals.css";
 import Sidebar from "@/components/Sidebar";
+import UpdateNotifier from "@/components/UpdateNotifier";
 import { getCurrentUser } from "@/lib/auth";
 
 const geistSans = Geist({
@@ -28,6 +30,12 @@ export default async function RootLayout({
   // Có thể null (vd đang ở trang /login, chưa đăng nhập) — Sidebar tự
   // ẩn phần email/đăng xuất khi đó.
   const user = await getCurrentUser().catch(() => null);
+  // /report là tài liệu trình bày/PDF (xem src/app/report/page.tsx) —
+  // không nên có khung Sidebar/padding. Đọc pathname qua header do
+  // src/middleware.ts gắn vào (layout Server Component không có cách
+  // nào khác biết được đường dẫn hiện tại).
+  const pathname = (await headers()).get("x-pathname") ?? "";
+  const hideChrome = pathname.startsWith("/report");
   return (
     <html
       lang="vi"
@@ -44,13 +52,15 @@ export default async function RootLayout({
       </head>
       <body className="min-h-screen">
         <Toaster richColors position="top-right" />
-        {user ? (
+        <UpdateNotifier />
+        {user && !hideChrome ? (
           <div className="flex min-h-screen">
             <Sidebar userEmail={user.email} />
             <main className="flex-1 p-6 lg:p-8 overflow-x-hidden">{children}</main>
           </div>
         ) : (
-          // Chưa đăng nhập (trang /login) — không hiện khung sidebar/nav
+          // Chưa đăng nhập (trang /login), hoặc trang trình bày/PDF (/report)
+          // — không hiện khung sidebar/nav
           children
         )}
       </body>

@@ -36,9 +36,17 @@ function priceRangeText(prices: number[], rate: number): string | null {
 export default function ProductCard({
   product,
   rate,
+  selectable,
+  selected,
+  onToggleSelect,
 }: {
   product: ProductCardData;
   rate: number;
+  // Chế độ chọn nhiều (xem src/components/ProductGrid.tsx) — không
+  // truyền gì thì thẻ hoạt động y hệt trước giờ (bấm vào -> chuyển trang).
+  selectable?: boolean;
+  selected?: boolean;
+  onToggleSelect?: (id: number) => void;
 }) {
   const retailPrices = product.listings
     .filter((l) => l.sourceType === "RETAIL")
@@ -53,11 +61,20 @@ export default function ProductCard({
 
   const soldTotal = product.listings.reduce((sum, l) => sum + (l.soldTotal ?? 0), 0);
 
-  return (
-    <Link
-      href={`/products/${product.id}`}
-      className="block rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 transition"
-    >
+  const cardClass =
+    "block rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 transition relative";
+
+  const content = (
+    <>
+      {selectable && (
+        <div
+          className={`absolute top-2 left-2 z-10 w-5 h-5 rounded-md border-2 flex items-center justify-center text-xs ${
+            selected ? "bg-blue-600 border-blue-600 text-white" : "bg-white/90 border-slate-300"
+          }`}
+        >
+          {selected && "✓"}
+        </div>
+      )}
       <div className="aspect-square bg-slate-100 dark:bg-slate-800">
         {mainImage ? (
           // eslint-disable-next-line @next/next/no-img-element -- ảnh từ sàn TQ, domain không cố định nên chưa dùng next/image
@@ -73,16 +90,16 @@ export default function ProductCard({
         </h3>
 
         {(retailText || factoryText) && (
-          <div className="text-xs space-y-0.5">
+          <div className="flex flex-wrap gap-1.5" title="Giá tham khảo, có thể thay đổi theo thời điểm cào">
             {retailText && (
-              <p className="text-blue-600 dark:text-blue-400 font-semibold">
-                Giá bán lẻ (tham khảo): {retailText}
-              </p>
+              <span className="inline-flex items-center rounded-lg bg-blue-600 dark:bg-blue-500 px-2.5 py-1.5 text-sm font-bold text-white shadow-sm">
+                Giá bán lẻ: {retailText}
+              </span>
             )}
             {factoryText && (
-              <p className="text-emerald-600 dark:text-emerald-400 font-semibold">
-                Giá nhập (tham khảo): {factoryText}
-              </p>
+              <span className="inline-flex items-center rounded-lg bg-emerald-600 dark:bg-emerald-500 px-2.5 py-1.5 text-sm font-bold text-white shadow-sm">
+                Giá nhập: {factoryText}
+              </span>
             )}
           </div>
         )}
@@ -113,6 +130,20 @@ export default function ProductCard({
           Thêm {new Date(product.createdAt).toLocaleDateString("vi-VN")}
         </p>
       </div>
+    </>
+  );
+
+  if (selectable) {
+    return (
+      <button type="button" onClick={() => onToggleSelect?.(product.id)} className={`${cardClass} text-left w-full`}>
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <Link href={`/products/${product.id}`} className={cardClass}>
+      {content}
     </Link>
   );
 }

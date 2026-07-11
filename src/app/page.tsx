@@ -5,7 +5,8 @@
 // ============================================================
 import { prisma } from "@/lib/db";
 import { getCnyVndRate } from "@/lib/currency";
-import ProductCard, { type ProductCardData } from "@/components/ProductCard";
+import { type ProductCardData } from "@/components/ProductCard";
+import ProductGrid from "@/components/ProductGrid";
 import FilterBar from "@/components/FilterBar";
 import AddProductForm from "@/components/AddProductForm";
 import { Suspense } from "react";
@@ -85,11 +86,7 @@ export default async function DashboardPage({
           <p className="text-sm mt-1">Bấm &quot;+ Thêm sản phẩm&quot; để bắt đầu.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-          {sorted.map((p) => (
-            <ProductCard key={p.id} product={p} rate={rate} />
-          ))}
-        </div>
+        <ProductGrid products={sorted} rate={rate} />
       )}
     </div>
   );

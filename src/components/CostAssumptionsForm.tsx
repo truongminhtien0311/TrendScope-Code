@@ -37,7 +37,15 @@ function parseValue(s: string): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-function ValueInput({ value, onChange }: { value: number; onChange: (n: number) => void }) {
+function ValueInput({
+  value,
+  onChange,
+  readOnly,
+}: {
+  value: number;
+  onChange: (n: number) => void;
+  readOnly?: boolean;
+}) {
   const [text, setText] = useState(() => formatValue(value));
   const [focused, setFocused] = useState(false);
 
@@ -52,8 +60,10 @@ function ValueInput({ value, onChange }: { value: number; onChange: (n: number) 
       type="text"
       inputMode="decimal"
       value={text}
+      readOnly={readOnly}
       onFocus={() => setFocused(true)}
       onChange={(e) => {
+        if (readOnly) return;
         setText(e.target.value);
         onChange(parseValue(e.target.value));
       }}
@@ -66,7 +76,13 @@ function ValueInput({ value, onChange }: { value: number; onChange: (n: number) 
   );
 }
 
-export default function CostAssumptionsForm({ current }: { current: CostAssumptions }) {
+export default function CostAssumptionsForm({
+  current,
+  isAdmin,
+}: {
+  current: CostAssumptions;
+  isAdmin: boolean;
+}) {
   const router = useRouter();
   const [rows, setRows] = useState<CostLineItem[]>(current.length ? current : [newRow()]);
   const [saving, setSaving] = useState(false);
@@ -127,14 +143,20 @@ export default function CostAssumptionsForm({ current }: { current: CostAssumpti
             <input
               value={r.name}
               onChange={(e) => updateRow(r.id, { name: e.target.value })}
+              readOnly={!isAdmin}
               placeholder="VD: Phí hoa hồng"
               className={inputClass}
             />
-            <ValueInput value={r.value} onChange={(v) => updateRow(r.id, { value: v })} />
+            <ValueInput
+              value={r.value}
+              onChange={(v) => updateRow(r.id, { value: v })}
+              readOnly={!isAdmin}
+            />
             <input
               list="cost-unit1-options"
               value={r.unit1}
               onChange={(e) => updateRow(r.id, { unit1: e.target.value })}
+              readOnly={!isAdmin}
               placeholder="VNĐ, %..."
               className={inputClass}
             />
@@ -142,44 +164,53 @@ export default function CostAssumptionsForm({ current }: { current: CostAssumpti
               list="cost-unit2-options"
               value={r.unit2}
               onChange={(e) => updateRow(r.id, { unit2: e.target.value })}
+              readOnly={!isAdmin}
               placeholder="/ đơn hàng..."
               className={inputClass}
             />
-            <button
-              type="button"
-              onClick={() => removeRow(r.id)}
-              className="text-slate-400 hover:text-red-500 text-sm justify-self-start sm:justify-self-center"
-              title="Xóa dòng này"
-            >
-              🗑️
-            </button>
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => removeRow(r.id)}
+                className="text-slate-400 hover:text-red-500 text-sm justify-self-start sm:justify-self-center"
+                title="Xóa dòng này"
+              >
+                🗑️
+              </button>
+            )}
           </div>
         ))}
       </div>
 
-      <button
-        type="button"
-        onClick={addRow}
-        className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
-      >
-        + Thêm dòng chi phí
-      </button>
+      {!isAdmin && <p className="text-xs text-slate-400">(chỉ admin sửa được)</p>}
 
-      <div>
-        <button
-          type="submit"
-          disabled={saving}
-          className="rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-3 py-1.5 text-sm"
-        >
-          {saved ? "✓ Đã lưu" : saving ? "Đang lưu..." : "Lưu"}
-        </button>
-      </div>
-      <p className="text-xs text-slate-400">
-        💡 Đơn vị 1/2 có gợi ý sẵn nhưng gõ tự do được (bấm vào ô, gõ chữ mới) — AI đọc
-        hiểu mọi tên chi phí/đơn vị, không giới hạn theo mẫu cố định. Ô Giá trị tự thêm
-        dấu phẩy ngăn hàng nghìn (vd 20,000) khi rời khỏi ô. Sửa số ở đây khi sàn đổi
-        cơ cấu phí — lần &quot;Tạo bằng AI&quot; tiếp theo sẽ tự dùng số mới nhất.
-      </p>
+      {isAdmin && (
+        <>
+          <button
+            type="button"
+            onClick={addRow}
+            className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+          >
+            + Thêm dòng chi phí
+          </button>
+
+          <div>
+            <button
+              type="submit"
+              disabled={saving}
+              className="rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-3 py-1.5 text-sm"
+            >
+              {saved ? "✓ Đã lưu" : saving ? "Đang lưu..." : "Lưu"}
+            </button>
+          </div>
+          <p className="text-xs text-slate-400">
+            💡 Đơn vị 1/2 có gợi ý sẵn nhưng gõ tự do được (bấm vào ô, gõ chữ mới) — AI đọc
+            hiểu mọi tên chi phí/đơn vị, không giới hạn theo mẫu cố định. Ô Giá trị tự thêm
+            dấu phẩy ngăn hàng nghìn (vd 20,000) khi rời khỏi ô. Sửa số ở đây khi sàn đổi
+            cơ cấu phí — lần &quot;Tạo bằng AI&quot; tiếp theo sẽ tự dùng số mới nhất.
+          </p>
+        </>
+      )}
     </form>
   );
 }

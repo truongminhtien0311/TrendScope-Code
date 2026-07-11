@@ -29,7 +29,34 @@
 // lưu (nằm trong DB), chỉ ảnh hưởng nếu restart đúng lúc đang quét dở.
 // ============================================================
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
+import { existsSync } from "node:fs";
+import { spawn } from "node:child_process";
 import { prisma } from "@/lib/db";
+
+// Bản đóng gói (Electron) KHÔNG kèm sẵn Chromium của Playwright (đỡ
+// nặng bộ cài, xem docs/04-lo-trinh.md) — tải về đúng lúc đầu tiên ai
+// đó dùng tính năng đăng nhập Taobao, thay vì bắt buộc tải sẵn cho tất
+// cả mọi người kể cả không dùng tới. Có thể mất vài phút lần đầu (cần
+// mạng) — các lần sau đã có sẵn, không tải lại.
+let ensureChromiumPromise: Promise<void> | null = null;
+
+async function ensureChromiumInstalled(): Promise<void> {
+  if (existsSync(chromium.executablePath())) return;
+  if (!ensureChromiumPromise) {
+    ensureChromiumPromise = new Promise((resolve, reject) => {
+      const child = spawn("npx", ["playwright", "install", "chromium"], {
+        stdio: "inherit",
+        shell: true,
+      });
+      child.on("exit", (code) => {
+        if (code === 0) resolve();
+        else reject(new Error(`Tải Chromium thất bại (mã lỗi ${code})`));
+      });
+      child.on("error", reject);
+    });
+  }
+  await ensureChromiumPromise;
+}
 
 const SETTING_KEY_SESSION = "taobao_login_session"; // JSON storageState
 const SETTING_KEY_SAVED_AT = "taobao_login_saved_at"; // ISO date string
@@ -60,6 +87,7 @@ function cleanupExpired() {
 // Bước 1: mở trình duyệt ẩn, vào trang đăng nhập Taobao, chụp mã QR
 export async function startLogin(): Promise<{ token: string; qrImageBase64: string }> {
   cleanupExpired();
+  await ensureChromiumInstalled();
 
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
@@ -152,6 +180,7 @@ export async function resolveShortLink(shortUrl: string): Promise<string> {
   }
 
   const storageState = JSON.parse(session.value);
+  await ensureChromiumInstalled();
   const browser = await chromium.launch({ headless: true });
   try {
     const context = await browser.newContext({ storageState });

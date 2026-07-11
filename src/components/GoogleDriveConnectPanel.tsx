@@ -14,6 +14,7 @@ interface Props {
   clientSecret: string;
   connectedEmail?: string;
   hasRefreshToken: boolean;
+  isAdmin: boolean;
 }
 
 export default function GoogleDriveConnectPanel({
@@ -22,6 +23,7 @@ export default function GoogleDriveConnectPanel({
   clientSecret: initialClientSecret,
   connectedEmail,
   hasRefreshToken,
+  isAdmin,
 }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -104,55 +106,61 @@ export default function GoogleDriveConnectPanel({
       {notice && <p className="text-sm text-emerald-600 dark:text-emerald-400">{notice}</p>}
       {(error || redirectedError) && <p className="text-sm text-red-500">{error || redirectedError}</p>}
 
-      <div className="grid sm:grid-cols-2 gap-2">
-        <div>
-          <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Client ID</label>
-          <input
-            value={clientId}
-            onChange={(e) => setClientId(e.target.value)}
-            placeholder="xxxx.apps.googleusercontent.com"
-            className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-1.5 text-sm"
-          />
-        </div>
-        <div>
-          <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Client Secret</label>
-          <input
-            type="password"
-            value={clientSecret}
-            onChange={(e) => setClientSecret(e.target.value)}
-            placeholder="GOCSPX-..."
-            className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-1.5 text-sm"
-          />
-        </div>
-      </div>
+      {!isAdmin ? (
+        <p className="text-xs text-slate-400">(chỉ admin kết nối/ngắt kết nối được)</p>
+      ) : (
+        <>
+          <div className="grid sm:grid-cols-2 gap-2">
+            <div>
+              <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Client ID</label>
+              <input
+                value={clientId}
+                onChange={(e) => setClientId(e.target.value)}
+                placeholder="xxxx.apps.googleusercontent.com"
+                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-1.5 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Client Secret</label>
+              <input
+                type="password"
+                value={clientSecret}
+                onChange={(e) => setClientSecret(e.target.value)}
+                placeholder="GOCSPX-..."
+                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-1.5 text-sm"
+              />
+            </div>
+          </div>
 
-      <div className="flex gap-2">
-        <button
-          onClick={saveCredentials}
-          disabled={saving}
-          className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-1.5 text-sm disabled:opacity-50"
-        >
-          {saved ? "✓ Đã lưu" : saving ? "Đang lưu..." : "Lưu Client ID/Secret"}
-        </button>
-        <button
-          onClick={connect}
-          disabled={connecting || !clientId.trim() || !clientSecret.trim()}
-          className="rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-3 py-1.5 text-sm"
-        >
-          {connecting ? "Đang chuyển hướng..." : hasRefreshToken ? "🔄 Kết nối lại" : "🔗 Kết nối với Google"}
-        </button>
-        {hasRefreshToken && (
-          <button
-            onClick={disconnect}
-            className="rounded-lg border border-red-300 dark:border-red-900 text-red-600 dark:text-red-400 px-3 py-1.5 text-sm"
-          >
-            Ngắt kết nối
-          </button>
-        )}
-      </div>
-      <p className="text-xs text-slate-400">
-        💡 Bấm &quot;Lưu Client ID/Secret&quot; trước, rồi mới bấm &quot;Kết nối với Google&quot;.
-      </p>
+          <div className="flex gap-2">
+            <button
+              onClick={saveCredentials}
+              disabled={saving}
+              className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-1.5 text-sm disabled:opacity-50"
+            >
+              {saved ? "✓ Đã lưu" : saving ? "Đang lưu..." : "Lưu Client ID/Secret"}
+            </button>
+            <button
+              onClick={connect}
+              disabled={connecting || !clientId.trim() || !clientSecret.trim()}
+              className="rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-3 py-1.5 text-sm"
+            >
+              {connecting ? "Đang chuyển hướng..." : hasRefreshToken ? "🔄 Kết nối lại" : "🔗 Kết nối với Google"}
+            </button>
+            {hasRefreshToken && (
+              <button
+                onClick={disconnect}
+                className="rounded-lg border border-red-300 dark:border-red-900 text-red-600 dark:text-red-400 px-3 py-1.5 text-sm"
+              >
+                Ngắt kết nối
+              </button>
+            )}
+          </div>
+          <p className="text-xs text-slate-400">
+            💡 Bấm &quot;Lưu Client ID/Secret&quot; trước, rồi mới bấm &quot;Kết nối với Google&quot;.
+          </p>
+        </>
+      )}
     </div>
   );
 }

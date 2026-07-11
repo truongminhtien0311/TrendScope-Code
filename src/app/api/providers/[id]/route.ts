@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { logActivity } from "@/lib/log";
+import { requireAdmin } from "@/lib/auth";
 
 const schema = z.object({
   enabled: z.boolean().optional(),
@@ -19,6 +20,9 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { forbidden } = await requireAdmin();
+  if (forbidden) return forbidden;
+
   const { id } = await params;
   const body = await request.json().catch(() => null);
   const parsed = schema.safeParse(body);

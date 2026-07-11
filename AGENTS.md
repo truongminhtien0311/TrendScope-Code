@@ -20,4 +20,6 @@ App quản lý & nghiên cứu sản phẩm nguồn Trung Quốc (Taobao/Tmall/J
 - Giá chỉ lưu CNY; VNĐ quy đổi lúc hiển thị theo Setting `cny_vnd_rate` (`src/lib/currency.ts`).
 - Giữ song song bản gốc tiếng Trung và bản dịch (`*Original` / `*Vi`).
 - UI text bằng tiếng Việt; comment code bằng tiếng Việt.
-- Đổi schema: sửa `prisma/schema.prisma` → `npx prisma db push`. Seed lại: `npm run db:reset`.
+- Database: SQLite (`prisma/dev.db`) — mỗi người tự chạy app độc lập trên máy riêng (không còn server/VPS chung, đã bỏ Docker). Đổi schema: sửa `prisma/schema.prisma` → `npx prisma migrate dev --name <tên>` (tạo migration mới trong `prisma/migrations/`). Reset sạch + seed lại: `npm run db:reset`. KHÔNG dùng `prisma db push` (không tạo lịch sử migration).
+- Chỉ-admin (dùng `requireAdmin()` trong `src/lib/auth.ts`): sửa Cài đặt/tỷ giá/chi phí/prompt AI, bật/tắt & sửa API key provider, kết nối/ngắt Google Drive, xóa sản phẩm. Member vẫn tự do thêm/sửa sản phẩm, cào dữ liệu, xóa Listing lẻ.
+- Đồng bộ dữ liệu giữa các máy (`src/lib/sync/`, `src/app/sync/`, `src/app/api/sync/`): xuất/nhập JSON đầy đủ qua Google Drive, nhận diện trùng lặp bằng `Product.uuid` (ổn định, khác `id` tự tăng chỉ có nghĩa trong 1 database) và `Listing.url`. Import CHỈ CỘNG THÊM dữ liệu mới, không bao giờ sửa/đè dữ liệu đã có.
