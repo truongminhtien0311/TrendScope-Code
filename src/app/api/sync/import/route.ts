@@ -1,5 +1,5 @@
-// API: POST /api/sync/import — nhận link chia sẻ Drive (nhân sự gửi qua
-// chat), tải file JSON đồng bộ về và gộp vào database hiện tại. Chỉ
+// API: POST /api/sync/import — nhận link chia sẻ Drive (người dùng khác
+// gửi qua chat), tải file JSON đồng bộ về và gộp vào database hiện tại. Chỉ
 // CỘNG THÊM dữ liệu mới (xem src/lib/sync/index.ts), không sửa/đè.
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";

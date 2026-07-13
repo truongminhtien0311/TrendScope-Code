@@ -16,7 +16,7 @@ export default function GuidePage() {
 
       <Section title="🧭 Tổng quan">
         <p>
-          Product Scrap giúp mày nghiên cứu sản phẩm nguồn Trung Quốc (Taobao/Tmall/JD/Alibaba):
+          Product Scrap giúp bạn nghiên cứu sản phẩm nguồn Trung Quốc (Taobao/Tmall/JD/Alibaba):
           gom nhiều link nguồn của cùng 1 sản phẩm lại 1 chỗ, cào giá/ảnh/đánh giá, dịch sang
           tiếng Việt, rồi dùng AI phân tích tệp khách hàng/kênh bán/tính khả thi kinh doanh.
         </p>
@@ -28,9 +28,9 @@ export default function GuidePage() {
         <div className="my-4">
           <GuideDiagram
             steps={[
-              { icon: "💻", label: "Máy của mày (dữ liệu riêng)" },
+              { icon: "💻", label: "Máy của bạn (dữ liệu riêng)" },
               { icon: "☁️", label: "Google Drive (ảnh/backup/đồng bộ)" },
-              { icon: "🖥️", label: "Máy nhân sự (dữ liệu riêng)" },
+              { icon: "🖥️", label: "Máy người dùng khác (dữ liệu riêng)" },
             ]}
           />
         </div>
@@ -49,8 +49,8 @@ export default function GuidePage() {
           </li>
           <li>
             <strong>Cần API key thật</strong> (Google Gemini để phân tích AI, Otapi để cào dữ
-            liệu thật) — chưa có key thì app vẫn chạy được bằng dữ liệu &lsquo;Mock&rsquo; (giả,
-            chỉ để xem giao diện). Vào Cài đặt &gt; 🔌 API &amp; Kết nối để nhập.
+            liệu thật) — chưa có key thì chưa cào/phân tích được. Vào Cài đặt &gt; 🔌 API &amp;
+            Kết nối để nhập.
           </li>
         </ul>
       </Section>

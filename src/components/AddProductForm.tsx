@@ -6,6 +6,7 @@
 // (rút ra từ dữ liệu gốc), người dùng vẫn sửa tay thoải mái sau đó.
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 export default function AddProductForm() {
   const router = useRouter();
@@ -24,7 +25,7 @@ export default function AddProductForm() {
       router.push(`/products/${created.id}`);
       router.refresh();
     } else {
-      alert("Không tạo được sản phẩm, thử lại nhé.");
+      toast.error("Không tạo được sản phẩm, thử lại nhé.");
     }
   }
 

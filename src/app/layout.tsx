@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import "./globals.css";
 import Sidebar from "@/components/Sidebar";
 import UpdateNotifier from "@/components/UpdateNotifier";
+import ConfirmDialogProvider from "@/components/ConfirmDialogProvider";
 import { getCurrentUser } from "@/lib/auth";
 
 const geistSans = Geist({
@@ -53,16 +54,18 @@ export default async function RootLayout({
       <body className="min-h-screen">
         <Toaster richColors position="top-right" />
         <UpdateNotifier />
-        {user && !hideChrome ? (
-          <div className="flex min-h-screen">
-            <Sidebar userEmail={user.email} />
-            <main className="flex-1 p-6 lg:p-8 overflow-x-hidden">{children}</main>
-          </div>
-        ) : (
-          // Chưa đăng nhập (trang /login), hoặc trang trình bày/PDF (/report)
-          // — không hiện khung sidebar/nav
-          children
-        )}
+        <ConfirmDialogProvider>
+          {user && !hideChrome ? (
+            <div className="flex min-h-screen">
+              <Sidebar userEmail={user.email} />
+              <main className="flex-1 p-6 lg:p-8 overflow-x-hidden">{children}</main>
+            </div>
+          ) : (
+            // Chưa đăng nhập (trang /login), hoặc trang trình bày/PDF (/report)
+            // — không hiện khung sidebar/nav
+            children
+          )}
+        </ConfirmDialogProvider>
       </body>
     </html>
   );

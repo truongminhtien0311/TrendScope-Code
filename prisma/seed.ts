@@ -185,16 +185,14 @@ async function main() {
   });
 
   // --- Danh sách API bên thứ ba (mục Cài đặt > API trong mindmap) ---
-  const providers = [
-    { kind: "SCRAPER_RETAIL", name: "Mock - dữ liệu giả để test", enabled: true },
-    { kind: "SCRAPER_RETAIL", name: "Otapi - Taobao & Tmall (RapidAPI)", enabled: false },
-    { kind: "SCRAPER_MANUFACTURER", name: "Mock - dữ liệu giả để test", enabled: true },
-    { kind: "SCRAPER_MANUFACTURER", name: "Alibaba DataHub (RapidAPI)", enabled: false },
-    { kind: "LLM", name: "Google Gemini", enabled: false },
-    { kind: "LLM", name: "Grok (xAI)", enabled: false },
-    { kind: "STORAGE", name: "Google Drive", enabled: false },
-    { kind: "STORAGE", name: "Lark Drive", enabled: false },
-  ];
+  // Dùng chung file JSON với electron/seed-providers.js (bản đóng gói không
+  // chạy file seed.ts này — xem electron/main.js — nhưng vẫn cần đúng danh
+  // sách provider, nên tách ra 1 nguồn duy nhất tránh lệch nhau).
+  const providers = (await import("../electron/default-providers.json", { with: { type: "json" } })).default as Array<{
+    kind: string;
+    name: string;
+    enabled: boolean;
+  }>;
   for (const p of providers) {
     const existing = await prisma.apiProvider.findFirst({
       where: { kind: p.kind, name: p.name },

@@ -24,10 +24,18 @@ export default function Sidebar({ userEmail }: { userEmail?: string | null }) {
   const pathname = usePathname();
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
+  const [appVersion, setAppVersion] = useState<string | null>(null);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- đồng bộ từ localStorage, không có trên server nên không thể tính lúc render
     setCollapsed(localStorage.getItem("sidebarCollapsed") === "1");
+  }, []);
+
+  useEffect(() => {
+    // window.electronAPI chỉ tồn tại trong bản đã đóng gói (xem
+    // electron/preload.js) — mở bằng trình duyệt thường (npm run dev) sẽ
+    // không hiện số phiên bản, không lỗi gì cả.
+    window.electronAPI?.getAppVersion().then(setAppVersion);
   }, []);
 
   function toggleCollapsed() {
@@ -56,7 +64,7 @@ export default function Sidebar({ userEmail }: { userEmail?: string | null }) {
         ) : (
           <div>
             <Link href="/" className="font-bold text-lg">
-              🛒 Product Scrap
+              🛒 Product Scrap{appVersion && <span className="font-normal text-slate-400"> v{appVersion}</span>}
             </Link>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
               Nghiên cứu sản phẩm TQ

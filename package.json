@@ -1,6 +1,6 @@
 {
   "name": "product-scrap",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "main": "electron/main.js",
   "scripts": {
@@ -11,7 +11,7 @@
     "db:studio": "prisma studio",
     "db:reset": "prisma migrate reset --force",
     "electron:dev": "electron .",
-    "electron:build": "next build && electron-builder"
+    "electron:build": "next build && npm install --prefix build/prisma-runtime --no-audit --no-fund && node scripts/electron-build.js"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -46,12 +46,13 @@
         "to": "prisma/migrations"
       },
       {
-        "from": "node_modules",
+        "from": "build/prisma-runtime/node_modules",
         "to": "node_modules"
       }
     ],
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "artifactName": "Product-Scrap-Setup-${version}.${ext}"
     },
     "nsis": {
       "createDesktopShortcut": true,

@@ -13,7 +13,7 @@
 //     .env của repo. Không chạy seed — máy trống sẽ tự hiện màn hình
 //     "Thiết lập lần đầu" (xem src/app/setup/page.tsx).
 // ============================================================
-const { app, BrowserWindow, Menu, ipcMain, dialog } = require("electron");
+const { app, BrowserWindow, Menu, ipcMain, dialog, shell } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const http = require("http");
@@ -85,6 +85,22 @@ function runMigrations(resourcesPath, databaseUrl) {
   }
 }
 
+// Bản đóng gói không chạy prisma/seed.ts (cố tình bỏ dữ liệu sản phẩm mẫu),
+// nhưng danh sách provider (Mock/Otapi/Alibaba/Gemini...) vẫn cần có sẵn để
+// trang Cài đặt > API không trống trơn trên máy mới cài — xem
+// electron/seed-providers.js. An toàn gọi mỗi lần khởi động.
+function seedProviders(resourcesPath, databaseUrl) {
+  const seedScript = path.join(__dirname, "seed-providers.js");
+  const result = spawnSync(process.execPath, [seedScript, resourcesPath], {
+    env: { ...process.env, ...NODE_ENV_OVERRIDE, DATABASE_URL: databaseUrl },
+    cwd: resourcesPath,
+    stdio: "inherit",
+  });
+  if (result.status !== 0) {
+    throw new Error("Seed danh sách provider thất bại — xem log ở trên.");
+  }
+}
+
 function startPackagedServer() {
   const resourcesPath = process.resourcesPath;
   const dataDir = app.getPath("userData");
@@ -92,6 +108,7 @@ function startPackagedServer() {
   const databaseUrl = `file:${path.join(dataDir, "dev.db")}`;
 
   runMigrations(resourcesPath, databaseUrl);
+  seedProviders(resourcesPath, databaseUrl);
 
   const serverEntry = path.join(resourcesPath, "standalone", "server.js");
   serverProcess = spawn(process.execPath, [serverEntry], {
@@ -115,7 +132,11 @@ function startDevServer() {
   // dev.db hiện có, không tự tạo secret/DB riêng gì cả.
   const repoRoot = path.join(__dirname, "..");
   const nextBin = path.join(repoRoot, "node_modules", ".bin", process.platform === "win32" ? "next.cmd" : "next");
-  serverProcess = spawn(nextBin, ["dev", "-p", String(PORT)], {
+  // shell: true trên Windows KHÔNG tự bọc dấu ngoặc kép quanh đường dẫn có
+  // dấu cách (vd "C:\AI Work\...") — phải tự bọc, không thì cmd.exe đọc
+  // nhầm phần trước dấu cách đầu tiên thành tên lệnh, báo "not recognized".
+  const nextBinArg = process.platform === "win32" ? `"${nextBin}"` : nextBin;
+  serverProcess = spawn(nextBinArg, ["dev", "-p", String(PORT)], {
     cwd: repoRoot,
     stdio: "inherit",
     shell: true,
@@ -123,15 +144,44 @@ function startDevServer() {
 }
 
 async function createWindow() {
+  const windowTitle = `Product Scrap ${app.getVersion()}`;
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
-    title: `Product Scrap ${app.getVersion()}`,
+    title: windowTitle,
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
     },
   });
+  // Next.js tự đặt <title> riêng (xem src/app/layout.tsx) — nếu không chặn,
+  // Electron sẽ tự đổi tiêu đề cửa sổ theo đó lúc trang tải xong, mất luôn
+  // số version đã đặt ở trên. Giữ nguyên tiêu đề có version thay vì để
+  // trang web ghi đè.
+  mainWindow.on("page-title-updated", (event) => {
+    event.preventDefault();
+  });
+
+  // Cửa sổ chính KHÔNG có thanh địa chỉ/nút back (autoHideMenuBar) — nếu để
+  // nó tự điều hướng sang domain ngoài (vd lúc "Kết nối với Google") thì
+  // người dùng bị kẹt luôn ở đó, không có cách nào quay lại app (từng gặp:
+  // "trắng màn hình, không có nút quay lại, phải thoát app vào lại"). Google
+  // cũng chủ động chặn đăng nhập trong trình duyệt nhúng như Electron. Nên
+  // mọi link ra domain khác localhost đều mở bằng trình duyệt mặc định của
+  // máy thay vì điều hướng ngay trong cửa sổ app — cửa sổ app luôn giữ
+  // nguyên ở trang đang xem.
+  const isOwnServer = (url) => new URL(url).origin === `http://localhost:${PORT}`;
+  mainWindow.webContents.on("will-navigate", (event, url) => {
+    if (!isOwnServer(url)) {
+      event.preventDefault();
+      shell.openExternal(url);
+    }
+  });
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (!isOwnServer(url)) shell.openExternal(url);
+    return { action: "deny" };
+  });
+
   await mainWindow.loadURL(`http://localhost:${PORT}`);
 }
 

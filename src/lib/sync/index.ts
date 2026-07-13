@@ -1,5 +1,5 @@
 // ============================================================
-// ĐỒNG BỘ DỮ LIỆU GIỮA CÁC MÁY — vì mỗi người (chủ app + nhân sự) chạy
+// ĐỒNG BỘ DỮ LIỆU GIỮA CÁC MÁY — vì mỗi người dùng chạy
 // app độc lập trên máy riêng (không còn server chung), cần cách gộp dữ
 // liệu lại: xuất TOÀN BỘ dữ liệu có cấu trúc (không phải CSV báo cáo,
 // xem src/lib/export/) ra JSON, đẩy lên Google Drive; máy khác dán link

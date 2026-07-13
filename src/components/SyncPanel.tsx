@@ -46,7 +46,7 @@ function ExportBlock() {
     <section className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 space-y-3">
       <h2 className="font-semibold">📤 Xuất dữ liệu lên Google Drive</h2>
       <p className="text-sm text-slate-500 dark:text-slate-400">
-        Xuất toàn bộ sản phẩm trên máy này lên Google Drive của mày, lấy link gửi cho người
+        Xuất toàn bộ sản phẩm trên máy này lên Google Drive của bạn, lấy link gửi cho người
         cần gộp dữ liệu (qua Zalo/email...). Cần đã kết nối Google Drive ở Cài đặt &gt; Lưu trữ.
       </p>
       <button

@@ -5,8 +5,10 @@
 // mã link rút gọn từ mobile (vd https://e.tb.cn/h.xxxx) ra id sản phẩm
 // thật trước khi cào dữ liệu.
 import { useEffect, useRef, useState } from "react";
+import { useConfirm } from "@/components/ConfirmDialogProvider";
 
 export default function TaobaoLoginPanel() {
+  const confirmDialog = useConfirm();
   const [loggedIn, setLoggedIn] = useState<boolean | null>(null);
   const [savedAt, setSavedAt] = useState<string | undefined>();
   const [qrImage, setQrImage] = useState("");
@@ -68,7 +70,7 @@ export default function TaobaoLoginPanel() {
   }
 
   async function logout() {
-    if (!confirm("Xóa phiên đăng nhập Taobao đã lưu?")) return;
+    if (!(await confirmDialog("Xóa phiên đăng nhập Taobao đã lưu?", { danger: true }))) return;
     await fetch("/api/taobao-login/logout", { method: "POST" });
     loadStatus();
   }

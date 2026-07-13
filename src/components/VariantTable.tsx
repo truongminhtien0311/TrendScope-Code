@@ -11,6 +11,8 @@
 // copy theo bất kỳ đơn vị nào tùy nguồn.
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { useConfirm } from "@/components/ConfirmDialogProvider";
 import { cnyToVnd, formatVnd, formatCny, type PriceUnit } from "@/lib/currency";
 
 export interface VariantData {
@@ -179,6 +181,7 @@ function NewVariantRow({ listingId, onDone }: { listingId: number; onDone: () =>
 
 function VariantRow({ variant: v, rate }: { variant: VariantData; rate: number }) {
   const router = useRouter();
+  const confirmDialog = useConfirm();
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [nameOriginal, setNameOriginal] = useState(v.nameOriginal);
@@ -189,7 +192,7 @@ function VariantRow({ variant: v, rate }: { variant: VariantData; rate: number }
   async function save() {
     const priceNum = Number(price);
     if (!Number.isFinite(priceNum) || priceNum <= 0) {
-      alert("Giá phải là số lớn hơn 0.");
+      toast.error("Giá phải là số lớn hơn 0.");
       return;
     }
     setSaving(true);
@@ -208,15 +211,15 @@ function VariantRow({ variant: v, rate }: { variant: VariantData; rate: number }
       setEditing(false);
       router.refresh();
     } else {
-      alert("Lưu thất bại, thử lại nhé.");
+      toast.error("Lưu thất bại, thử lại nhé.");
     }
   }
 
   async function remove() {
-    if (!confirm(`Xóa phân loại "${v.nameVi ?? v.nameOriginal}"?`)) return;
+    if (!(await confirmDialog(`Xóa phân loại "${v.nameVi ?? v.nameOriginal}"?`, { danger: true }))) return;
     const res = await fetch(`/api/variants/${v.id}`, { method: "DELETE" });
     if (res.ok) router.refresh();
-    else alert("Xóa thất bại, thử lại nhé.");
+    else toast.error("Xóa thất bại, thử lại nhé.");
   }
 
   if (editing) {

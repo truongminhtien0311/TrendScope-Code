@@ -10,6 +10,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
+import { toast } from "sonner";
 import { notifyDone } from "@/lib/notify";
 
 export interface ProductAiAnalysisData {
@@ -177,7 +178,7 @@ export default function AiAnalysisPanel({
       setEditing(false);
       router.refresh();
     } else {
-      alert("Lưu thất bại, thử lại nhé.");
+      toast.error("Lưu thất bại, thử lại nhé.");
     }
   }
 

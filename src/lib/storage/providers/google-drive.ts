@@ -42,6 +42,17 @@ import type { StorageProvider } from "../index";
 export const GOOGLE_SCOPE = "https://www.googleapis.com/auth/drive.file";
 export const GOOGLE_REDIRECT_PATH = "/api/storage/google/callback";
 
+// KHÔNG dùng request.nextUrl.origin để suy ra redirect_uri — server
+// standalone (electron/main.js) không set HOSTNAME nên Next tự nhận origin
+// là "http://0.0.0.0:<port>" (theo địa chỉ server đang lắng nghe) thay vì
+// "http://localhost:<port>" (địa chỉ trình duyệt thật sự gọi tới), khiến
+// Google từ chối redirect_uri với "Error 400: invalid_request". App luôn
+// chạy 1 máy, cổng cố định theo electron/main.js (PORT env) nên hardcode
+// thẳng localhost là đủ và ổn định hơn.
+export function getRedirectUri(): string {
+  return `http://localhost:${process.env.PORT ?? 3000}${GOOGLE_REDIRECT_PATH}`;
+}
+
 const ROOT_FOLDER_NAME = "ProductHunt-DoNotDelete";
 const IMAGES_FOLDER_NAME = "images";
 const MAX_IMAGE_DIMENSION = 1600; // px — cạnh dài tối đa sau khi resize

@@ -1,7 +1,6 @@
 "use client";
 
 // 1 dòng API provider trong Cài đặt: bật/tắt + (mở rộng) nhập API key / URL gốc.
-// Provider "Mock" không cần key nên chỉ hiện nút bật/tắt.
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -11,11 +10,22 @@ interface Props {
   enabled: boolean;
   apiKey: string | null;
   baseUrl: string | null;
-  isMock: boolean;
   isAdmin: boolean;
+  // true = provider này kết nối bằng cách riêng (vd Google Drive dùng OAuth
+  // Client ID/Secret ở khối "Lưu trữ" riêng) — không dùng ô "API key" chung
+  // này, ẩn đi cho đỡ nhầm (dán key vào đây không có tác dụng gì cả).
+  hasSeparateConfig?: boolean;
 }
 
-export default function ProviderRow({ id, name, enabled, apiKey, baseUrl, isMock, isAdmin }: Props) {
+export default function ProviderRow({
+  id,
+  name,
+  enabled,
+  apiKey,
+  baseUrl,
+  isAdmin,
+  hasSeparateConfig,
+}: Props) {
   const router = useRouter();
   const [busyToggle, setBusyToggle] = useState(false);
   const [open, setOpen] = useState(false);
@@ -59,7 +69,7 @@ export default function ProviderRow({ id, name, enabled, apiKey, baseUrl, isMock
       <div className="flex items-center justify-between">
         <span className="text-sm flex items-center gap-2">
           {name}
-          {!isMock && (
+          {!hasSeparateConfig && (
             <span
               className={`text-xs ${hasKey ? "text-green-600 dark:text-green-400" : "text-slate-400"}`}
               title={hasKey ? "Đã có API key" : "Chưa có API key"}
@@ -67,9 +77,12 @@ export default function ProviderRow({ id, name, enabled, apiKey, baseUrl, isMock
               {hasKey ? "🔑 đã cấu hình" : "chưa có key"}
             </span>
           )}
+          {hasSeparateConfig && (
+            <span className="text-xs text-slate-400">👇 cấu hình ở khối &quot;Lưu trữ&quot; bên dưới</span>
+          )}
         </span>
         <div className="flex items-center gap-2">
-          {!isMock && isAdmin && (
+          {!hasSeparateConfig && isAdmin && (
             <button
               onClick={() => setOpen(!open)}
               className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
@@ -103,7 +116,7 @@ export default function ProviderRow({ id, name, enabled, apiKey, baseUrl, isMock
         </div>
       </div>
 
-      {open && !isMock && isAdmin && (
+      {open && !hasSeparateConfig && isAdmin && (
         <form onSubmit={saveKey} className="mt-3 space-y-2 border-t border-slate-100 dark:border-slate-800 pt-3">
           <div>
             <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">
@@ -136,8 +149,8 @@ export default function ProviderRow({ id, name, enabled, apiKey, baseUrl, isMock
             {saved ? "✓ Đã lưu" : savingKey ? "Đang lưu..." : "Lưu"}
           </button>
           <p className="text-xs text-slate-400">
-            💡 Key chỉ dùng khi provider này thực sự được nối API thật (xem
-            docs/04-lo-trinh.md Giai đoạn 2). Bật/tắt không tự kiểm tra key hợp lệ.
+            💡 Key chỉ dùng khi provider này thực sự được nối API thật. Bật/tắt không tự kiểm
+            tra key hợp lệ.
           </p>
         </form>
       )}

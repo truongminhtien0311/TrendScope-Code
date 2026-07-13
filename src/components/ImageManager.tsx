@@ -9,6 +9,7 @@
 // Mỗi ảnh có nút xóa. Ảnh lưu vào public/uploads/ qua /api/uploads.
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useConfirm } from "@/components/ConfirmDialogProvider";
 
 export interface ImageData {
   id: number;
@@ -61,6 +62,7 @@ function ImageZone({
   thumbClass: string;
 }) {
   const router = useRouter();
+  const confirmDialog = useConfirm();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
@@ -108,7 +110,7 @@ function ImageZone({
   }
 
   async function removeImage(id: number) {
-    if (!confirm("Xóa ảnh này?")) return;
+    if (!(await confirmDialog("Xóa ảnh này?", { danger: true }))) return;
     await fetch(`/api/images/${id}`, { method: "DELETE" });
     router.refresh();
   }

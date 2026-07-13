@@ -1,12 +1,12 @@
 // API: GET /api/storage/google/auth-url — trả về link xin quyền Google
 // Drive, dùng Client ID đã lưu trong Cài đặt > Lưu trữ. Frontend điều
 // hướng thẳng trình duyệt sang link này (không phải fetch JSON).
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
-import { buildAuthUrl, GOOGLE_REDIRECT_PATH, type GoogleDriveConfig } from "@/lib/storage/providers/google-drive";
+import { buildAuthUrl, getRedirectUri, type GoogleDriveConfig } from "@/lib/storage/providers/google-drive";
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   const { forbidden } = await requireAdmin();
   if (forbidden) return forbidden;
 
@@ -25,7 +25,6 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const redirectUri = new URL(GOOGLE_REDIRECT_PATH, request.nextUrl.origin).toString();
-  const url = buildAuthUrl(config.clientId, redirectUri);
+  const url = buildAuthUrl(config.clientId, getRedirectUri());
   return NextResponse.json({ url });
 }

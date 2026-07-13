@@ -43,12 +43,12 @@ export default function SetupForm() {
       <div>
         <h1 className="font-bold text-lg">🛒 Product Scrap</h1>
         <p className="text-sm text-slate-500 dark:text-slate-400">
-          Chào mừng! Đây là lần đầu mở app trên máy này — tạo tài khoản Chủ tài khoản của mày.
+          Chào mừng! Đây là lần đầu mở app trên máy này — tạo tài khoản Chủ tài khoản của bạn.
         </p>
       </div>
 
       <div>
-        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Tên của mày</label>
+        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Tên của bạn</label>
         <input
           required
           value={name}

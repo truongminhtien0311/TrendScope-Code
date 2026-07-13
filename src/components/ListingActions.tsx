@@ -4,10 +4,13 @@
 // và "🗑️ Xóa link". Giá đã sửa tay (✍️) được giữ nguyên khi cào lại.
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { notifyDone } from "@/lib/notify";
+import { useConfirm } from "@/components/ConfirmDialogProvider";
 
 export default function ListingActions({ listingId }: { listingId: number }) {
   const router = useRouter();
+  const confirmDialog = useConfirm();
   const [rescraping, setRescraping] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -20,12 +23,16 @@ export default function ListingActions({ listingId }: { listingId: number }) {
       router.refresh();
     } else {
       const data = await res.json().catch(() => null);
-      alert(data?.error ?? "Cào lại thất bại, thử lại nhé.");
+      toast.error(data?.error ?? "Cào lại thất bại, thử lại nhé.");
     }
   }
 
   async function remove() {
-    if (!confirm("Xóa link này?\nPhân loại, ảnh, đánh giá của link sẽ bị xóa theo."))
+    if (
+      !(await confirmDialog("Xóa link này?\nPhân loại, ảnh, đánh giá của link sẽ bị xóa theo.", {
+        danger: true,
+      }))
+    )
       return;
     setDeleting(true);
     const res = await fetch(`/api/listings/${listingId}`, { method: "DELETE" });
@@ -33,7 +40,7 @@ export default function ListingActions({ listingId }: { listingId: number }) {
     if (res.ok) {
       router.refresh();
     } else {
-      alert("Xóa thất bại, thử lại nhé.");
+      toast.error("Xóa thất bại, thử lại nhé.");
     }
   }
 

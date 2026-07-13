@@ -16,6 +16,8 @@
 //     nào được dùng khi bấm "Tạo bằng AI", không đụng nội dung preset)
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { useConfirm } from "@/components/ConfirmDialogProvider";
 import type { PromptPreset } from "@/lib/llm";
 
 const PLACEHOLDERS = [
@@ -38,6 +40,7 @@ export default function PromptEditor({
   isAdmin: boolean;
 }) {
   const router = useRouter();
+  const confirmDialog = useConfirm();
   const [presets, setPresets] = useState<PromptPreset[]>(initialPresets);
   const [activeId, setActiveId] = useState(initialActiveId);
   const [selectedId, setSelectedId] = useState(
@@ -94,12 +97,13 @@ export default function PromptEditor({
     persist(next, activeId);
   }
 
-  function removePreset() {
+  async function removePreset() {
     if (presets.length <= 1) {
-      alert("Phải giữ lại ít nhất 1 prompt.");
+      toast.error("Phải giữ lại ít nhất 1 prompt.");
       return;
     }
-    if (!confirm(`Xóa prompt "${selected.name}"? Không khôi phục lại được.`)) return;
+    if (!(await confirmDialog(`Xóa prompt "${selected.name}"? Không khôi phục lại được.`, { danger: true })))
+      return;
     const next = presets.filter((p) => p.id !== selected.id);
     const nextActiveId = activeId === selected.id ? next[0].id : activeId;
     setPresets(next);
@@ -108,9 +112,10 @@ export default function PromptEditor({
     persist(next, nextActiveId);
   }
 
-  function restoreDefaultContent() {
+  async function restoreDefaultContent() {
     if (!matchingDefault) return;
-    if (!confirm(`Khôi phục "${selected.name}" về nội dung gốc? Nội dung đang sửa sẽ mất.`)) return;
+    if (!(await confirmDialog(`Khôi phục "${selected.name}" về nội dung gốc? Nội dung đang sửa sẽ mất.`)))
+      return;
     const next = presets.map((p) => (p.id === selected.id ? matchingDefault : p));
     setPresets(next);
     persist(next, activeId);

@@ -101,9 +101,6 @@ export default async function SettingsPage() {
               <p className="text-sm text-slate-600 dark:text-slate-300">
                 Dark/Light mode: dùng nút gạt ở góc dưới sidebar.
               </p>
-              <p className="text-sm text-slate-400 mt-1">
-                🔜 Theme màu tùy chỉnh độ tương phản cao — làm ở giai đoạn sau.
-              </p>
             </Section>
 
             {/* ---- Tỷ giá ---- */}
@@ -115,7 +112,6 @@ export default async function SettingsPage() {
               <p className="text-xs text-slate-400 mt-2">
                 CNY→VNĐ dùng để hiển thị giá VNĐ toàn app. USD→CNY dùng khi nhập tay giá
                 bằng USD (form nhập tay sẽ tự quy đổi về CNY để lưu).
-                🔜 Tự động cập nhật tỷ giá theo ngày — làm ở giai đoạn sau.
               </p>
             </Section>
           </>
@@ -125,9 +121,8 @@ export default async function SettingsPage() {
             {/* ---- API ---- */}
             <Section title="🔌 API bên thứ ba">
               <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
-                Bật/tắt từng nhà cung cấp. Provider không phải Mock có nút &quot;Cấu hình&quot;
-                để nhập API key. Bật key sai/rỗng cho provider chưa tích hợp thật sẽ làm
-                cào dữ liệu lỗi — cứ để &quot;Mock&quot; bật cho tới khi có key thật.
+                Bật/tắt từng nhà cung cấp. Bấm &quot;Cấu hình&quot; để nhập API key. Bật key
+                sai/rỗng sẽ làm cào dữ liệu lỗi — chỉ bật khi đã có key thật.
               </p>
               {isAdmin && (
                 <div className="mb-4">
@@ -147,8 +142,8 @@ export default async function SettingsPage() {
                           enabled={p.enabled}
                           apiKey={p.apiKey}
                           baseUrl={p.baseUrl}
-                          isMock={p.name.startsWith("Mock")}
                           isAdmin={isAdmin}
+                          hasSeparateConfig={p.kind === "STORAGE"}
                         />
                       ))}
                     </ul>
@@ -173,8 +168,7 @@ export default async function SettingsPage() {
                 />
               </Suspense>
               <p className="text-xs text-slate-400 mt-2">
-                🔜 Lark Drive — làm ở giai đoạn sau. Bật provider &quot;Google Drive&quot; ở mục
-                API phía trên để dùng làm nơi lưu ảnh.
+                Bật provider &quot;Google Drive&quot; ở mục API phía trên để dùng làm nơi lưu ảnh.
               </p>
             </Section>
 

@@ -5,6 +5,8 @@
 // cần đặt mật khẩu ngay — người đó tự đặt ở lần đăng nhập đầu tiên.
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { useConfirm } from "@/components/ConfirmDialogProvider";
 
 interface UserRow {
   id: number;
@@ -93,6 +95,7 @@ function ChangePasswordForm() {
 
 function UserManagement({ currentUserId, isOwner }: { currentUserId: number; isOwner: boolean }) {
   const router = useRouter();
+  const confirmDialog = useConfirm();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState("");
@@ -135,12 +138,12 @@ function UserManagement({ currentUserId, isOwner }: { currentUserId: number; isO
   }
 
   async function removeUser(id: number, userEmail: string) {
-    if (!confirm(`Xóa tài khoản "${userEmail}"?`)) return;
+    if (!(await confirmDialog(`Xóa tài khoản "${userEmail}"?`, { danger: true }))) return;
     const res = await fetch(`/api/auth/users/${id}`, { method: "DELETE" });
     if (res.ok) load();
     else {
       const data = await res.json().catch(() => null);
-      alert(data?.error ?? "Xóa thất bại.");
+      toast.error(data?.error ?? "Xóa thất bại.");
     }
     router.refresh();
   }
@@ -214,7 +217,7 @@ function UserManagement({ currentUserId, isOwner }: { currentUserId: number; isO
       {error && <p className="text-xs text-red-500">{error}</p>}
       <p className="text-xs text-slate-400">
         💡 Không cần đặt mật khẩu ngay — người được thêm tự đặt mật khẩu ở lần đăng nhập đầu
-        tiên bằng email này. Tài khoản "Admin" toàn quyền như mày, nhưng chỉ ⭐ Chủ tài khoản
+        tiên bằng email này. Tài khoản "Admin" toàn quyền như bạn, nhưng chỉ ⭐ Chủ tài khoản
         mới xóa được tài khoản admin khác — admin thường không xóa lẫn nhau được.
       </p>
     </div>

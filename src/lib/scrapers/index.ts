@@ -5,14 +5,12 @@
 import { prisma } from "@/lib/db";
 import { getUsdCnyRate } from "@/lib/currency";
 import type { Platform, SourceType, ScraperProvider, ProviderConfig } from "./types";
-import { mockScraper } from "./providers/mock";
 import { otapiTaobaoTmallScraper } from "./providers/otapi-taobao-tmall";
 import { otapiAlibabaScraper } from "./providers/otapi-alibaba";
 
 // Danh sách provider theo thứ tự ưu tiên (đứng trước = ưu tiên hơn nếu
-// nhiều provider cùng bật cho 1 sàn). Mock đứng đầu để mặc định luôn
-// dùng dữ liệu giả cho tới khi người dùng chủ động bật provider thật.
-const providers: ScraperProvider[] = [mockScraper, otapiTaobaoTmallScraper, otapiAlibabaScraper];
+// nhiều provider cùng bật cho 1 sàn).
+const providers: ScraperProvider[] = [otapiTaobaoTmallScraper, otapiAlibabaScraper];
 
 // Nhận diện sàn từ URL người dùng dán vào
 export function detectPlatform(url: string): Platform | null {

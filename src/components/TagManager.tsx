@@ -5,6 +5,8 @@
 // Xóa tag chỉ gỡ tag khỏi các sản phẩm, KHÔNG xóa sản phẩm.
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { useConfirm } from "@/components/ConfirmDialogProvider";
 import EmojiPicker from "@/components/EmojiPicker";
 import ColorPalette from "@/components/ColorPalette";
 
@@ -18,6 +20,7 @@ interface TagItem {
 
 export default function TagManager({ tags }: { tags: TagItem[] }) {
   const router = useRouter();
+  const confirmDialog = useConfirm();
   const [name, setName] = useState("");
   const [color, setColor] = useState("#3b82f6");
   const [icon, setIcon] = useState("");
@@ -40,7 +43,7 @@ export default function TagManager({ tags }: { tags: TagItem[] }) {
       router.refresh();
     } else {
       const data = await res.json().catch(() => null);
-      alert(data?.error ?? "Thêm thất bại (tag có thể đã tồn tại).");
+      toast.error(data?.error ?? "Thêm thất bại (tag có thể đã tồn tại).");
     }
   }
 
@@ -49,7 +52,7 @@ export default function TagManager({ tags }: { tags: TagItem[] }) {
       tag.productCount > 0
         ? `Tag đang gắn vào ${tag.productCount} sản phẩm — xóa sẽ gỡ tag khỏi các sản phẩm đó (sản phẩm không bị xóa).`
         : "Tag chưa gắn vào sản phẩm nào.";
-    if (!confirm(`Xóa tag "${tag.name}"?\n${warn}`)) return;
+    if (!(await confirmDialog(`Xóa tag "${tag.name}"?\n${warn}`, { danger: true }))) return;
     await fetch("/api/tags", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
@@ -143,7 +146,7 @@ function EditRow({ tag, onDone }: { tag: TagItem; onDone: () => void }) {
       router.refresh();
     } else {
       const data = await res.json().catch(() => null);
-      alert(data?.error ?? "Lưu thất bại.");
+      toast.error(data?.error ?? "Lưu thất bại.");
     }
   }
 

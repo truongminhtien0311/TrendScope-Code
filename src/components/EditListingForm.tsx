@@ -7,6 +7,7 @@
 // (gộp chung 1 request, không còn nút dịch riêng lẻ tốn API).
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 const PLATFORM_SUGGESTIONS = ["Taobao", "Tmall", "JD.com", "Alibaba.com", "1688.com"];
 
@@ -65,7 +66,7 @@ export default function EditListingForm({ listing }: { listing: EditableListingF
       setOpen(false);
       router.refresh();
     } else {
-      alert("Lưu thất bại, thử lại nhé.");
+      toast.error("Lưu thất bại, thử lại nhé.");
     }
   }
 

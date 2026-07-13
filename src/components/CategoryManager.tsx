@@ -6,6 +6,8 @@
 // KHÔNG bị xóa (database tự SetNull).
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { useConfirm } from "@/components/ConfirmDialogProvider";
 import EmojiPicker from "@/components/EmojiPicker";
 
 interface CategoryItem {
@@ -17,6 +19,7 @@ interface CategoryItem {
 
 export default function CategoryManager({ categories }: { categories: CategoryItem[] }) {
   const router = useRouter();
+  const confirmDialog = useConfirm();
   const [name, setName] = useState("");
   const [icon, setIcon] = useState("");
   const [busy, setBusy] = useState(false);
@@ -38,7 +41,7 @@ export default function CategoryManager({ categories }: { categories: CategoryIt
       router.refresh();
     } else {
       const data = await res.json().catch(() => null);
-      alert(data?.error ?? "Thêm thất bại (ngành hàng có thể đã tồn tại).");
+      toast.error(data?.error ?? "Thêm thất bại (ngành hàng có thể đã tồn tại).");
     }
   }
 
@@ -47,7 +50,7 @@ export default function CategoryManager({ categories }: { categories: CategoryIt
       category.productCount > 0
         ? `Có ${category.productCount} sản phẩm thuộc ngành này — chúng sẽ về "chưa phân loại" (không bị xóa).`
         : "Ngành hàng chưa có sản phẩm nào.";
-    if (!confirm(`Xóa ngành hàng "${category.name}"?\n${warn}`)) return;
+    if (!(await confirmDialog(`Xóa ngành hàng "${category.name}"?\n${warn}`, { danger: true }))) return;
     await fetch("/api/categories", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
@@ -132,7 +135,7 @@ function EditRow({ category, onDone }: { category: CategoryItem; onDone: () => v
       router.refresh();
     } else {
       const data = await res.json().catch(() => null);
-      alert(data?.error ?? "Lưu thất bại.");
+      toast.error(data?.error ?? "Lưu thất bại.");
     }
   }
 

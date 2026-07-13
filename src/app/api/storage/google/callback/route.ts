@@ -9,7 +9,7 @@ import { logActivity } from "@/lib/log";
 import {
   exchangeCodeForTokens,
   fetchConnectedEmail,
-  GOOGLE_REDIRECT_PATH,
+  getRedirectUri,
   type GoogleDriveConfig,
 } from "@/lib/storage/providers/google-drive";
 
@@ -46,12 +46,11 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const redirectUri = new URL(GOOGLE_REDIRECT_PATH, request.nextUrl.origin).toString();
     const { accessToken, refreshToken } = await exchangeCodeForTokens(
       code,
       config.clientId,
       config.clientSecret,
-      redirectUri
+      getRedirectUri()
     );
     const connectedEmail = await fetchConnectedEmail(accessToken);
 

@@ -4,6 +4,7 @@
 // phải nhập/sửa tay được, dùng khi API lỗi hoặc bổ sung dữ liệu).
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useConfirm } from "@/components/ConfirmDialogProvider";
 
 export interface ReviewData {
   id: number;
@@ -107,6 +108,7 @@ function NewReviewRow({ listingId, onDone }: { listingId: number; onDone: () => 
 
 function ReviewRow({ review: r, listingId: _listingId }: { review: ReviewData; listingId: number }) {
   const router = useRouter();
+  const confirmDialog = useConfirm();
   const [editing, setEditing] = useState(false);
   const [content, setContent] = useState(r.contentVi ?? r.contentOriginal);
   const [rating, setRating] = useState(String(r.rating ?? 5));
@@ -127,7 +129,7 @@ function ReviewRow({ review: r, listingId: _listingId }: { review: ReviewData; l
   }
 
   async function remove() {
-    if (!confirm("Xóa đánh giá này?")) return;
+    if (!(await confirmDialog("Xóa đánh giá này?", { danger: true }))) return;
     const res = await fetch(`/api/reviews/${r.id}`, { method: "DELETE" });
     if (res.ok) router.refresh();
   }

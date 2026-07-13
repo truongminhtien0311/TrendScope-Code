@@ -1,0 +1,8 @@
+{
+  "name": "prisma-runtime",
+  "private": true,
+  "description": "Chỉ dùng để cài đúng bộ Prisma CLI (và các gói nó phụ thuộc) cho electron-builder đóng gói vào resources/node_modules — tách riêng để KHÔNG kéo theo toàn bộ node_modules dev của project chính (xem package.json gốc, mục build.extraResources).",
+  "dependencies": {
+    "prisma": "6.19.3"
+  }
+}

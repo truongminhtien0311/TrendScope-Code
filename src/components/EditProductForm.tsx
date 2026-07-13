@@ -5,6 +5,8 @@
 // Mindmap: "Người dùng có thể tùy chỉnh, thay đổi tên và mô tả sản phẩm".
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { useConfirm } from "@/components/ConfirmDialogProvider";
 
 interface Props {
   product: {
@@ -21,6 +23,7 @@ interface Props {
 
 export default function EditProductForm({ product, allTags, allCategories, isAdmin }: Props) {
   const router = useRouter();
+  const confirmDialog = useConfirm();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState(product.name);
@@ -58,15 +61,16 @@ export default function EditProductForm({ product, allTags, allCategories, isAdm
       setOpen(false);
       router.refresh();
     } else {
-      alert("Lưu thất bại, thử lại nhé.");
+      toast.error("Lưu thất bại, thử lại nhé.");
     }
   }
 
   async function remove() {
     if (
-      !confirm(
-        `Xóa sản phẩm "${product.name}"?\nToàn bộ link, ảnh, đánh giá đi kèm sẽ bị xóa theo. Không hoàn tác được.`
-      )
+      !(await confirmDialog(
+        `Xóa sản phẩm "${product.name}"?\nToàn bộ link, ảnh, đánh giá đi kèm sẽ bị xóa theo. Không hoàn tác được.`,
+        { danger: true }
+      ))
     )
       return;
     const res = await fetch(`/api/products/${product.id}`, { method: "DELETE" });
@@ -74,7 +78,7 @@ export default function EditProductForm({ product, allTags, allCategories, isAdm
       router.push("/");
       router.refresh();
     } else {
-      alert("Xóa thất bại, thử lại nhé.");
+      toast.error("Xóa thất bại, thử lại nhé.");
     }
   }
 

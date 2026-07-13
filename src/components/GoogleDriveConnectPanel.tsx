@@ -7,6 +7,7 @@
 // mỗi lần dùng.
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useConfirm } from "@/components/ConfirmDialogProvider";
 
 interface Props {
   providerId: number;
@@ -27,6 +28,7 @@ export default function GoogleDriveConnectPanel({
 }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const confirmDialog = useConfirm();
   const [clientId, setClientId] = useState(initialClientId);
   const [clientSecret, setClientSecret] = useState(initialClientSecret);
   const [saving, setSaving] = useState(false);
@@ -47,6 +49,23 @@ export default function GoogleDriveConnectPanel({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ chạy khi query param đổi, không phụ thuộc router
   }, [redirectedConnected, redirectedError]);
+
+  // Bấm "Kết nối với Google" sẽ mở trình duyệt NGOÀI app (xem
+  // electron/main.js — will-navigate chặn điều hướng ra domain khác ngay
+  // trong cửa sổ app, tránh bị kẹt trắng màn hình không có nút quay lại).
+  // Cửa sổ app vẫn nằm nguyên ở trang này suốt lúc đó — không có cách nào
+  // biết chính xác lúc nào người dùng bấm xong bên trình duyệt, nên cứ mỗi
+  // lần quay lại cửa sổ app (focus) thì tự tải lại trang để cập nhật trạng
+  // thái mới nhất, khỏi phải thoát app vào lại.
+  useEffect(() => {
+    function onFocus() {
+      setConnecting(false);
+      router.refresh();
+    }
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ đăng ký 1 lần, router.refresh() không cần nằm trong dependency
+  }, []);
 
   async function saveCredentials() {
     setSaving(true);
@@ -74,7 +93,12 @@ export default function GoogleDriveConnectPanel({
     const res = await fetch("/api/storage/google/auth-url");
     if (res.ok) {
       const { url } = await res.json();
-      window.location.href = url; // rời hẳn trang, sang màn xin quyền của Google
+      // Không "window.location.href = url" (rời hẳn trang app đi) — trong
+      // bản đóng gói, main.js chặn lại và tự mở bằng trình duyệt mặc định
+      // của máy (window.open để chắc chắn không đụng gì tới trang app hiện
+      // tại). Đăng nhập xong ở trình duyệt, quay lại cửa sổ app sẽ tự cập
+      // nhật (xem effect "onFocus" ở trên).
+      window.open(url, "_blank");
     } else {
       const data = await res.json().catch(() => null);
       setError(data?.error ?? "Không lấy được link kết nối.");
@@ -83,7 +107,12 @@ export default function GoogleDriveConnectPanel({
   }
 
   async function disconnect() {
-    if (!confirm("Ngắt kết nối Google Drive? (giữ lại Client ID/Secret, chỉ xóa quyền truy cập)")) return;
+    if (
+      !(await confirmDialog("Ngắt kết nối Google Drive? (giữ lại Client ID/Secret, chỉ xóa quyền truy cập)", {
+        danger: true,
+      }))
+    )
+      return;
     await fetch(`/api/providers/${providerId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -105,6 +134,12 @@ export default function GoogleDriveConnectPanel({
 
       {notice && <p className="text-sm text-emerald-600 dark:text-emerald-400">{notice}</p>}
       {(error || redirectedError) && <p className="text-sm text-red-500">{error || redirectedError}</p>}
+      {connecting && (
+        <p className="text-sm text-blue-600 dark:text-blue-400">
+          🌐 Đã mở trình duyệt để đăng nhập Google — đăng nhập xong quay lại đây, app tự cập
+          nhật trạng thái.
+        </p>
+      )}
 
       {!isAdmin ? (
         <p className="text-xs text-slate-400">(chỉ admin kết nối/ngắt kết nối được)</p>
@@ -145,7 +180,7 @@ export default function GoogleDriveConnectPanel({
               disabled={connecting || !clientId.trim() || !clientSecret.trim()}
               className="rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-3 py-1.5 text-sm"
             >
-              {connecting ? "Đang chuyển hướng..." : hasRefreshToken ? "🔄 Kết nối lại" : "🔗 Kết nối với Google"}
+              {connecting ? "Đang chờ đăng nhập..." : hasRefreshToken ? "🔄 Kết nối lại" : "🔗 Kết nối với Google"}
             </button>
             {hasRefreshToken && (
               <button
