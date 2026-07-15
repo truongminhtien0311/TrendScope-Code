@@ -8,6 +8,7 @@ import { prisma } from "@/lib/db";
 import { getCnyVndRate, getUsdCnyRate } from "@/lib/currency";
 import {
   DEFAULT_PROMPT_PRESETS,
+  DEFAULT_COMPARE_PRESETS,
   DEFAULT_COST_ASSUMPTIONS,
   type PromptPreset,
   type CostAssumptions,
@@ -36,13 +37,15 @@ const KIND_LABELS: Record<string, string> = {
 export default async function SettingsPage() {
   const currentUser = await getCurrentUser();
   const isAdmin = currentUser?.role === "admin";
-  const [providers, rate, usdRate, presetsSetting, activePresetIdSetting, costSetting] = await Promise.all([
+  const [providers, rate, usdRate, presetsSetting, activePresetIdSetting, costSetting, comparePresetsSetting, compareActiveSetting] = await Promise.all([
     prisma.apiProvider.findMany({ orderBy: [{ kind: "asc" }, { id: "asc" }] }),
     getCnyVndRate(),
     getUsdCnyRate(),
     prisma.setting.findUnique({ where: { key: "ai_prompt_presets" } }),
     prisma.setting.findUnique({ where: { key: "ai_prompt_active_preset_id" } }),
     prisma.setting.findUnique({ where: { key: "business_cost_assumptions" } }),
+    prisma.setting.findUnique({ where: { key: "compare_prompt_presets" } }),
+    prisma.setting.findUnique({ where: { key: "compare_prompt_active_preset_id" } }),
   ]);
 
   let promptPresets: PromptPreset[] = DEFAULT_PROMPT_PRESETS;
@@ -55,6 +58,17 @@ export default async function SettingsPage() {
     }
   }
   const activePresetId = activePresetIdSetting?.value ?? promptPresets[0].id;
+
+  let comparePresets: PromptPreset[] = DEFAULT_COMPARE_PRESETS;
+  if (comparePresetsSetting?.value) {
+    try {
+      const parsed = JSON.parse(comparePresetsSetting.value);
+      if (Array.isArray(parsed) && parsed.length > 0) comparePresets = parsed;
+    } catch {
+      // JSON hỏng thì dùng bộ preset mặc định
+    }
+  }
+  const compareActiveId = compareActiveSetting?.value ?? comparePresets[0].id;
 
   let costAssumptions: CostAssumptions = DEFAULT_COST_ASSUMPTIONS;
   if (costSetting?.value) {
@@ -198,6 +212,22 @@ export default async function SettingsPage() {
                 activePresetId={activePresetId}
                 defaultPresets={DEFAULT_PROMPT_PRESETS}
                 isAdmin={isAdmin}
+              />
+            </Section>
+
+            {/* ---- Prompt So sánh Sản phẩm ---- */}
+            <Section title="⚖️ Prompt AI So Sánh (C-Level Module)">
+              <p className="text-sm text-slate-500 dark:text-slate-400 mb-3">
+                Các kịch bản được thiết kế theo góc nhìn chuyên gia (CFO, COO, CEO...). AI sẽ chạy trên bảng so sánh nhiều sản phẩm.
+              </p>
+              <PromptEditor
+                presets={comparePresets}
+                activePresetId={compareActiveId}
+                defaultPresets={DEFAULT_COMPARE_PRESETS}
+                isAdmin={isAdmin}
+                settingKey="compare_prompt_presets"
+                activeSettingKey="compare_prompt_active_preset_id"
+                placeholders={["{{PRODUCTS_DATA}}", "{{COMPARE_PURPOSE}}"]}
               />
             </Section>
 

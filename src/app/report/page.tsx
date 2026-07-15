@@ -13,6 +13,7 @@
 import { prisma } from "@/lib/db";
 import { getCnyVndRate, cnyToVnd, formatVnd, formatCny } from "@/lib/currency";
 import ReactMarkdown from "react-markdown";
+import SmartImage from "@/components/SmartImage";
 
 export const dynamic = "force-dynamic";
 
@@ -211,8 +212,7 @@ function ReportListingGroup({ title, listings, rate }: { title: string; listings
           {l.images.length > 0 && (
             <div className="grid grid-cols-4 gap-2">
               {l.images.map((img) => (
-                // eslint-disable-next-line @next/next/no-img-element -- ảnh từ sàn TQ/Drive, domain không cố định
-                <img key={img.id} src={img.url} alt="" className="w-full aspect-square object-cover rounded-lg" />
+                <SmartImage key={img.id} src={img.url} alt="" className="w-full aspect-square object-cover rounded-lg" />
               ))}
             </div>
           )}

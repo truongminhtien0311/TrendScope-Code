@@ -36,10 +36,15 @@ import {
 const MAX_ANALYSES_PER_PRODUCT = 10;
 
 export async function POST(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  // presetId: người dùng chọn ngay tại dropdown cạnh nút "Tạo bằng AI"
+  // (không bắt buộc đổi preset "đang dùng" trong Cài đặt trước) — không
+  // truyền gì thì rơi về preset active như hành vi cũ.
+  const body = await request.json().catch(() => ({}));
+  const requestedPresetId: string | undefined = body?.presetId;
   const product = await prisma.product.findUnique({
     where: { id: Number(id) },
     include: {
@@ -110,7 +115,9 @@ export async function POST(
     }
   }
   const activePreset =
-    presets.find((p) => p.id === activePresetIdSetting?.value) ?? presets[0];
+    (requestedPresetId ? presets.find((p) => p.id === requestedPresetId) : undefined) ??
+    presets.find((p) => p.id === activePresetIdSetting?.value) ??
+    presets[0];
 
   let costAssumptions: CostAssumptions = DEFAULT_COST_ASSUMPTIONS;
   if (costSetting?.value) {

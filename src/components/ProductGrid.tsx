@@ -77,6 +77,20 @@ export default function ProductGrid({ products, rate }: { products: ProductCardD
           >
             📥 Tải PDF
           </button>
+          {selectedIds.length >= 2 && selectedIds.length <= 5 ? (
+            <button
+              onClick={() => {
+                window.location.href = `/compare?ids=${idsParam}`;
+              }}
+              className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-1.5 text-sm hover:bg-slate-100 dark:hover:bg-slate-800"
+            >
+              ⚖️ So sánh
+            </button>
+          ) : (
+            <span className="text-xs text-slate-400" title="So sánh cần chọn từ 2 đến 5 sản phẩm">
+              ⚖️ So sánh (chọn 2-5 sản phẩm)
+            </span>
+          )}
         </div>
       )}
     </div>

@@ -20,7 +20,7 @@ import { toast } from "sonner";
 import { useConfirm } from "@/components/ConfirmDialogProvider";
 import type { PromptPreset } from "@/lib/llm";
 
-const PLACEHOLDERS = [
+const DEFAULT_PLACEHOLDERS = [
   "{{PRODUCT_NAME}}",
   "{{USER_DESCRIPTION}}",
   "{{LISTINGS_DATA}}",
@@ -33,11 +33,17 @@ export default function PromptEditor({
   activePresetId: initialActiveId,
   defaultPresets,
   isAdmin,
+  settingKey = "ai_prompt_presets",
+  activeSettingKey = "ai_prompt_active_preset_id",
+  placeholders = DEFAULT_PLACEHOLDERS,
 }: {
   presets: PromptPreset[];
   activePresetId: string;
   defaultPresets: PromptPreset[];
   isAdmin: boolean;
+  settingKey?: string;
+  activeSettingKey?: string;
+  placeholders?: string[];
 }) {
   const router = useRouter();
   const confirmDialog = useConfirm();
@@ -58,12 +64,12 @@ export default function PromptEditor({
       fetch("/api/settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ key: "ai_prompt_presets", value: JSON.stringify(nextPresets) }),
+        body: JSON.stringify({ key: settingKey, value: JSON.stringify(nextPresets) }),
       }),
       fetch("/api/settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ key: "ai_prompt_active_preset_id", value: nextActiveId }),
+        body: JSON.stringify({ key: activeSettingKey, value: nextActiveId }),
       }),
     ]);
     setBusy(false);
@@ -186,7 +192,7 @@ export default function PromptEditor({
 
       <p className="text-xs text-slate-500 dark:text-slate-400">
         Giữ nguyên các placeholder{" "}
-        {PLACEHOLDERS.map((p) => (
+        {placeholders.map((p) => (
           <code key={p} className="bg-slate-100 dark:bg-slate-800 rounded px-1 mx-0.5">
             {p}
           </code>

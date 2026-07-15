@@ -177,6 +177,27 @@ model Review {
 }
 
 // ------------------------------------------------------------
+// SO SÁNH SẢN PHẨM — chọn 2-5 sản phẩm, AI so sánh dựa TRÊN DỮ LIỆU CÀO
+// GỐC (không dùng bản đã AI dịch/tổng hợp, tránh thiên kiến cộng dồn qua
+// nhiều lần AI tạo). productIds lưu dạng JSON string (vd "[1,2,3]") vì
+// đây chỉ là tổ hợp tạm thời, không cần quan hệ N-N thật trong DB.
+// Cùng cơ chế PENDING -> chạy nền -> poll như ProductAiAnalysis (xem
+// src/app/api/compare/route.ts).
+// ------------------------------------------------------------
+model ProductComparison {
+  id         Int      @id @default(autoincrement())
+  productIds String // JSON, vd "[1,2,3]"
+  status     String   @default("PENDING") // "PENDING" | "DONE" | "FAILED"
+  presetName String?
+  resultMarkdown String?
+  errorMessage   String?
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+
+  @@index([startedAt])
+}
+
+// ------------------------------------------------------------
 // API BÊN THỨ BA — mục "Cài đặt > API" trong mindmap.
 // Mỗi dòng là 1 nhà cung cấp, bật/tắt và sửa key được.
 // ------------------------------------------------------------

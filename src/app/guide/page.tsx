@@ -73,23 +73,34 @@ export default function GuidePage() {
         </p>
       </Section>
 
-      <Section title="🧠 Phân tích AI">
+      <Section title="🧠 Phân tích AI & Các Góc Nhìn (Lát Cắt)">
         <p>
-          Ở trang chi tiết sản phẩm, bấm &lsquo;✨ Tạo bằng AI&rsquo; — app gộp TOÀN BỘ dữ liệu
-          (tên, ảnh, mô tả, đánh giá của mọi link) gửi 1 lần cho Gemini, sinh ra 7 mục:
+          Ở trang chi tiết sản phẩm, bấm &lsquo;✨ Tạo bằng AI&rsquo; — app sẽ gộp TOÀN BỘ dữ liệu
+          (tên, ảnh, mô tả, đánh giá của mọi link) gửi 1 lần cho Gemini. Điểm đặc biệt là bạn có thể chọn <strong>Góc nhìn (Prompt)</strong> phù hợp:
         </p>
-        <ol className="list-decimal pl-5 space-y-1 mt-2">
-          <li>Mô tả tổng hợp</li>
-          <li>Tệp khách hàng mục tiêu</li>
-          <li>Kênh bán hàng &amp; hướng tiếp thị</li>
-          <li>Gợi ý tùy chỉnh sản phẩm</li>
-          <li>Nhập khẩu (HS Code, thuế, kiểm định)</li>
-          <li>Đóng gói &amp; vận chuyển nội địa</li>
-          <li>Đánh giá tính khả thi kinh doanh</li>
-        </ol>
-        <p className="mt-2">
-          Mỗi lần bấm tạo ra 1 BẢN MỚI (giữ tối đa 10 bản để so sánh), không ghi đè bản cũ.
+        <ul className="list-disc pl-5 space-y-1 mt-2 mb-2 text-slate-700 dark:text-slate-300">
+          <li><strong>Toàn diện:</strong> Đánh giá đầy đủ mọi mặt (Tệp khách, Kênh bán, Tùy chỉnh, Nhập khẩu, Vận chuyển, Khả thi).</li>
+          <li><strong>Marketing / Pháp lý / Hoài nghi:</strong> Xoáy sâu vào một khía cạnh cụ thể nếu bạn cần thông tin chuyên sâu.</li>
+          <li><strong>Mẹo:</strong> Chạy nhiều góc nhìn khác nhau trên cùng 1 sản phẩm để thấy được bức tranh toàn cảnh mà không bị AI thiên vị.</li>
+        </ul>
+        <p className="mt-2 text-amber-700 dark:text-amber-400 text-xs italic">
+          ⚠️ Lưu ý: AI có thể bị lừa bởi review ảo. Các số liệu thuế/cước phí mang tính tham khảo, vui lòng đối chiếu luật hiện hành. Giữ tối đa 10 bản/sản phẩm.
         </p>
+      </Section>
+
+      <Section title="⚖️ So sánh Sản phẩm (Ban cố vấn C-Level)">
+        <p>
+          Vào mục <strong>So sánh</strong> trên thanh điều hướng, chọn 2-5 sản phẩm để đưa lên "bàn cân". 
+          Tính năng này tuyệt đối <strong>chỉ dùng dữ liệu cào GỐC</strong> để tránh thiên kiến cộng dồn.
+        </p>
+        <p className="mt-2">Hệ thống cung cấp sẵn 9 kịch bản So sánh mang tầm vóc chuyên gia:</p>
+        <ul className="list-disc pl-5 space-y-1 mt-2 text-slate-700 dark:text-slate-300">
+          <li><strong>Góc nhìn Tài chính (CFO):</strong> Đánh giá vòng quay vốn, rủi ro chôn vốn, biên lợi nhuận.</li>
+          <li><strong>Góc nhìn Vận hành (COO):</strong> So sánh độ cồng kềnh, tỷ lệ hỏng vỡ, khả năng scale.</li>
+          <li><strong>Góc nhìn Pháp chế/CEO:</strong> Đánh giá rào cản xâm nhập (Moat), nguy cơ kiện cáo bản quyền, tiềm năng xây Brand riêng.</li>
+          <li><strong>Chiến lược Phễu:</strong> Phân mảnh sản phẩm nào làm "mồi" câu khách, sản phẩm nào làm "chủ lực" chốt lời.</li>
+          <li><strong>Sàng lọc khắc nghiệt (Battle Royale):</strong> Chế độ "Shark Tank" loại bỏ thẳng tay những sản phẩm rủi ro chí mạng.</li>
+        </ul>
       </Section>
 
       <Section title="👥 Quản lý tài khoản & phân quyền">

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { cnyToVnd, formatVnd } from "@/lib/currency";
 import { resolveProductImage } from "@/lib/product-image";
 import BadgeOverflowList from "@/components/BadgeOverflowList";
+import SmartImage from "@/components/SmartImage";
 
 // Kiểu dữ liệu khớp với query trong src/app/page.tsx
 export interface ProductCardData {
@@ -77,8 +78,7 @@ export default function ProductCard({
       )}
       <div className="aspect-square bg-slate-100 dark:bg-slate-800">
         {mainImage ? (
-          // eslint-disable-next-line @next/next/no-img-element -- ảnh từ sàn TQ, domain không cố định nên chưa dùng next/image
-          <img src={mainImage} alt={product.name} className="w-full h-full object-cover" />
+          <SmartImage src={mainImage} alt={product.name} className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-4xl">📦</div>
         )}

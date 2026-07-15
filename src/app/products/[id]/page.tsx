@@ -14,6 +14,7 @@ import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { getCnyVndRate, cnyToVnd, formatVnd } from "@/lib/currency";
 import { resolveImageSourceListingId } from "@/lib/product-image";
+import { DEFAULT_PROMPT_PRESETS, type PromptPreset } from "@/lib/llm";
 import AddListingForm from "@/components/AddListingForm";
 import SetMainImageButton from "@/components/SetMainImageButton";
 import EditProductForm from "@/components/EditProductForm";
@@ -39,32 +40,50 @@ export default async function ProductDetailPage({
   // Chỉ nhận đường dẫn nội bộ (bắt đầu bằng "/") — tránh lỡ bị dùng để
   // redirect ra ngoài nếu link này bị chia sẻ/sửa tay.
   const backTo = from && from.startsWith("/") ? from : undefined;
-  const [product, rate, allTags, allCategories, currentUser] = await Promise.all([
-    prisma.product.findUnique({
-      where: { id: Number(id) },
-      include: {
-        categories: true,
-        tags: true,
-        listings: {
-          include: {
-            variants: true,
-            images: { orderBy: { sortOrder: "asc" } },
-            reviews: true,
+  const [product, rate, allTags, allCategories, currentUser, presetsSetting, activePresetIdSetting] =
+    await Promise.all([
+      prisma.product.findUnique({
+        where: { id: Number(id) },
+        include: {
+          categories: true,
+          tags: true,
+          listings: {
+            include: {
+              variants: true,
+              images: { orderBy: { sortOrder: "asc" } },
+              reviews: true,
+            },
+            orderBy: { createdAt: "desc" },
           },
-          orderBy: { createdAt: "desc" },
+          // Lịch sử phân tích AI — tối đa 10 bản/sản phẩm (xem evictOldAnalyses
+          // trong src/app/api/products/[id]/analyze/route.ts), mới nhất trước.
+          aiAnalyses: { orderBy: { startedAt: "desc" }, take: 10 },
         },
-        // Lịch sử phân tích AI — tối đa 10 bản/sản phẩm (xem evictOldAnalyses
-        // trong src/app/api/products/[id]/analyze/route.ts), mới nhất trước.
-        aiAnalyses: { orderBy: { startedAt: "desc" }, take: 10 },
-      },
-    }),
-    getCnyVndRate(),
-    prisma.tag.findMany({ orderBy: { name: "asc" } }),
-    prisma.category.findMany({ orderBy: { name: "asc" } }),
-    getCurrentUser(),
-  ]);
+      }),
+      getCnyVndRate(),
+      prisma.tag.findMany({ orderBy: { name: "asc" } }),
+      prisma.category.findMany({ orderBy: { name: "asc" } }),
+      getCurrentUser(),
+      prisma.setting.findUnique({ where: { key: "ai_prompt_presets" } }),
+      prisma.setting.findUnique({ where: { key: "ai_prompt_active_preset_id" } }),
+    ]);
 
   if (!product) notFound();
+
+  // Preset Prompt AI — dùng để chọn nhanh ngay tại nút "Tạo bằng AI" (xem
+  // AiAnalysisPanel.tsx), cùng nguồn Setting với trang Cài đặt > Prompt AI.
+  let promptPresets: PromptPreset[] = DEFAULT_PROMPT_PRESETS;
+  if (presetsSetting?.value) {
+    try {
+      const parsed = JSON.parse(presetsSetting.value);
+      if (Array.isArray(parsed) && parsed.length > 0) promptPresets = parsed;
+    } catch {
+      // JSON hỏng thì dùng bộ preset mặc định
+    }
+  }
+  const activePresetId = promptPresets.some((p) => p.id === activePresetIdSetting?.value)
+    ? (activePresetIdSetting!.value as string)
+    : promptPresets[0].id;
 
   // Thông tin phụ tham khảo: khoảng giá theo nhóm nguồn
   const priceRange = (sourceType: string) => {
@@ -172,6 +191,8 @@ export default async function ProductDetailPage({
           startedAt: a.startedAt.toISOString(),
           finishedAt: a.finishedAt ? a.finishedAt.toISOString() : null,
         }))}
+        presets={promptPresets}
+        activePresetId={activePresetId}
       />
 
       {/* ---- Thêm link mới ---- */}

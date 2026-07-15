@@ -10,6 +10,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useConfirm } from "@/components/ConfirmDialogProvider";
+import SmartImage from "@/components/SmartImage";
 
 export interface ImageData {
   id: number;
@@ -153,8 +154,7 @@ function ImageZone({
         <div className="flex gap-2 overflow-x-auto">
           {images.map((img) => (
             <div key={img.id} className="relative shrink-0 group">
-              {/* eslint-disable-next-line @next/next/no-img-element -- ảnh từ nhiều nguồn (CDN sàn TQ hoặc /uploads/ local), domain không cố định */}
-              <img
+              <SmartImage
                 src={img.url}
                 alt=""
                 className={`${thumbClass} rounded-lg object-cover border border-slate-200 dark:border-slate-800`}
