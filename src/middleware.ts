@@ -34,6 +34,6 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // Bỏ qua: /login, /setup, /api/auth/*, /api/health, tài nguyên tĩnh Next.js, ảnh upload local
-  matcher: ["/((?!login|setup|api/auth|api/health|_next/static|_next/image|favicon.ico|uploads).*)"],
+  // Bỏ qua: /login, /setup, /api/auth/*, /api/storage/google/*, /api/health, tài nguyên tĩnh Next.js, ảnh upload local
+  matcher: ["/((?!login|setup|api/auth|api/storage/google|api/health|_next/static|_next/image|favicon.ico|uploads).*)"],
 };

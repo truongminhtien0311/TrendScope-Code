@@ -11,6 +11,14 @@ interface Props {
   categories: { id: number; name: string; icon: string | null }[];
 }
 
+function SearchIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    </svg>
+  );
+}
+
 export default function FilterBar({ tags, categories }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -23,30 +31,37 @@ export default function FilterBar({ tags, categories }: Props) {
     router.push(`/?${params.toString()}`);
   }
 
-  const selectClass =
-    "rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-1.5 text-sm";
-
   return (
-    <div className="flex flex-wrap gap-2 items-center">
-      {/* Tìm theo tên — gõ xong nhấn Enter */}
+    <div className="filter-panel">
+      {/* Search input */}
       <form
         onSubmit={(e) => {
           e.preventDefault();
           setParam("q", q.trim());
         }}
+        className="relative"
       >
+        <span
+          className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
+          style={{ color: "var(--text-muted)" }}
+        >
+          <SearchIcon />
+        </span>
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="🔍 Tìm theo tên... (Enter)"
-          className={`${selectClass} w-56`}
+          placeholder="Tìm theo tên... (Enter)"
+          className="input-cyber"
+          style={{ paddingLeft: "2rem", width: "220px" }}
         />
       </form>
 
+      {/* Sort */}
       <select
-        className={selectClass}
+        className="select-cyber"
         value={searchParams.get("sort") ?? "newest"}
         onChange={(e) => setParam("sort", e.target.value)}
+        style={{ width: "auto" }}
       >
         <option value="newest">Mới thêm trước</option>
         <option value="oldest">Cũ nhất trước</option>
@@ -54,10 +69,12 @@ export default function FilterBar({ tags, categories }: Props) {
         <option value="price_desc">Giá cao → thấp</option>
       </select>
 
+      {/* Tag filter */}
       <select
-        className={selectClass}
+        className="select-cyber"
         value={searchParams.get("tag") ?? ""}
         onChange={(e) => setParam("tag", e.target.value)}
+        style={{ width: "auto" }}
       >
         <option value="">Tất cả tag</option>
         {tags.map((t) => (
@@ -68,10 +85,12 @@ export default function FilterBar({ tags, categories }: Props) {
         ))}
       </select>
 
+      {/* Category filter */}
       <select
-        className={selectClass}
+        className="select-cyber"
         value={searchParams.get("category") ?? ""}
         onChange={(e) => setParam("category", e.target.value)}
+        style={{ width: "auto" }}
       >
         <option value="">Tất cả ngành hàng</option>
         {categories.map((c) => (

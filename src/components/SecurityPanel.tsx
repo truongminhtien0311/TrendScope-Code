@@ -28,70 +28,11 @@ export default function SecurityPanel({
 }) {
   return (
     <div className="space-y-6">
-      <ChangePasswordForm />
       {isAdmin && <UserManagement currentUserId={currentUserId} isOwner={isOwner} />}
     </div>
   );
 }
 
-function ChangePasswordForm() {
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [error, setError] = useState("");
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setSaving(true);
-    setError("");
-    const res = await fetch("/api/auth/change-password", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ currentPassword, newPassword }),
-    });
-    setSaving(false);
-    if (res.ok) {
-      setCurrentPassword("");
-      setNewPassword("");
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-    } else {
-      const data = await res.json().catch(() => null);
-      setError(data?.error ?? "Đổi mật khẩu thất bại.");
-    }
-  }
-
-  return (
-    <form onSubmit={submit} className="space-y-2 rounded-lg border border-slate-200 dark:border-slate-800 p-3 max-w-sm">
-      <p className="text-sm font-medium">🔑 Đổi mật khẩu của tôi</p>
-      <input
-        type="password"
-        placeholder="Mật khẩu hiện tại"
-        value={currentPassword}
-        onChange={(e) => setCurrentPassword(e.target.value)}
-        className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-1.5 text-sm"
-      />
-      <input
-        type="password"
-        placeholder="Mật khẩu mới (từ 6 ký tự)"
-        minLength={6}
-        required
-        value={newPassword}
-        onChange={(e) => setNewPassword(e.target.value)}
-        className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-1.5 text-sm"
-      />
-      {error && <p className="text-xs text-red-500">{error}</p>}
-      <button
-        type="submit"
-        disabled={saving}
-        className="rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-3 py-1.5 text-sm"
-      >
-        {saved ? "✓ Đã đổi" : saving ? "Đang lưu..." : "Đổi mật khẩu"}
-      </button>
-    </form>
-  );
-}
 
 function UserManagement({ currentUserId, isOwner }: { currentUserId: number; isOwner: boolean }) {
   const router = useRouter();

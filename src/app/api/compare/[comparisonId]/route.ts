@@ -11,7 +11,16 @@ export async function GET(
   const { comparisonId } = await params;
   const comparison = await prisma.productComparison.findUnique({
     where: { id: Number(comparisonId) },
-    select: { id: true, status: true, startedAt: true, finishedAt: true, errorMessage: true, resultMarkdown: true },
+    select: {
+      id: true,
+      status: true,
+      startedAt: true,
+      finishedAt: true,
+      errorMessage: true,
+      resultMarkdown: true,
+      presetName: true,
+      sourceComparisonIds: true,
+    },
   });
   if (!comparison) {
     return NextResponse.json({ error: "Không tìm thấy bản so sánh" }, { status: 404 });

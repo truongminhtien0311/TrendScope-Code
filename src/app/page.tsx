@@ -71,7 +71,12 @@ export default async function DashboardPage({
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <h1
+          className="text-2xl font-bold"
+          style={{ fontFamily: "'Space Grotesk', sans-serif", background: "linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}
+        >
+          Dashboard
+        </h1>
         <AddProductForm />
       </div>
 
@@ -80,13 +85,22 @@ export default async function DashboardPage({
       </Suspense>
 
       {sorted.length === 0 ? (
-        <div className="text-center py-20 text-slate-500 dark:text-slate-400">
-          <p className="text-4xl mb-3">📭</p>
-          <p>Chưa có sản phẩm nào khớp bộ lọc.</p>
-          <p className="text-sm mt-1">Bấm &quot;+ Thêm sản phẩm&quot; để bắt đầu.</p>
+        <div
+          className="text-center py-24 space-y-3"
+          style={{ color: "var(--text-muted)" }}
+        >
+          <div style={{ fontSize: "3rem", opacity: 0.4 }}>
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" style={{ margin: "0 auto" }}>
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+              <line x1="12" y1="22.08" x2="12" y2="12"/>
+            </svg>
+          </div>
+          <p className="font-medium" style={{ color: "var(--text-secondary)" }}>Chưa có sản phẩm nào khớp bộ lọc.</p>
+          <p className="text-sm">Bấm &quot;Thêm sản phẩm&quot; để bắt đầu.</p>
         </div>
       ) : (
-        <ProductGrid products={sorted} rate={rate} />
+        <ProductGrid products={sorted} rate={rate} mode="dashboard" />
       )}
     </div>
   );

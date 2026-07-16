@@ -7,17 +7,27 @@
 // nào cần chọn màu).
 import { useEffect, useState } from "react";
 
-const ROWS: string[][] = [
-  // Hàng 1 — tươi sáng
-  ["#ffffff", "#22d3ee", "#2dd4bf", "#4ade80", "#a3e635", "#3b82f6", "#fb923c", "#f472b6", "#a78bfa"],
-  // Hàng 2 — pastel nhạt
-  ["#f1f5f9", "#cffafe", "#ccfbf1", "#dcfce7", "#ecfccb", "#dbeafe", "#ffedd5", "#fce7f3", "#ede9fe"],
-  // Hàng 3 — xám (trắng -> đen)
-  ["#ffffff", "#e2e8f0", "#cbd5e1", "#94a3b8", "#64748b", "#475569", "#334155", "#1e293b", "#0f172a"],
-  // Hàng 4 — màu đậm vừa
-  ["#0891b2", "#0d9488", "#16a34a", "#65a30d", "#2563eb", "#ea580c", "#db2777", "#7c3aed"],
-  // Hàng 5 — màu trầm/tối
-  ["#164e63", "#134e4a", "#14532d", "#3f6212", "#1e3a8a", "#7c2d12", "#831843", "#4c1d95"],
+const COLUMNS: string[][] = [
+  // Gray
+  ["#f8fafc", "#e2e8f0", "#94a3b8", "#475569", "#1e293b"],
+  // Red
+  ["#fef2f2", "#fecaca", "#f87171", "#dc2626", "#991b1b"],
+  // Orange
+  ["#fff7ed", "#fed7aa", "#fb923c", "#ea580c", "#9a3412"],
+  // Amber / Vàng
+  ["#fffbeb", "#fde68a", "#fbbf24", "#d97706", "#92400e"],
+  // Green
+  ["#f0fdf4", "#bbf7d0", "#4ade80", "#16a34a", "#166534"],
+  // Teal / Cyan
+  ["#f0fdfa", "#99f6e4", "#2dd4bf", "#0d9488", "#115e59"],
+  // Blue
+  ["#eff6ff", "#bfdbfe", "#60a5fa", "#2563eb", "#1e40af"],
+  // Indigo
+  ["#eef2ff", "#c7d2fe", "#818cf8", "#4f46e5", "#3730a3"],
+  // Purple
+  ["#faf5ff", "#e9d5ff", "#c084fc", "#9333ea", "#6b21a8"],
+  // Pink
+  ["#fdf2f8", "#fbcfe8", "#f472b6", "#db2777", "#9d174d"],
 ];
 
 const RECENT_KEY = "product-scrap:recent-tag-colors";
@@ -37,7 +47,6 @@ function pushRecent(color: string) {
 
 export default function ColorPalette({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const [recent, setRecent] = useState<string[]>([]);
-  const [customOpen, setCustomOpen] = useState(false);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- đọc localStorage (chỉ có ở client) 1 lần lúc mount
@@ -48,31 +57,37 @@ export default function ColorPalette({ value, onChange }: { value: string; onCha
     onChange(color);
     pushRecent(color);
     setRecent(loadRecent());
-    setCustomOpen(false);
   }
 
-  const Swatch = ({ c }: { c: string }) => (
-    <button
-      key={c}
-      type="button"
-      onClick={() => pick(c)}
-      className={`w-6 h-6 rounded-full border-2 ${
-        value === c ? "border-slate-900 dark:border-white" : "border-slate-200 dark:border-slate-700"
-      }`}
-      style={{ backgroundColor: c }}
-      title={c}
-    />
-  );
+  const Swatch = ({ c }: { c: string }) => {
+    const isActive = value === c;
+    return (
+      <button
+        key={c}
+        type="button"
+        onClick={() => pick(c)}
+        className={`w-[26px] h-[26px] rounded-[10px] transition-all duration-200 shadow-sm hover:scale-110 hover:shadow-md ${
+          isActive 
+            ? "ring-2 ring-offset-2 ring-blue-500 dark:ring-cyan-400 dark:ring-offset-[#080f1f] z-10" 
+            : "border border-slate-200 dark:border-slate-700/50"
+        }`}
+        style={{ backgroundColor: c }}
+        title={c}
+      />
+    );
+  };
 
   return (
     <div className="space-y-1.5">
-      {ROWS.map((row, i) => (
-        <div key={i} className="flex gap-1.5">
-          {row.map((c) => (
-            <Swatch key={c} c={c} />
-          ))}
-        </div>
-      ))}
+      <div className="flex gap-1.5">
+        {COLUMNS.map((col, i) => (
+          <div key={i} className="flex flex-col gap-1.5">
+            {col.map((c) => (
+              <Swatch key={c} c={c} />
+            ))}
+          </div>
+        ))}
+      </div>
 
       {recent.length > 0 && (
         <div>
@@ -85,21 +100,26 @@ export default function ColorPalette({ value, onChange }: { value: string; onCha
         </div>
       )}
 
-      <button
-        type="button"
-        onClick={() => setCustomOpen((v) => !v)}
-        className="flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 hover:underline"
-      >
-        🎨 Màu khác
-      </button>
-      {customOpen && (
-        <input
-          type="color"
-          value={value}
-          onChange={(e) => pick(e.target.value)}
-          className="h-8 w-12 rounded cursor-pointer border border-slate-300 dark:border-slate-700 bg-transparent"
-        />
-      )}
+      <div className="pt-2 flex items-center">
+        <label className="relative inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700/60 bg-slate-50/50 dark:bg-slate-800/40 hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-all cursor-pointer group shadow-sm">
+          <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">🎨 Tuỳ chỉnh</span>
+          <div 
+            className="w-5 h-5 rounded-md shadow-inner border border-slate-200 dark:border-slate-600" 
+            style={{ backgroundColor: value }} 
+          />
+          <input
+            type="color"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            onBlur={(e) => {
+              pushRecent(e.target.value);
+              setRecent(loadRecent());
+            }}
+            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+            title="Chọn màu tuỳ chỉnh"
+          />
+        </label>
+      </div>
     </div>
   );
 }

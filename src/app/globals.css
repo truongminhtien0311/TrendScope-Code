@@ -1,28 +1,702 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
-/* Dark mode bật/tắt bằng class "dark" trên thẻ <html>
-   (nút gạt ở sidebar), không phụ thuộc cài đặt hệ điều hành */
+/* ─────────────────────────────────────────────────────────
+   DARK MODE: bật/tắt bằng class "dark" trên thẻ <html>
+   (nút gạt ở sidebar), không phụ thuộc cài đặt hệ điều hành
+   ───────────────────────────────────────────────────────── */
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* ─────────────────────────────────────────────────────────
+   CSS DESIGN TOKENS
+   ───────────────────────────────────────────────────────── */
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
+  /* --- Light Mode: Clean Bright Tech --- */
+  --bg-base:       #eef1f7;        /* slate blue-gray — khác rõ với card trắng */
+  --bg-surface:    #ffffff;
+  --bg-card:       #ffffff;
+  --bg-sidebar:    #101c2c;        /* dark navy — trung tính, không tím */
+  --bg-sidebar-hover: rgba(255,255,255,0.13);  /* tăng từ 8%→13% để thấy rõ khi hover */
+  --bg-sidebar-active: rgba(59,130,246,0.28);  /* tăng từ 18%→28% để active item nổi bật */
+  --bg-overlay:    rgba(0,0,0,0.55);
+
+  --border-subtle: rgba(15,23,42,0.10);    /* neutral slate rất nhạt */
+  --border-accent: rgba(37,99,235,0.50);   /* blue-600 */
+  --border-sidebar: rgba(255,255,255,0.07);
+
+  --accent-primary:   #2563eb;    /* blue-600 — sáng, rõ, không purple */
+  --accent-secondary: #0891b2;    /* cyan-600 — teal tech */
+  --accent-success:   #059669;    /* emerald */
+  --accent-danger:    #dc2626;    /* red */
+  --accent-warning:   #d97706;    /* amber */
+  --accent-cyan:      #0ea5e9;    /* sky-500 */
+
+  --text-primary:  #0f172a;
+  --text-secondary:#334155;
+  --text-muted:    #64748b;
+  --text-sidebar:  #b8d0e8;       /* steel blue mật */
+  --text-sidebar-muted: rgba(184,208,232,0.45);
+  --text-on-accent:#ffffff;
+
+  --glow-primary:  rgba(37,99,235,0.30);
+  --glow-danger:   rgba(220,38,38,0.35);
+  --glow-success:  rgba(5,150,105,0.30);
+  --glow-cyan:     rgba(8,145,178,0.30);
+
+  /* Card shadow rõ hơn — tạo cảm giác nổi trên nền xám */
+  --shadow-card:   0 1px 3px rgba(0,0,0,0.08), 0 4px 16px rgba(0,0,0,0.06);
+  --shadow-card-hover: 0 6px 28px rgba(37,99,235,0.18), 0 2px 6px rgba(0,0,0,0.10);
+  --shadow-btn:    0 1px 3px rgba(37,99,235,0.30);
+  --shadow-btn-hover: 0 0 20px rgba(37,99,235,0.45), 0 2px 8px rgba(0,0,0,0.15);
+  --shadow-dialog: 0 8px 48px rgba(0,0,0,0.22), 0 0 0 1px var(--border-accent);
+
+  --radius-card:   14px;
+  --radius-btn:    10px;
+  --radius-input:  8px;
+  --radius-badge:  999px;
+
+  --background: var(--bg-base);
+  --foreground: var(--text-primary);
 }
 
 .dark {
-  --background: #0b1120;
-  --foreground: #e2e8f0;
+  /* --- Dark Mode: Deep Space --- */
+  --bg-base:       #03060f;
+  --bg-surface:    #080f1f;
+  --bg-card:       #0d1628;
+  --bg-sidebar:    #060c1a;
+  --bg-sidebar-hover: rgba(99,179,237,0.08);
+  --bg-sidebar-active: rgba(0,212,255,0.12);
+  --bg-overlay:    rgba(0,0,0,0.75);
+
+  --border-subtle: rgba(99,179,237,0.10);
+  --border-accent: rgba(99,179,237,0.32);
+  --border-sidebar: rgba(99,179,237,0.08);
+
+  --accent-primary:   #00d4ff;    /* electric cyan */
+  --accent-secondary: #a78bfa;    /* soft violet */
+  --accent-success:   #34d399;    /* neon green */
+  --accent-danger:    #f87171;    /* soft red */
+  --accent-warning:   #fbbf24;    /* amber */
+  --accent-cyan:      #22d3ee;    /* bright cyan */
+
+  --text-primary:  #e2f0ff;
+  --text-secondary:#94b8d4;
+  --text-muted:    #4d6b8a;
+  --text-sidebar:  #a5c8e8;
+  --text-sidebar-muted: rgba(165,200,232,0.4);
+  --text-on-accent:#03060f;
+
+  --glow-primary:  rgba(0,212,255,0.28);
+  --glow-danger:   rgba(248,113,113,0.35);
+  --glow-success:  rgba(52,211,153,0.28);
+  --glow-cyan:     rgba(34,211,238,0.28);
+
+  --shadow-card:   0 1px 3px rgba(0,0,0,0.4), 0 0 0 1px var(--border-subtle);
+  --shadow-card-hover: 0 0 0 1px var(--border-accent), 0 0 30px rgba(0,212,255,0.12);
+  --shadow-btn:    0 0 0 0 transparent;
+  --shadow-btn-hover: 0 0 22px var(--glow-primary);
+  --shadow-dialog: 0 0 0 1px var(--border-accent), 0 0 60px rgba(0,212,255,0.1), 0 16px 64px rgba(0,0,0,0.6);
+
+  --background: var(--bg-base);
+  --foreground: var(--text-primary);
 }
 
+/* ─────────────────────────────────────────────────────────
+   TAILWIND THEME BRIDGE
+   ───────────────────────────────────────────────────────── */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono);
+  --font-display: 'Space Grotesk', ui-sans-serif, sans-serif;
+}
+
+/* ─────────────────────────────────────────────────────────
+   BASE STYLES
+   ───────────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--bg-base);
+  color: var(--text-primary);
+  min-height: 100vh;
+  /* Light mode: neutral cool gradient — không tím, xanh slate nhẹ */
+  background-image:
+    radial-gradient(ellipse at 20% 0%,   rgba(14,165,233,0.05) 0%, transparent 55%),
+    radial-gradient(ellipse at 85% 90%,  rgba(8,145,178,0.04)  0%, transparent 55%);
+}
+
+.dark body {
+  /* Dark mode: deep space nebula + faint dot grid */
+  background-image:
+    radial-gradient(ellipse at 10% 20%, rgba(0,212,255,0.07) 0%, transparent 45%),
+    radial-gradient(ellipse at 90% 10%, rgba(124,58,237,0.09) 0%, transparent 45%),
+    radial-gradient(ellipse at 50% 90%, rgba(0,100,200,0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 70% 50%, rgba(0,212,255,0.04) 0%, transparent 40%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3Ccircle cx='20' cy='20' r='0.8' fill='rgba(99%2C179%2C237%2C0.08)'/%3E%3C/svg%3E");
+}
+
+/* ─────────────────────────────────────────────────────────
+   KEYFRAME ANIMATIONS
+   ───────────────────────────────────────────────────────── */
+@keyframes pulse-glow {
+  0%, 100% { opacity: 1; box-shadow: 0 0 6px var(--glow-primary); }
+  50%       { opacity: 0.7; box-shadow: 0 0 14px var(--glow-primary); }
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.5; transform: scale(0.7); }
+}
+
+@keyframes shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.93) translateY(8px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slide-in-left {
+  from { opacity: 0; transform: translateX(-12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-4px); }
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes border-flow {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes twinkle {
+  0%, 100% { opacity: 0.2; }
+  50%       { opacity: 1; }
+}
+
+/* ─────────────────────────────────────────────────────────
+   UTILITY CLASSES — Cosmic Design System
+   ───────────────────────────────────────────────────────── */
+
+/* === BUTTONS === */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1.125rem;
+  border-radius: var(--radius-btn);
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  color: var(--text-on-accent);
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  border: 1px solid transparent;
+  box-shadow: var(--shadow-btn);
+  cursor: pointer;
+  transition: all 0.22s ease;
+  position: relative;
+  overflow: hidden;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.btn-primary::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.15), transparent);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.btn-primary:hover {
+  box-shadow: var(--shadow-btn-hover);
+  transform: translateY(-1px);
+}
+
+.btn-primary:hover::before { opacity: 1; }
+
+.btn-primary:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-btn);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.btn-danger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1.125rem;
+  border-radius: var(--radius-btn);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(135deg, #dc2626, #9f1239);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.22s ease;
+  white-space: nowrap;
+}
+
+.btn-danger:hover {
+  box-shadow: 0 0 22px var(--glow-danger);
+  transform: translateY(-1px);
+}
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.875rem;
+  border-radius: var(--radius-btn);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-ghost:hover {
+  background: var(--bg-card);
+  border-color: var(--border-accent);
+  color: var(--text-primary);
+}
+
+/* === CARDS === */
+.card-glass {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  transition: box-shadow 0.25s ease, border-color 0.25s ease, transform 0.2s ease;
+}
+
+.card-glass:hover {
+  box-shadow: var(--shadow-card-hover);
+  border-color: var(--border-accent);
+}
+
+/* Dark mode glass effect */
+.dark .card-glass {
+  background: rgba(13,22,40,0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* === INPUTS === */
+.input-cyber {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-input);
+  color: var(--text-primary);
+  padding: 0.4375rem 0.75rem;
+  font-size: 0.875rem;
+  font-family: 'Inter', sans-serif;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  outline: none;
+  width: 100%;
+}
+
+.input-cyber::placeholder { color: var(--text-muted); }
+
+.input-cyber:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(var(--glow-primary), 0.12), 0 0 14px var(--glow-primary);
+}
+
+.dark .input-cyber {
+  background: rgba(6,12,26,0.8);
+}
+
+/* === BADGES === */
+.badge-cyber {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.625rem;
+  border-radius: var(--radius-badge);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.badge-price-retail {
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  color: var(--text-on-accent);
+  box-shadow: 0 2px 8px var(--glow-primary);
+}
+
+.badge-price-factory {
+  background: linear-gradient(135deg, var(--accent-success), #065f46);
+  color: #fff;
+  box-shadow: 0 2px 8px var(--glow-success);
+}
+
+/* === DIALOG === */
+.dialog-glass {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-accent);
+  border-radius: 16px;
+  box-shadow: var(--shadow-dialog);
+  animation: scale-in 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.dark .dialog-glass {
+  background: rgba(8,15,31,0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: var(--bg-overlay);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  animation: fade-in 0.15s ease;
+}
+
+/* === SIDEBAR === */
+.sidebar-glass {
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border-sidebar);
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-sidebar);
+  text-decoration: none;
+  transition: all 0.18s ease;
+  position: relative;
+  cursor: pointer;
+}
+
+.nav-item:hover {
+  background: rgba(255, 255, 255, 0.14);  /* tăng mạnh để thấy rõ highlight */
+  color: #ffffff;                           /* sidebar luôn tối → text luôn trắng */
+}
+
+/* dark mode giống light vì sidebar đều tối */
+.dark .nav-item:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.nav-item.active {
+  background: rgba(59, 130, 246, 0.32);   /* blue rõ hơn */
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.dark .nav-item.active {
+  background: rgba(0, 212, 255, 0.18);
+  color: var(--accent-primary);
+}
+
+.nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 20%;
+  bottom: 20%;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--accent-primary);
+  box-shadow: 0 0 8px var(--glow-primary);
+}
+
+.nav-group-label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-sidebar-muted);
+  padding: 0.5rem 0.75rem 0.25rem;
+  margin-top: 0.25rem;
+}
+
+/* === LOGO === */
+.logo-text {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 1rem;
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -0.02em;
+}
+
+/* === SHIMMER EFFECT (on hover) === */
+.shimmer-hover {
+  position: relative;
+  overflow: hidden;
+}
+
+.shimmer-hover::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255,255,255,0.06) 40%,
+    rgba(255,255,255,0.12) 50%,
+    rgba(255,255,255,0.06) 60%,
+    transparent 100%
+  );
+  transform: translateX(-100%);
+  transition: none;
+}
+
+.shimmer-hover:hover::after {
+  animation: shimmer 0.7s ease forwards;
+}
+
+/* === PULSE DOT (active nav indicator) === */
+.pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  box-shadow: 0 0 6px var(--glow-primary);
+  animation: pulse-dot 2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+/* === THEME TOGGLE === */
+.theme-toggle-track {
+  position: relative;
+  width: 48px;
+  height: 26px;
+  border-radius: 13px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-accent);
+  cursor: pointer;
+  transition: background 0.3s, border-color 0.3s, box-shadow 0.3s;
+  flex-shrink: 0;
+}
+
+.theme-toggle-track:hover {
+  box-shadow: 0 0 12px var(--glow-primary);
+}
+
+.theme-toggle-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  box-shadow: 0 0 8px var(--glow-primary);
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  line-height: 1;
+}
+
+.theme-toggle-thumb.dark-mode {
+  transform: translateX(22px);
+}
+
+/* === SCROLL BAR (global — styled for dark/light) === */
+/* HistoryNote: dark mode scrollbar dùng accent-primary (cyan), light dùng blue */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--border-accent);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-primary);
+}
+
+/* Ẩn scrollbar HOÀN TOÀN cho filter panel + bất kỳ element nào có class no-scrollbar
+   Scroll vẫn hoạt động (overflow-x:auto), chỉ ẩn thanh trượt ra khỏi UI */
+.filter-panel,
+.no-scrollbar {
+  scrollbar-width: none !important;     /* Firefox */
+  -ms-overflow-style: none !important;  /* IE/Edge */
+}
+.filter-panel::-webkit-scrollbar,
+.no-scrollbar::-webkit-scrollbar {
+  display: none !important;             /* Chrome/Safari */
+}
+
+/* === SECTION DIVIDER === */
+.divider {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 0.5rem 0;
+}
+
+/* === FILTER BAR PANEL === */
+.filter-panel {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.5rem;
+  align-items: center;
+  overflow-x: auto;
+  box-shadow: var(--shadow-card);
+}
+
+.dark .filter-panel {
+  background: rgba(8,15,31,0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-color: var(--border-accent);
+}
+
+/* === SELECT CYBER === */
+.select-cyber {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-input);
+  color: var(--text-primary);
+  padding: 0.4375rem 0.75rem;
+  font-size: 0.875rem;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.625rem center;
+  padding-right: 2rem;
+}
+
+.select-cyber:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px var(--glow-primary);
+}
+
+.dark .select-cyber {
+  background-color: rgba(6,12,26,0.8);
+}
+
+/* === STAR PARTICLES (login page CSS) === */
+.star-field {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.star-field::before,
+.star-field::after {
+  content: '';
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  background: white;
+  border-radius: 50%;
+  box-shadow:
+    120px 80px rgba(255,255,255,0.6),
+    240px 150px rgba(255,255,255,0.4),
+    80px 300px rgba(255,255,255,0.5),
+    400px 50px rgba(255,255,255,0.3),
+    600px 200px rgba(255,255,255,0.5),
+    750px 350px rgba(255,255,255,0.4),
+    350px 420px rgba(255,255,255,0.6),
+    900px 100px rgba(255,255,255,0.3),
+    1050px 280px rgba(255,255,255,0.5),
+    180px 480px rgba(255,255,255,0.4),
+    820px 460px rgba(255,255,255,0.3),
+    500px 310px rgba(255,255,255,0.5),
+    660px 410px rgba(0,212,255,0.6),
+    290px 190px rgba(167,139,250,0.5),
+    970px 370px rgba(0,212,255,0.4);
+  animation: twinkle 3s ease-in-out infinite;
+}
+
+.star-field::after {
+  animation-delay: 1.5s;
+  box-shadow:
+    60px 240px rgba(255,255,255,0.4),
+    320px 370px rgba(255,255,255,0.5),
+    700px 130px rgba(255,255,255,0.3),
+    450px 500px rgba(255,255,255,0.6),
+    870px 220px rgba(255,255,255,0.4),
+    140px 410px rgba(255,255,255,0.5),
+    990px 50px rgba(255,255,255,0.3),
+    560px 80px rgba(167,139,250,0.5),
+    230px 550px rgba(0,212,255,0.4),
+    780px 490px rgba(255,255,255,0.5);
+}
+
+/* === SHARED COSMIC UI COMPONENTS === */
+.title-gradient {
+  font-family: 'Space Grotesk', sans-serif;
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.card-glass {
+  background: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: 1rem;
+  box-shadow: var(--shadow-card);
+  transition: all 0.2s ease-in-out;
+}
+.card-glass:hover {
+  box-shadow: var(--shadow-hover);
+  border-color: var(--border-hover);
 }

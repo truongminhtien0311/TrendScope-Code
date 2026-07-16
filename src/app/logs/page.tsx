@@ -15,20 +15,20 @@ export default async function LogsPage() {
   });
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-6 w-full">
       <h1 className="text-2xl font-bold">Log hoạt động</h1>
 
       {logs.length === 0 ? (
         <p className="text-slate-500 dark:text-slate-400">Chưa có hoạt động nào.</p>
       ) : (
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-x-auto">
+          <table className="w-full text-sm table-fixed min-w-[800px]">
             <thead>
               <tr className="text-left text-xs text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
-                <th className="px-4 py-2.5 font-medium">Thời gian</th>
-                <th className="px-4 py-2.5 font-medium">Hành động</th>
+                <th className="px-4 py-2.5 font-medium w-36">Thời gian</th>
+                <th className="px-4 py-2.5 font-medium w-48">Hành động</th>
                 <th className="px-4 py-2.5 font-medium">Chi tiết</th>
-                <th className="px-4 py-2.5 font-medium">Người dùng</th>
+                <th className="px-4 py-2.5 font-medium w-40">Người dùng</th>
               </tr>
             </thead>
             <tbody>
@@ -45,7 +45,7 @@ export default async function LogsPage() {
                       {log.action}
                     </code>
                   </td>
-                  <td className="px-4 py-2">{log.detail}</td>
+                  <td className="px-4 py-2 break-all">{log.detail}</td>
                   <td className="px-4 py-2 text-slate-500 dark:text-slate-400">
                     {log.user?.name ?? "—"}
                   </td>

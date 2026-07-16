@@ -19,8 +19,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Product Scrap",
-  description: "Quản lý và nghiên cứu sản phẩm nguồn Trung Quốc",
+  title: "TrendScope — Nghiên cứu sản phẩm TQ",
+  description: "Công cụ nghiên cứu, so sánh và quản lý sản phẩm nguồn Trung Quốc",
 };
 
 export default async function RootLayout({
@@ -44,6 +44,13 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <head>
+        {/* Google Fonts — Space Grotesk (logo/heading) + Inter (body) */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap"
+          rel="stylesheet"
+        />
         {/* Áp theme đã lưu TRƯỚC khi trang hiện ra để không bị chớp trắng/đen */}
         <script
           dangerouslySetInnerHTML={{
@@ -56,9 +63,14 @@ export default async function RootLayout({
         <UpdateNotifier />
         <ConfirmDialogProvider>
           {user && !hideChrome ? (
-            <div className="flex min-h-screen">
+          <div className="flex min-h-screen" style={{ background: "var(--bg-base)" }}>
               <Sidebar userEmail={user.email} />
-              <main className="flex-1 p-6 lg:p-8 overflow-x-hidden">{children}</main>
+              <main
+                className="flex-1 p-6 lg:p-8 overflow-x-hidden"
+                style={{ background: "var(--bg-base)" }}
+              >
+                {children}
+              </main>
             </div>
           ) : (
             // Chưa đăng nhập (trang /login), hoặc trang trình bày/PDF (/report)

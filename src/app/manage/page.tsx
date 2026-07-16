@@ -21,7 +21,7 @@ export default async function ManagePage() {
   ]);
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-6 w-full">
       <h1 className="text-2xl font-bold">Tag &amp; Ngành hàng</h1>
 
       <div className="grid md:grid-cols-2 gap-6">

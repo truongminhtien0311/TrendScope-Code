@@ -27,7 +27,7 @@ model User {
   id           Int           @id @default(autoincrement())
   email        String        @unique
   name         String
-  passwordHash String? // sẽ dùng khi làm chức năng đăng nhập
+  googleId     String?       @unique // ID từ Google OAuth
   role         String        @default("member") // "admin" | "member"
   isOwner      Boolean       @default(false)
   createdAt    DateTime      @default(now())
@@ -191,6 +191,10 @@ model ProductComparison {
   presetName String?
   resultMarkdown String?
   errorMessage   String?
+  // JSON mảng id các ProductComparison đã DONE được dùng làm đầu vào cho
+  // lượt "Hội đồng tổng hợp" (vd "[12,15]") — null nghĩa là 1 lượt so
+  // sánh persona bình thường, không phải bản tổng hợp.
+  sourceComparisonIds String?
   startedAt  DateTime  @default(now())
   finishedAt DateTime?
 

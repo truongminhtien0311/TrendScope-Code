@@ -28,7 +28,7 @@ export default async function ReportsPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-6 w-full">
       <div>
         <h1 className="text-2xl font-bold">📋 Báo cáo sản phẩm mới</h1>
         <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">

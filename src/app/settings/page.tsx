@@ -9,6 +9,7 @@ import { getCnyVndRate, getUsdCnyRate } from "@/lib/currency";
 import {
   DEFAULT_PROMPT_PRESETS,
   DEFAULT_COMPARE_PRESETS,
+  DEFAULT_COMPARE_SYNTHESIS_PRESETS,
   DEFAULT_COST_ASSUMPTIONS,
   type PromptPreset,
   type CostAssumptions,
@@ -37,7 +38,18 @@ const KIND_LABELS: Record<string, string> = {
 export default async function SettingsPage() {
   const currentUser = await getCurrentUser();
   const isAdmin = currentUser?.role === "admin";
-  const [providers, rate, usdRate, presetsSetting, activePresetIdSetting, costSetting, comparePresetsSetting, compareActiveSetting] = await Promise.all([
+  const [
+    providers,
+    rate,
+    usdRate,
+    presetsSetting,
+    activePresetIdSetting,
+    costSetting,
+    comparePresetsSetting,
+    compareActiveSetting,
+    synthesisPresetsSetting,
+    synthesisActiveSetting,
+  ] = await Promise.all([
     prisma.apiProvider.findMany({ orderBy: [{ kind: "asc" }, { id: "asc" }] }),
     getCnyVndRate(),
     getUsdCnyRate(),
@@ -46,6 +58,8 @@ export default async function SettingsPage() {
     prisma.setting.findUnique({ where: { key: "business_cost_assumptions" } }),
     prisma.setting.findUnique({ where: { key: "compare_prompt_presets" } }),
     prisma.setting.findUnique({ where: { key: "compare_prompt_active_preset_id" } }),
+    prisma.setting.findUnique({ where: { key: "compare_synthesis_prompt_presets" } }),
+    prisma.setting.findUnique({ where: { key: "compare_synthesis_prompt_active_preset_id" } }),
   ]);
 
   let promptPresets: PromptPreset[] = DEFAULT_PROMPT_PRESETS;
@@ -69,6 +83,17 @@ export default async function SettingsPage() {
     }
   }
   const compareActiveId = compareActiveSetting?.value ?? comparePresets[0].id;
+
+  let synthesisPresets: PromptPreset[] = DEFAULT_COMPARE_SYNTHESIS_PRESETS;
+  if (synthesisPresetsSetting?.value) {
+    try {
+      const parsed = JSON.parse(synthesisPresetsSetting.value);
+      if (Array.isArray(parsed) && parsed.length > 0) synthesisPresets = parsed;
+    } catch {
+      // JSON hỏng thì dùng bộ preset mặc định
+    }
+  }
+  const synthesisActiveId = synthesisActiveSetting?.value ?? synthesisPresets[0].id;
 
   let costAssumptions: CostAssumptions = DEFAULT_COST_ASSUMPTIONS;
   if (costSetting?.value) {
@@ -104,8 +129,13 @@ export default async function SettingsPage() {
   }
 
   return (
-    <div className="max-w-3xl">
-      <h1 className="text-2xl font-bold mb-6">Cài đặt</h1>
+    <div className="w-full">
+      <h1
+        className="text-2xl font-bold mb-6"
+        style={{ fontFamily: "'Space Grotesk', sans-serif", background: "linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}
+      >
+        ⚙️ Cài đặt hệ thống
+      </h1>
 
       <SettingsTabs
         general={
@@ -174,8 +204,6 @@ export default async function SettingsPage() {
               <Suspense>
                 <GoogleDriveConnectPanel
                   providerId={googleDriveProvider?.id ?? 0}
-                  clientId={googleDriveConfig.clientId ?? ""}
-                  clientSecret={googleDriveConfig.clientSecret ?? ""}
                   connectedEmail={googleDriveConfig.connectedEmail}
                   hasRefreshToken={!!googleDriveConfig.refreshToken}
                   isAdmin={isAdmin}
@@ -231,6 +259,25 @@ export default async function SettingsPage() {
               />
             </Section>
 
+            {/* ---- Prompt Tổng hợp Hội đồng ---- */}
+            <Section title="🧑‍⚖️ Prompt Tổng hợp Hội đồng">
+              <p className="text-sm text-slate-500 dark:text-slate-400 mb-3">
+                Dùng khi bạn đã chạy nhiều góc nhìn (CFO, COO, Battle Royale...) trên cùng
+                1 bộ sản phẩm ở trang So sánh và muốn AI đối chiếu, phân xử mâu thuẫn rồi
+                tổng hợp thành 1 kết luận cuối — xem nút &quot;🧑‍⚖️ Tổng hợp hội đồng&quot;
+                ở trang So sánh (chỉ hiện khi đã tick chọn ≥2 báo cáo đã xong).
+              </p>
+              <PromptEditor
+                presets={synthesisPresets}
+                activePresetId={synthesisActiveId}
+                defaultPresets={DEFAULT_COMPARE_SYNTHESIS_PRESETS}
+                isAdmin={isAdmin}
+                settingKey="compare_synthesis_prompt_presets"
+                activeSettingKey="compare_synthesis_prompt_active_preset_id"
+                placeholders={["{{PRODUCTS_DATA}}", "{{PRIOR_REPORTS}}"]}
+              />
+            </Section>
+
             {/* ---- Giả định chi phí kinh doanh ---- */}
             <Section title="💰 Giả định chi phí kinh doanh (cho mục Đánh giá khả thi)">
               <p className="text-sm text-slate-500 dark:text-slate-400 mb-3">
@@ -274,8 +321,15 @@ export default async function SettingsPage() {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
-      <h2 className="font-semibold mb-3">{title}</h2>
+    <section
+      className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5"
+    >
+      <h2
+        className="font-semibold mb-3 flex items-center gap-2"
+        style={{ fontFamily: "'Space Grotesk', sans-serif", color: "var(--text-primary)" }}
+      >
+        {title}
+      </h2>
       {children}
     </section>
   );

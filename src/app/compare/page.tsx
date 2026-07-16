@@ -8,13 +8,15 @@ import { prisma } from "@/lib/db";
 import { getCnyVndRate } from "@/lib/currency";
 import { DEFAULT_COMPARE_PRESETS, type PromptPreset } from "@/lib/llm";
 import CompareTable, { type CompareProductData } from "@/components/CompareTable";
+import ProductGrid from "@/components/ProductGrid";
+import FilterBar from "@/components/FilterBar";
 
 export const dynamic = "force-dynamic";
 
 export default async function ComparePage({
   searchParams,
 }: {
-  searchParams: Promise<{ ids?: string }>;
+  searchParams: Promise<{ ids?: string; sort?: string; tag?: string; category?: string; q?: string }>;
 }) {
   const { ids } = await searchParams;
   const idList = (ids ?? "")
@@ -47,12 +49,73 @@ export default async function ComparePage({
   const ordered = idList.map((id) => byId.get(id)).filter((p): p is NonNullable<typeof p> => !!p);
 
   if (ordered.length < 2) {
+    const { sort = "newest", tag, category, q } = await searchParams;
+    const [allProducts, tags, categories] = await Promise.all([
+      prisma.product.findMany({
+        where: {
+          ...(tag ? { tags: { some: { id: Number(tag) } } } : {}),
+          ...(category ? { categories: { some: { id: Number(category) } } } : {}),
+        },
+        include: {
+          categories: true,
+          tags: true,
+          listings: {
+            select: {
+              id: true,
+              sourceType: true,
+              createdAt: true,
+              soldTotal: true,
+              variants: { select: { priceCny: true } },
+              images: { select: { url: true, kind: true } },
+            },
+          },
+        },
+        orderBy: { createdAt: sort === "oldest" ? "asc" : "desc" },
+      }),
+      prisma.tag.findMany({ orderBy: { name: "asc" } }),
+      prisma.category.findMany({ orderBy: { name: "asc" } }),
+    ]);
+
+    const filtered = q
+      ? allProducts.filter((p) => p.name.toLowerCase().includes(q.toLowerCase()))
+      : allProducts;
+
+    const sorted = [...filtered];
+    if (sort === "price_asc" || sort === "price_desc") {
+      const minPrice = (p: any) => {
+        const prices = p.listings.flatMap((l: any) => l.variants.map((v: any) => v.priceCny));
+        return prices.length ? Math.min(...prices) : Infinity;
+      };
+      sorted.sort((a, b) =>
+        sort === "price_asc" ? minPrice(a) - minPrice(b) : minPrice(b) - minPrice(a)
+      );
+    }
+
+    // Dynamic import to avoid module issues if any, though we can just import at top
+    // We will assume ProductGrid and FilterBar are imported at the top of the file
     return (
-      <div className="max-w-3xl">
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          Cần chọn ít nhất 2 sản phẩm để so sánh — quay lại Dashboard, bấm &quot;☑️ Chọn nhiều&quot; rồi
-          &quot;⚖️ So sánh&quot;.
-        </p>
+      <div className="space-y-6">
+        <div>
+          <h1
+            className="text-2xl font-bold"
+            style={{ fontFamily: "'Space Grotesk', sans-serif", background: "linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}
+          >
+            🛒 Chọn sản phẩm để so sánh
+          </h1>
+          <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
+            Bạn cần chọn ít nhất 2 sản phẩm bằng cách tick vào ô vuông ở góc trên thẻ sản phẩm.
+          </p>
+        </div>
+
+        <FilterBar tags={tags} categories={categories} />
+        {sorted.length === 0 ? (
+          <div className="text-center py-20 text-slate-500 dark:text-slate-400">
+            <p className="text-4xl mb-3">📭</p>
+            <p>Chưa có sản phẩm nào khớp bộ lọc.</p>
+          </div>
+        ) : (
+          <ProductGrid products={sorted as any} rate={rate} mode="compare" />
+        )}
       </div>
     );
   }
@@ -73,12 +136,18 @@ export default async function ComparePage({
   return (
     <div className="space-y-6 max-w-6xl">
       <div>
-        <h1 className="text-2xl font-bold">⚖️ So sánh {ordered.length} sản phẩm</h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+        <h1
+          className="text-2xl font-bold"
+          style={{ fontFamily: "'Space Grotesk', sans-serif", background: "linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}
+        >
+          ⚖️ So sánh {ordered.length} sản phẩm
+        </h1>
+        <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
           Bảng bên dưới dùng dữ liệu cào gốc — chọn mục đích so sánh rồi bấm &quot;Phân tích AI&quot; để xem góc
           nhìn sâu hơn.
         </p>
       </div>
+
       <CompareTable products={data} rate={rate} presets={presets} />
     </div>
   );

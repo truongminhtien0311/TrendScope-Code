@@ -39,7 +39,7 @@ import sharp from "sharp";
 import { prisma } from "@/lib/db";
 import type { StorageProvider } from "../index";
 
-export const GOOGLE_SCOPE = "https://www.googleapis.com/auth/drive.file";
+export const GOOGLE_SCOPE = "openid email profile https://www.googleapis.com/auth/drive.file";
 export const GOOGLE_REDIRECT_PATH = "/api/storage/google/callback";
 
 // KHÔNG dùng request.nextUrl.origin để suy ra redirect_uri — server
@@ -138,13 +138,13 @@ async function refreshAccessToken(clientId: string, clientSecret: string, refres
 
 // Lấy email tài khoản Google vừa kết nối — chỉ để hiển thị cho người
 // dùng biết đang dùng đúng tài khoản Drive nào.
-export async function fetchConnectedEmail(accessToken: string): Promise<string | undefined> {
+export async function fetchGoogleProfile(accessToken: string): Promise<{ id: string; email: string; name: string } | undefined> {
   const res = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
   if (!res.ok) return undefined;
   const data = await res.json();
-  return data.email;
+  return { id: data.id, email: data.email, name: data.name };
 }
 
 // Đổi refresh_token đã lưu -> access_token mới dùng ngay + thông tin
@@ -155,10 +155,20 @@ export async function getAccessToken(): Promise<{
   config: GoogleDriveConfig;
 }> {
   const result = await getConfigRow();
-  const { clientId, clientSecret, refreshToken } = result?.config ?? {};
-  if (!result || !clientId || !clientSecret || !refreshToken) {
+  const { refreshToken, clientId: dbClientId, clientSecret: dbClientSecret } = result?.config ?? {};
+  
+  const envClientId = process.env.GOOGLE_CLIENT_ID;
+  const envClientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  const clientId = envClientId !== "xxx" ? envClientId : null || dbClientId;
+  const clientSecret = envClientSecret !== "xxx" ? envClientSecret : null || dbClientSecret;
+
+  if (!result || !refreshToken) {
     throw new Error("Chưa kết nối Google Drive — vào Cài đặt > Lưu trữ để kết nối trước.");
   }
+  if (!clientId || !clientSecret) {
+    throw new Error("Chưa cấu hình Google Client ID/Secret.");
+  }
+
   const accessToken = await refreshAccessToken(clientId, clientSecret, refreshToken);
   return { accessToken, providerId: result.id, config: result.config };
 }

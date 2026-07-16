@@ -9,14 +9,15 @@ import { useState, type ReactNode } from "react";
 interface TabDef {
   key: string;
   label: string;
+  icon: string;
 }
 
 const TABS: TabDef[] = [
-  { key: "general", label: "⚙️ Chung" },
-  { key: "integrations", label: "🔌 API & Kết nối" },
-  { key: "business", label: "💰 Kinh doanh & AI" },
-  { key: "security", label: "🔐 Bảo mật" },
-  { key: "backup", label: "☁️ Sao lưu" },
+  { key: "general",      label: "Chung",          icon: "⚙" },
+  { key: "integrations", label: "API & Kết nối",   icon: "⬡" },
+  { key: "business",     label: "Kinh doanh & AI", icon: "◈" },
+  { key: "security",     label: "Bảo mật",         icon: "⊙" },
+  { key: "backup",       label: "Sao lưu",         icon: "↑" },
 ];
 
 export default function SettingsTabs({
@@ -31,22 +32,43 @@ export default function SettingsTabs({
 
   return (
     <div>
-      <div className="flex flex-wrap gap-1 border-b border-slate-200 dark:border-slate-800 mb-6">
+      {/* Tab strip */}
+      <div
+        className="flex flex-wrap gap-1 mb-6"
+        style={{ borderBottom: "1px solid var(--border-subtle)", paddingBottom: "0" }}
+      >
         {TABS.map((tab) => (
           <button
             key={tab.key}
             onClick={() => setActive(tab.key)}
-            className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px transition ${
-              active === tab.key
-                ? "border-blue-600 text-blue-600 dark:text-blue-400"
-                : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
-            }`}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-all"
+            style={{
+              borderBottom: active === tab.key
+                ? "2px solid var(--accent-primary)"
+                : "2px solid transparent",
+              marginBottom: "-1px",
+              color: active === tab.key
+                ? "var(--accent-primary)"
+                : "var(--text-muted)",
+              background: "transparent",
+            }}
+            onMouseEnter={(e) => {
+              if (active !== tab.key)
+                (e.currentTarget as HTMLButtonElement).style.color = "var(--text-primary)";
+            }}
+            onMouseLeave={(e) => {
+              if (active !== tab.key)
+                (e.currentTarget as HTMLButtonElement).style.color = "var(--text-muted)";
+            }}
           >
+            <span style={{ fontSize: "0.8rem", opacity: 0.9 }}>{tab.icon}</span>
             {tab.label}
           </button>
         ))}
       </div>
-      <div className="space-y-8">{content[active]}</div>
+
+      {/* Tab content */}
+      <div className="space-y-6">{content[active]}</div>
     </div>
   );
 }

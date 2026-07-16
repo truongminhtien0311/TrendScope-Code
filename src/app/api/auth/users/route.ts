@@ -14,11 +14,11 @@ export async function GET() {
     return NextResponse.json({ error: "Chỉ admin được xem danh sách tài khoản" }, { status: 403 });
   }
   const users = await prisma.user.findMany({
-    select: { id: true, email: true, name: true, role: true, isOwner: true, passwordHash: true, createdAt: true },
+    select: { id: true, email: true, name: true, role: true, isOwner: true, googleId: true, createdAt: true },
     orderBy: { createdAt: "asc" },
   });
   return NextResponse.json(
-    users.map((u) => ({ ...u, passwordHash: undefined, hasPassword: !!u.passwordHash }))
+    users.map((u) => ({ ...u, hasPassword: !!u.googleId }))
   );
 }
 

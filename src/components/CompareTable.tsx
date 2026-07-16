@@ -5,7 +5,13 @@
 // chọn (xem src/lib/llm/index.ts: generateProductComparison chỉ nhận dữ
 // liệu Original, không dùng bản đã AI hóa để tránh thiên kiến cộng dồn).
 // Cùng cơ chế PENDING -> chạy nền -> poll như AiAnalysisPanel.tsx.
-import { useEffect, useState } from "react";
+//
+// Nhiều lượt chạy (mỗi lượt 1 góc nhìn persona khác nhau: CFO, COO, Battle
+// Royale...) được giữ lại trong `runs` SUỐT PHIÊN mở trang này (không lưu
+// lại sau khi F5, giống hành vi cũ) để người dùng có thể tick chọn ≥2 lượt
+// ĐÃ XONG rồi bấm "🧑‍⚖️ Tổng hợp hội đồng" — gộp các báo cáo đó lại thành 1
+// kết luận cuối (xem generateComparisonSynthesis, lib/llm/index.ts).
+import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
@@ -28,6 +34,16 @@ export interface CompareProductData {
     variants: { priceCny: number }[];
     images: { url: string; kind: string }[];
   }[];
+}
+
+interface CompareRun {
+  comparisonId: number;
+  presetName: string;
+  status: "PENDING" | "DONE" | "FAILED";
+  resultMarkdown: string;
+  errorMessage?: string;
+  isSynthesis: boolean;
+  expanded: boolean;
 }
 
 const POLL_MS = 2500;
@@ -75,30 +91,65 @@ export default function CompareTable({
   const [showPreview, setShowPreview] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
-  const [comparisonId, setComparisonId] = useState<number | null>(null);
-  const [status, setStatus] = useState<"PENDING" | "DONE" | "FAILED" | null>(null);
-  const [resultMarkdown, setResultMarkdown] = useState("");
 
+  const [runs, setRuns] = useState<CompareRun[]>([]);
+  const runsRef = useRef(runs);
+  runsRef.current = runs;
+
+  const [selectedForSynthesis, setSelectedForSynthesis] = useState<Set<number>>(new Set());
+  const [showSynthesisPreview, setShowSynthesisPreview] = useState(false);
+  const [synthesizing, setSynthesizing] = useState(false);
+  const [synthesisError, setSynthesisError] = useState("");
+
+  const hasPending = runs.some((r) => r.status === "PENDING");
+
+  // 1 interval duy nhất poll TẤT CẢ lượt đang PENDING — thực tế hiếm khi
+  // có nhiều lượt PENDING song song, nhưng vẫn xử lý đúng nếu xảy ra.
   useEffect(() => {
-    if (!comparisonId || status !== "PENDING") return;
     const poll = setInterval(async () => {
-      const res = await fetch(`/api/compare/${comparisonId}`);
-      if (!res.ok) return;
-      const data = await res.json();
-      if (data.status !== "PENDING") {
-        setStatus(data.status);
-        if (data.status === "DONE") setResultMarkdown(data.resultMarkdown ?? "");
-        if (data.status === "FAILED") setError(data.errorMessage ?? "So sánh AI thất bại.");
-      }
+      const pending = runsRef.current.filter((r) => r.status === "PENDING");
+      if (!pending.length) return;
+      const results = await Promise.all(
+        pending.map(async (r) => {
+          const res = await fetch(`/api/compare/${r.comparisonId}`);
+          if (!res.ok) return null;
+          return { comparisonId: r.comparisonId, data: await res.json() };
+        })
+      );
+      setRuns((prev) =>
+        prev.map((r) => {
+          const found = results.find((x) => x?.comparisonId === r.comparisonId);
+          if (!found || found.data.status === "PENDING") return r;
+          return {
+            ...r,
+            status: found.data.status,
+            resultMarkdown: found.data.status === "DONE" ? found.data.resultMarkdown ?? "" : r.resultMarkdown,
+            errorMessage: found.data.status === "FAILED" ? found.data.errorMessage ?? "Thất bại." : undefined,
+          };
+        })
+      );
     }, POLL_MS);
     return () => clearInterval(poll);
-  }, [comparisonId, status]);
+  }, []);
+
+  function toggleExpanded(comparisonId: number) {
+    setRuns((prev) => prev.map((r) => (r.comparisonId === comparisonId ? { ...r, expanded: !r.expanded } : r)));
+  }
+
+  function toggleSelected(comparisonId: number) {
+    setSelectedForSynthesis((prev) => {
+      const next = new Set(prev);
+      if (next.has(comparisonId)) next.delete(comparisonId);
+      else next.add(comparisonId);
+      return next;
+    });
+  }
 
   async function confirmGenerate() {
     setShowPreview(false);
     setGenerating(true);
     setError("");
-    setResultMarkdown("");
+    const presetName = presets.find((p) => p.id === presetId)?.name ?? "";
     const res = await fetch("/api/compare", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -107,17 +158,62 @@ export default function CompareTable({
     setGenerating(false);
     if (res.ok) {
       const data = await res.json();
-      setComparisonId(data.comparisonId);
-      setStatus("PENDING");
+      setRuns((prev) => [
+        ...prev,
+        {
+          comparisonId: data.comparisonId,
+          presetName,
+          status: "PENDING",
+          resultMarkdown: "",
+          isSynthesis: false,
+          expanded: true,
+        },
+      ]);
     } else {
       const data = await res.json().catch(() => null);
       setError(data?.error ?? "So sánh AI thất bại, thử lại nhé.");
     }
   }
 
+  async function confirmSynthesize() {
+    setShowSynthesisPreview(false);
+    setSynthesizing(true);
+    setSynthesisError("");
+    const sourceIds = [...selectedForSynthesis];
+    const res = await fetch("/api/compare/synthesize", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ productIds: products.map((p) => p.id), sourceComparisonIds: sourceIds }),
+    });
+    setSynthesizing(false);
+    if (res.ok) {
+      const data = await res.json();
+      setRuns((prev) => [
+        ...prev,
+        {
+          comparisonId: data.comparisonId,
+          presetName: "🧑‍⚖️ Tổng hợp hội đồng",
+          status: "PENDING",
+          resultMarkdown: "",
+          isSynthesis: true,
+          expanded: true,
+        },
+      ]);
+      setSelectedForSynthesis(new Set());
+    } else {
+      const data = await res.json().catch(() => null);
+      setSynthesisError(data?.error ?? "Tổng hợp thất bại, thử lại nhé.");
+    }
+  }
+
+  const selectedRuns = runs.filter((r) => selectedForSynthesis.has(r.comparisonId));
+
   return (
     <div className="space-y-6">
-      <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+      <div
+        className="no-scrollbar overflow-x-auto rounded-xl"
+        style={{ border: "1px solid var(--border-subtle)" }}
+      >
         <table className="w-full text-sm">
           <tbody>
             <tr className="border-b border-slate-200 dark:border-slate-800">
@@ -185,7 +281,7 @@ export default function CompareTable({
           <select
             value={presetId}
             onChange={(e) => setPresetId(e.target.value)}
-            disabled={generating || status === "PENDING"}
+            disabled={generating}
             className="text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1.5 disabled:opacity-50"
           >
             {presets.map((p) => (
@@ -197,36 +293,90 @@ export default function CompareTable({
           <input
             value={comparePurpose}
             onChange={(e) => setComparePurpose(e.target.value)}
-            disabled={generating || status === "PENDING"}
+            disabled={generating}
             placeholder="Mục đích cụ thể thêm (tuỳ chọn), vd: ưu tiên sản phẩm dễ vận chuyển"
             className="flex-1 min-w-[240px] text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 py-1.5 disabled:opacity-50"
           />
           <button
             onClick={() => setShowPreview(true)}
-            disabled={generating || status === "PENDING"}
+            disabled={generating}
             className="text-xs rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-3 py-1.5"
           >
-            {generating ? "Đang gửi yêu cầu..." : status === "PENDING" ? "⏳ Đang phân tích..." : "✨AI Phân tích🔍"}
+            {generating ? "Đang gửi yêu cầu..." : "✨AI Phân tích🔍"}
           </button>
         </div>
 
         {error && <p className="text-sm text-red-500">{error}</p>}
-        {status === "PENDING" && (
-          <p className="text-sm text-amber-600 dark:text-amber-400">
-            ⏳ Đang chờ Gemini phân tích {products.length} sản phẩm... có thể mất tới vài chục giây.
-          </p>
-        )}
-        {status === "DONE" && resultMarkdown && (
-          <div className="prose prose-sm dark:prose-invert max-w-none pt-2 border-t border-slate-200 dark:border-slate-800">
-            <ReactMarkdown 
-              remarkPlugins={[remarkGfm, remarkBreaks, remarkMath]}
-              rehypePlugins={[rehypeRaw, rehypeKatex]}
-              components={MARKDOWN_COMPONENTS}
-            >
-              {resultMarkdown.replace(/\\n/g, "\n")}
-            </ReactMarkdown>
+
+        {runs.length > 0 && (
+          <div className="space-y-3 pt-2">
+            {runs.map((run) => (
+              <div
+                key={run.comparisonId}
+                className={`rounded-lg border p-3 ${
+                  run.isSynthesis
+                    ? "border-l-4 border-purple-400 dark:border-purple-500 bg-purple-50/40 dark:bg-purple-950/20"
+                    : "border-slate-200 dark:border-slate-800"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  {run.status === "DONE" && (
+                    <input
+                      type="checkbox"
+                      checked={selectedForSynthesis.has(run.comparisonId)}
+                      onChange={() => toggleSelected(run.comparisonId)}
+                      title="Chọn để đưa vào Tổng hợp hội đồng"
+                      className="w-4 h-4 shrink-0"
+                    />
+                  )}
+                  <button
+                    onClick={() => toggleExpanded(run.comparisonId)}
+                    className="flex-1 flex items-center gap-2 text-left font-medium text-sm"
+                  >
+                    <span>{run.isSynthesis ? "🧑‍⚖️" : "🧠"}</span>
+                    <span>{run.presetName}</span>
+                    <span className="text-xs font-normal text-slate-400">
+                      {run.status === "PENDING" ? "⏳ đang chạy..." : run.status === "FAILED" ? "❌ thất bại" : "✅"}
+                    </span>
+                    <span className="ml-auto text-xs text-slate-400">{run.expanded ? "▲" : "▼"}</span>
+                  </button>
+                </div>
+
+                {run.status === "PENDING" && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
+                    ⏳ Đang chờ Gemini xử lý... có thể mất tới vài chục giây.
+                  </p>
+                )}
+                {run.status === "FAILED" && <p className="text-xs text-red-500 mt-2">{run.errorMessage}</p>}
+                {run.status === "DONE" && run.expanded && (
+                  <div className="prose prose-sm dark:prose-invert max-w-none pt-2 mt-2 border-t border-slate-200 dark:border-slate-800">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm, remarkBreaks, remarkMath]}
+                      rehypePlugins={[rehypeRaw, rehypeKatex]}
+                      components={MARKDOWN_COMPONENTS}
+                    >
+                      {run.resultMarkdown.replace(/\\n/g, "\n")}
+                    </ReactMarkdown>
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         )}
+
+        {selectedForSynthesis.size >= 2 && (
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            <button
+              onClick={() => setShowSynthesisPreview(true)}
+              disabled={synthesizing || hasPending}
+              className="text-xs rounded-lg bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white px-3 py-1.5"
+            >
+              {synthesizing ? "Đang gửi yêu cầu..." : `🧑‍⚖️ Tổng hợp hội đồng (${selectedForSynthesis.size})`}
+            </button>
+            <span className="text-xs text-slate-400">Đã chọn {selectedForSynthesis.size} báo cáo để đối chiếu.</span>
+          </div>
+        )}
+        {synthesisError && <p className="text-sm text-red-500">{synthesisError}</p>}
 
         {/* MODAL PREVIEW PROMPT CHO SO SÁNH */}
         {showPreview && (
@@ -278,6 +428,45 @@ export default function CompareTable({
                   className="px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white"
                 >
                   ✨ Xác nhận phân tích
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL PREVIEW TỔNG HỢP HỘI ĐỒNG */}
+        {showSynthesisPreview && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden border border-slate-200 dark:border-slate-800">
+              <div className="p-4 border-b border-slate-200 dark:border-slate-800">
+                <h3 className="font-semibold text-lg">🧑‍⚖️ Xác nhận Tổng hợp Hội đồng</h3>
+                <p className="text-sm text-slate-500 mt-1">
+                  Các báo cáo sau sẽ được đối chiếu lại với dữ liệu gốc và tổng hợp thành 1 kết luận cuối:
+                </p>
+              </div>
+              <div className="p-4 overflow-y-auto flex-1 space-y-2">
+                <ul className="list-disc list-inside text-sm">
+                  {selectedRuns.map((r) => (
+                    <li key={r.comparisonId}>{r.presetName}</li>
+                  ))}
+                </ul>
+                <p className="text-xs text-slate-400 pt-2">
+                  💡 AI sẽ đọc lại dữ liệu cào gốc của {products.length} sản phẩm để kiểm chứng các báo cáo trên
+                  trước khi kết luận — không tin tuyệt đối vào báo cáo AI trước đó.
+                </p>
+              </div>
+              <div className="p-4 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-3 bg-slate-50/50 dark:bg-slate-900/50">
+                <button
+                  onClick={() => setShowSynthesisPreview(false)}
+                  className="px-4 py-2 text-sm font-medium rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
+                >
+                  Quay lại
+                </button>
+                <button
+                  onClick={confirmSynthesize}
+                  className="px-4 py-2 text-sm font-medium rounded-lg bg-purple-600 hover:bg-purple-700 text-white"
+                >
+                  ✨ Xác nhận tổng hợp
                 </button>
               </div>
             </div>

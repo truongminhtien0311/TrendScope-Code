@@ -1,14 +1,10 @@
-// API: GET /api/storage/google/callback — Google chuyển hướng về đây
-// sau khi người dùng đồng ý cấp quyền, kèm ?code=... Đổi code lấy
-// refresh_token rồi lưu vào ApiProvider.configJson, sau đó điều hướng
-// người dùng về lại trang Cài đặt.
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, getSession } from "@/lib/auth";
 import { logActivity } from "@/lib/log";
 import {
   exchangeCodeForTokens,
-  fetchConnectedEmail,
+  fetchGoogleProfile,
   getRedirectUri,
   type GoogleDriveConfig,
 } from "@/lib/storage/providers/google-drive";
@@ -16,21 +12,17 @@ import {
 export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get("code");
   const errorParam = request.nextUrl.searchParams.get("error");
-  const settingsUrl = new URL("/settings", request.nextUrl.origin);
-
+  
   const currentUser = await getCurrentUser();
-  if (!currentUser || currentUser.role !== "admin") {
-    settingsUrl.searchParams.set("google_drive_error", "Chỉ admin được kết nối Google Drive");
-    return NextResponse.redirect(settingsUrl);
-  }
+  const redirectUrl = new URL(currentUser ? "/settings" : "/", request.nextUrl.origin);
 
   if (errorParam) {
-    settingsUrl.searchParams.set("google_drive_error", errorParam);
-    return NextResponse.redirect(settingsUrl);
+    redirectUrl.searchParams.set("google_error", errorParam);
+    return NextResponse.redirect(redirectUrl);
   }
   if (!code) {
-    settingsUrl.searchParams.set("google_drive_error", "Thiếu mã xác thực từ Google");
-    return NextResponse.redirect(settingsUrl);
+    redirectUrl.searchParams.set("google_error", "Thiếu mã xác thực từ Google");
+    return NextResponse.redirect(redirectUrl);
   }
 
   const row = await prisma.apiProvider.findFirst({ where: { kind: "STORAGE", name: "Google Drive" } });
@@ -40,38 +32,83 @@ export async function GET(request: NextRequest) {
   } catch {
     config = {};
   }
-  if (!row || !config.clientId || !config.clientSecret) {
-    settingsUrl.searchParams.set("google_drive_error", "Chưa có Client ID/Secret khi xử lý callback");
-    return NextResponse.redirect(settingsUrl);
+
+  const clientId = process.env.GOOGLE_CLIENT_ID !== "xxx" ? process.env.GOOGLE_CLIENT_ID : null || config.clientId;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET !== "xxx" ? process.env.GOOGLE_CLIENT_SECRET : null || config.clientSecret;
+
+  if (!clientId || !clientSecret) {
+    redirectUrl.searchParams.set("google_error", "Chưa cấu hình Google Client ID/Secret");
+    return NextResponse.redirect(redirectUrl);
+  }
+
+  if (!row) {
+    redirectUrl.searchParams.set("google_error", "Không tìm thấy cấu hình Google Drive trong CSDL");
+    return NextResponse.redirect(redirectUrl);
   }
 
   try {
     const { accessToken, refreshToken } = await exchangeCodeForTokens(
       code,
-      config.clientId,
-      config.clientSecret,
+      clientId,
+      clientSecret,
       getRedirectUri()
     );
-    const connectedEmail = await fetchConnectedEmail(accessToken);
+    const profile = await fetchGoogleProfile(accessToken);
+    
+    if (!profile) {
+      redirectUrl.searchParams.set("google_error", "Không lấy được thông tin từ Google");
+      return NextResponse.redirect(redirectUrl);
+    }
 
+    // 1. Lưu Google Drive tokens
     const newConfig: GoogleDriveConfig = {
       ...config,
-      // Google chỉ trả refresh_token ở lần đồng ý ĐẦU TIÊN (hoặc khi ép
-      // prompt=consent như code đang làm) — giữ lại token cũ nếu lần
-      // này không có để tránh mất kết nối.
       refreshToken: refreshToken ?? config.refreshToken,
-      connectedEmail,
+      connectedEmail: profile.email,
     };
     await prisma.apiProvider.update({
       where: { id: row.id },
       data: { configJson: JSON.stringify(newConfig), enabled: true },
     });
-    await logActivity("storage.google_drive_connect", `Kết nối Google Drive (${connectedEmail ?? "?"})`);
+    
+    if (currentUser) {
+      await logActivity("storage.google_drive_connect", `Kết nối Google Drive (${profile.email})`);
+      redirectUrl.searchParams.set("google_drive_connected", "1");
+    } else {
+      // 2. Đăng nhập / Đăng ký User
+      let user = await prisma.user.findFirst({
+        where: {
+          OR: [{ googleId: profile.id }, { email: profile.email }]
+        }
+      });
+      
+      if (!user) {
+        const userCount = await prisma.user.count();
+        user = await prisma.user.create({
+          data: {
+            googleId: profile.id,
+            email: profile.email,
+            name: profile.name,
+            role: userCount === 0 ? "admin" : "member",
+            isOwner: userCount === 0
+          }
+        });
+      } else if (!user.googleId) {
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: { googleId: profile.id }
+        });
+      }
+      
+      const session = await getSession();
+      session.userId = user.id;
+      await session.save();
+      await logActivity("auth.login", `Đăng nhập Google: ${profile.email}`);
+    }
 
-    settingsUrl.searchParams.set("google_drive_connected", "1");
-    return NextResponse.redirect(settingsUrl);
+    return NextResponse.redirect(redirectUrl);
   } catch (err) {
-    settingsUrl.searchParams.set("google_drive_error", String(err));
-    return NextResponse.redirect(settingsUrl);
+    redirectUrl.searchParams.set("google_error", String(err));
+    return NextResponse.redirect(redirectUrl);
   }
 }

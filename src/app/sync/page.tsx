@@ -5,7 +5,7 @@ import SyncPanel from "@/components/SyncPanel";
 
 export default function SyncPage() {
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="space-y-6 w-full">
       <div>
         <h1 className="text-2xl font-bold">🔄 Đồng bộ dữ liệu</h1>
         <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">

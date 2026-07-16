@@ -1,30 +1,23 @@
-// API: GET /api/storage/google/auth-url — trả về link xin quyền Google
-// Drive, dùng Client ID đã lưu trong Cài đặt > Lưu trữ. Frontend điều
-// hướng thẳng trình duyệt sang link này (không phải fetch JSON).
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
-import { buildAuthUrl, getRedirectUri, type GoogleDriveConfig } from "@/lib/storage/providers/google-drive";
+import { buildAuthUrl, getRedirectUri } from "@/lib/storage/providers/google-drive";
 
 export async function GET() {
-  const { forbidden } = await requireAdmin();
-  if (forbidden) return forbidden;
-
   const row = await prisma.apiProvider.findFirst({ where: { kind: "STORAGE", name: "Google Drive" } });
-  let config: GoogleDriveConfig = {};
+  let config: any = {};
   try {
     config = row?.configJson ? JSON.parse(row.configJson) : {};
-  } catch {
-    config = {};
+  } catch {}
+
+  let envClientId = process.env.GOOGLE_CLIENT_ID;
+  if (envClientId === "xxx") envClientId = undefined;
+  
+  const clientId = envClientId || config.clientId;
+
+  if (!clientId) {
+    return NextResponse.json({ error: "MISSING_CONFIG" }, { status: 400 });
   }
 
-  if (!config.clientId) {
-    return NextResponse.json(
-      { error: "Chưa nhập Client ID — điền vào Cài đặt > Lưu trữ trước." },
-      { status: 400 }
-    );
-  }
-
-  const url = buildAuthUrl(config.clientId, getRedirectUri());
+  const url = buildAuthUrl(clientId, getRedirectUri());
   return NextResponse.json({ url });
 }

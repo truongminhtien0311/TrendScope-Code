@@ -151,7 +151,7 @@ function ImageZone({
             <kbd className="px-1 bg-slate-100 dark:bg-slate-800 rounded">Ctrl+V</kbd> để dán ảnh
           </p>
         )}
-        <div className="flex gap-2 overflow-x-auto">
+        <div className="flex gap-2 overflow-x-auto no-scrollbar">
           {images.map((img) => (
             <div key={img.id} className="relative shrink-0 group">
               <SmartImage

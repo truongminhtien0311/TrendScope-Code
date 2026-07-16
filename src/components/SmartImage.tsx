@@ -43,19 +43,23 @@ export default function SmartImage({
 
   if (failed) {
     return (
-      <div
+      <span
         className={`${className ?? ""} flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-400 text-xl`}
+        style={{ display: "block" }}
         title="Không tải được ảnh"
       >
         ⚠️
-      </div>
+      </span>
     );
   }
 
   return (
-    <div className={`relative ${className ?? ""}`}>
+    <span className={`relative ${className ?? ""}`} style={{ display: "block" }}>
       {loading && (
-        <div className="absolute inset-0 bg-slate-200 dark:bg-slate-700 animate-pulse rounded-[inherit]" />
+        <span
+          className="absolute inset-0 animate-pulse rounded-[inherit]"
+          style={{ display: "block", background: "var(--border-subtle)" }}
+        />
       )}
       {/* eslint-disable-next-line @next/next/no-img-element -- ảnh từ nhiều nguồn (CDN sàn TQ hoặc /uploads/ local), domain không cố định */}
       <img
@@ -67,6 +71,6 @@ export default function SmartImage({
         onLoad={() => setLoading(false)}
         onError={handleError}
       />
-    </div>
+    </span>
   );
 }

@@ -1177,21 +1177,45 @@ export const DEFAULT_COMPARE_PRESETS: PromptPreset[] = [
   { id: "comp_battle", name: "Sinh tồn khắc nghiệt (Battle Royale)", content: COMPARE_BATTLE_TEMPLATE },
 ];
 
-export async function generateProductComparison(
-  inputs: CompareProductInput[],
-  apiKey: string,
-  promptTemplate: string,
-  comparePurpose: string
-): Promise<string> {
-  const ai = new GoogleGenAI({ apiKey });
+export const COMPARE_SYNTHESIS_TEMPLATE = `
+Bạn là Chủ Tịch Hội Đồng Cố Vấn Tối Cao, triệu tập lại TOÀN BỘ các chuyên gia (CFO, COO, CEO, CMO...) đã từng chấm điểm các sản phẩm dưới đây theo từng góc nhìn riêng lẻ. Nhiệm vụ của bạn KHÔNG PHẢI là phân tích lại từ đầu, mà là ĐỐI CHIẾU, PHẢN BIỆN và TỔNG HỢP các báo cáo đó thành 1 kết luận cuối cùng, cân bằng và đáng tin cậy nhất.
 
-  const allImageUrls = inputs.flatMap((input) =>
-    input.listings.flatMap((l) => l.imageUrls)
-  ).slice(0, 15);
+LUẬT CHỐNG ẢO GIÁC KHI ĐỌC BÁO CÁO CỦA CHUYÊN GIA KHÁC (QUAN TRỌNG NHẤT):
+- Các "BÁO CÁO TRƯỚC" bên dưới do chính AI tạo ra ở các lượt chạy trước — CÓ THỂ chứa suy diễn sai hoặc phóng đại. TUYỆT ĐỐI không mặc nhiên tin theo, mà phải đối chiếu lại với "DỮ LIỆU CÁC SẢN PHẨM (Bản gốc)" bên dưới trước khi dùng bất kỳ nhận định nào.
+- Nếu 2 báo cáo mâu thuẫn nhau (VD: CFO khen biên lợi nhuận tốt nhưng COO cảnh báo chi phí vận chuyển ăn hết lãi), PHẢI chỉ rõ mâu thuẫn đó và dùng dữ liệu gốc để phân xử bên nào đúng hơn, không lờ đi hoặc ba phải cho qua.
+- Nếu một nhận định trong báo cáo trước không có cơ sở gì trong dữ liệu gốc, hãy loại bỏ nó khỏi kết luận cuối cùng và nói rõ lý do.
 
-  const { parts: imageParts } = await fetchImagesAsParts(allImageUrls);
+DỮ LIỆU CÁC SẢN PHẨM (Bản gốc — dùng để kiểm chứng lại mọi báo cáo bên dưới):
+{{PRODUCTS_DATA}}
 
-  const productsDataText = inputs
+CÁC BÁO CÁO TRƯỚC TỪ HỘI ĐỒNG (mỗi báo cáo là 1 góc nhìn chuyên gia đã chạy riêng lẻ):
+{{PRIOR_REPORTS}}
+
+Yêu cầu định dạng trả lời (Markdown, tiếng Việt, GIỌNG VĂN CỦA NGƯỜI CHỦ TRÌ HỘI ĐỒNG — CÔNG TÂM NHƯNG DỨT KHOÁT):
+
+1. 🤝 Điểm Đồng Thuận Giữa Các Góc Nhìn
+Những kết luận nào được NHIỀU góc nhìn chuyên gia cùng đồng ý? Đây là tín hiệu đáng tin cậy nhất vì đã được kiểm chứng chéo.
+
+2. ⚔️ Điểm Mâu Thuẫn & Phân Xử Bằng Dữ Liệu Gốc
+Liệt kê từng mâu thuẫn giữa các báo cáo (nếu có), rồi dùng "DỮ LIỆU CÁC SẢN PHẨM (Bản gốc)" để phân xử bên nào có lý hơn. Nếu dữ liệu gốc không đủ để phân xử, hãy nói thẳng "chưa đủ căn cứ" thay vì đoán mò.
+
+3. 🚩 Rủi Ro Bị Bỏ Sót
+Có rủi ro nào (tài chính, vận hành, pháp lý, truyền thông...) mà TẤT CẢ góc nhìn trước đều bỏ qua nhưng lộ rõ trong dữ liệu gốc không?
+
+4. 👑 Kết Luận Cuối Cùng Của Hội Đồng
+- Xếp hạng lại các sản phẩm dựa trên TOÀN BỘ thông tin đã đối chiếu (không chỉ 1 góc nhìn).
+- Đưa ra 1 khuyến nghị hành động rõ ràng, kèm mức độ tự tin (%) dựa trên độ đồng thuận giữa các báo cáo và độ đầy đủ của dữ liệu gốc.
+`.trim();
+
+export const DEFAULT_COMPARE_SYNTHESIS_PRESETS: PromptPreset[] = [
+  { id: "synth_default", name: "Tổng hợp hội đồng mặc định", content: COMPARE_SYNTHESIS_TEMPLATE },
+];
+
+// Dựng lại text dữ liệu gốc (giá/mô tả/đánh giá Original) của N sản phẩm —
+// dùng chung cho cả so sánh persona lẫn tổng hợp hội đồng, vì cả 2 đều
+// PHẢI dựa trên dữ liệu cào gốc, không dựa văn bản AI đã tạo trước đó.
+function buildProductsDataText(inputs: CompareProductInput[]): string {
+  return inputs
     .map((input, idx) => {
       const pTitle = `### Sản phẩm ${idx + 1}: ${input.name} (#${input.id})`;
       const listingsText = input.listings
@@ -1217,6 +1241,23 @@ ${l.reviewsOriginal.slice(0, 5).map((r) => `- ${r}`).join("\n")}`
       return [pTitle, listingsText].join("\n");
     })
     .join("\n\n=========================================\n\n");
+}
+
+export async function generateProductComparison(
+  inputs: CompareProductInput[],
+  apiKey: string,
+  promptTemplate: string,
+  comparePurpose: string
+): Promise<string> {
+  const ai = new GoogleGenAI({ apiKey });
+
+  const allImageUrls = inputs.flatMap((input) =>
+    input.listings.flatMap((l) => l.imageUrls)
+  ).slice(0, 15);
+
+  const { parts: imageParts } = await fetchImagesAsParts(allImageUrls);
+
+  const productsDataText = buildProductsDataText(inputs);
 
   let prompt = promptTemplate.replace("{{PRODUCTS_DATA}}", productsDataText);
   prompt = prompt.replace("{{COMPARE_PURPOSE}}", comparePurpose || "(Không có)");
@@ -1228,6 +1269,56 @@ ${l.reviewsOriginal.slice(0, 5).map((r) => `- ${r}`).join("\n")}`
     contents,
     config: {
       temperature: 0.2, // Low temp for more brutal and consistent logic
+    },
+  });
+
+  if (!response.text) throw new Error("Gemini không trả về nội dung.");
+
+  return response.text;
+}
+
+// ------------------------------------------------------------
+// HỘI ĐỒNG TỔNG HỢP — feed lại NHIỀU báo cáo persona đã chạy (CFO, COO,
+// Battle Royale...) cho cùng bộ sản phẩm này, cùng với dữ liệu cào GỐC,
+// để AI đối chiếu đồng thuận/mâu thuẫn giữa các báo cáo và chốt 1 khuyến
+// nghị cuối. Luôn kèm dữ liệu gốc (không chỉ tin báo cáo AI cũ) để tránh
+// thiên kiến cộng dồn — xem luật trong COMPARE_SYNTHESIS_TEMPLATE.
+// ------------------------------------------------------------
+export interface PriorComparisonReport {
+  presetName: string;
+  resultMarkdown: string;
+}
+
+export async function generateComparisonSynthesis(
+  inputs: CompareProductInput[],
+  apiKey: string,
+  promptTemplate: string,
+  priorReports: PriorComparisonReport[]
+): Promise<string> {
+  const ai = new GoogleGenAI({ apiKey });
+
+  const allImageUrls = inputs.flatMap((input) =>
+    input.listings.flatMap((l) => l.imageUrls)
+  ).slice(0, 15);
+
+  const { parts: imageParts } = await fetchImagesAsParts(allImageUrls);
+
+  const productsDataText = buildProductsDataText(inputs);
+
+  const priorReportsText = priorReports
+    .map((r, idx) => `### Báo cáo ${idx + 1} — Góc nhìn "${r.presetName}"\n${r.resultMarkdown}`)
+    .join("\n\n=========================================\n\n");
+
+  let prompt = promptTemplate.replace("{{PRODUCTS_DATA}}", productsDataText);
+  prompt = prompt.replace("{{PRIOR_REPORTS}}", priorReportsText);
+
+  const contents = [{ role: "user", parts: [{ text: prompt }, ...imageParts] }];
+
+  const response = await ai.models.generateContent({
+    model: "gemini-3.5-flash",
+    contents,
+    config: {
+      temperature: 0.2,
     },
   });
 

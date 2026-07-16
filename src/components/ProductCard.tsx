@@ -37,15 +37,12 @@ function priceRangeText(prices: number[], rate: number): string | null {
 export default function ProductCard({
   product,
   rate,
-  selectable,
   selected,
   onToggleSelect,
 }: {
   product: ProductCardData;
   rate: number;
-  // Chế độ chọn nhiều (xem src/components/ProductGrid.tsx) — không
-  // truyền gì thì thẻ hoạt động y hệt trước giờ (bấm vào -> chuyển trang).
-  selectable?: boolean;
+  // onToggleSelect nếu được truyền vào thì thẻ sẽ có ô checkbox góc phải
   selected?: boolean;
   onToggleSelect?: (id: number) => void;
 }) {
@@ -62,88 +59,138 @@ export default function ProductCard({
 
   const soldTotal = product.listings.reduce((sum, l) => sum + (l.soldTotal ?? 0), 0);
 
-  const cardClass =
-    "block rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 transition relative";
-
-  const content = (
-    <>
-      {selectable && (
-        <div
-          className={`absolute top-2 left-2 z-10 w-5 h-5 rounded-md border-2 flex items-center justify-center text-xs ${
-            selected ? "bg-blue-600 border-blue-600 text-white" : "bg-white/90 border-slate-300"
-          }`}
-        >
-          {selected && "✓"}
-        </div>
-      )}
-      <div className="aspect-square bg-slate-100 dark:bg-slate-800">
-        {mainImage ? (
-          <SmartImage src={mainImage} alt={product.name} className="w-full h-full object-cover" />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-4xl">📦</div>
-        )}
-      </div>
-
-      <div className="p-3 space-y-2">
-        <h3 className="font-medium text-sm line-clamp-2">
-          {product.name || <span className="text-slate-400 italic">(Chưa đặt tên)</span>}
-        </h3>
-
-        {(retailText || factoryText) && (
-          <div className="flex flex-wrap gap-1.5" title="Giá tham khảo, có thể thay đổi theo thời điểm cào">
-            {retailText && (
-              <span className="inline-flex items-center rounded-lg bg-blue-600 dark:bg-blue-500 px-2.5 py-1.5 text-sm font-bold text-white shadow-sm">
-                Giá bán lẻ: {retailText}
-              </span>
-            )}
-            {factoryText && (
-              <span className="inline-flex items-center rounded-lg bg-emerald-600 dark:bg-emerald-500 px-2.5 py-1.5 text-sm font-bold text-white shadow-sm">
-                Giá nhập: {factoryText}
-              </span>
-            )}
-          </div>
-        )}
-
-        <div className="flex flex-wrap gap-1">
-          <BadgeOverflowList
-            items={product.categories.map((c) => ({
-              key: `cat-${c.id}`,
-              label: c.icon ? `${c.icon} ${c.name}` : c.name,
-              className:
-                "text-xs px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300",
-            }))}
-            max={2}
-          />
-          <BadgeOverflowList
-            items={product.tags.map((tag) => ({
-              key: `tag-${tag.id}`,
-              label: tag.icon ? `${tag.icon} ${tag.name}` : tag.name,
-              className: "text-xs px-2 py-0.5 rounded-full text-white",
-              style: { backgroundColor: tag.color ?? "#64748b" },
-            }))}
-            max={2}
-          />
-        </div>
-
-        <p className="text-xs text-slate-500 dark:text-slate-400">
-          {soldTotal > 0 && <>Đã bán {soldTotal.toLocaleString("vi-VN")} · </>}
-          Thêm {new Date(product.createdAt).toLocaleDateString("vi-VN")}
-        </p>
-      </div>
-    </>
-  );
-
-  if (selectable) {
-    return (
-      <button type="button" onClick={() => onToggleSelect?.(product.id)} className={`${cardClass} text-left w-full`}>
-        {content}
-      </button>
-    );
-  }
-
   return (
-    <Link href={`/products/${product.id}`} className={cardClass}>
-      {content}
-    </Link>
+    <div
+      className="card-glass shimmer-hover flex flex-col relative group"
+      style={{ transition: "box-shadow 0.25s ease, border-color 0.25s ease, transform 0.2s ease" }}
+      onMouseEnter={(e) => {
+        (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)";
+      }}
+      onMouseLeave={(e) => {
+        (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)";
+      }}
+    >
+      {/* Checkbox góc phải (khi có onToggleSelect) */}
+      {onToggleSelect && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onToggleSelect(product.id);
+          }}
+          className="absolute top-3 right-3 z-20 w-6 h-6 rounded-md border-2 flex items-center justify-center text-xs transition-all hover:scale-110 shadow-sm"
+          style={{
+            background: selected ? "var(--accent-primary)" : "rgba(255,255,255,0.9)",
+            borderColor: selected ? "var(--accent-primary)" : "var(--border-subtle)",
+            color: selected ? "var(--text-on-accent)" : "transparent",
+            boxShadow: selected ? `0 0 10px var(--glow-primary)` : undefined,
+          }}
+        >
+          ✓
+        </button>
+      )}
+
+      <Link href={`/products/${product.id}`} className="flex-1 flex flex-col relative z-10">
+        {/* Image */}
+        <div
+          className="aspect-square overflow-hidden"
+          style={{ background: "var(--bg-card)", borderRadius: "var(--radius-card) var(--radius-card) 0 0" }}
+        >
+          {mainImage ? (
+            <SmartImage
+              src={mainImage}
+              alt={product.name}
+              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+            />
+          ) : (
+            <div
+              className="w-full h-full flex items-center justify-center text-4xl"
+              style={{ color: "var(--text-muted)" }}
+            >
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.3 }}>
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                <line x1="12" y1="22.08" x2="12" y2="12"/>
+              </svg>
+            </div>
+          )}
+        </div>
+
+        {/* Content */}
+        <div className="p-3 space-y-2 flex-1 flex flex-col">
+          <h3
+            className="font-medium text-sm line-clamp-2"
+            style={{ color: "var(--text-primary)", fontFamily: "'Inter', sans-serif" }}
+          >
+            {product.name || (
+              <span style={{ color: "var(--text-muted)", fontStyle: "italic" }}>
+                (Chưa đặt tên)
+              </span>
+            )}
+          </h3>
+
+          {/* Price badges */}
+          {(retailText || factoryText) && (
+            <div
+              className="flex flex-wrap gap-1.5"
+              title="Giá tham khảo, có thể thay đổi theo thời điểm cào"
+            >
+              {retailText && (
+                <span className="badge-cyber badge-price-retail">
+                  Bán lẻ: {retailText}
+                </span>
+              )}
+              {factoryText && (
+                <span className="badge-cyber badge-price-factory">
+                  Nhập: {factoryText}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Tags & Categories */}
+          <div className="flex flex-wrap gap-1">
+            <BadgeOverflowList
+              items={product.categories.map((c) => ({
+                key: `cat-${c.id}`,
+                label: c.icon ? `${c.icon} ${c.name}` : c.name,
+                className: "text-xs px-2 py-0.5 rounded-full",
+                style: {
+                  background: "var(--border-subtle)",
+                  color: "var(--text-secondary)",
+                  border: "1px solid var(--border-subtle)",
+                },
+              }))}
+              max={2}
+            />
+            <BadgeOverflowList
+              items={product.tags.map((tag) => ({
+                key: `tag-${tag.id}`,
+                label: tag.icon ? `${tag.icon} ${tag.name}` : tag.name,
+                className: "text-xs px-2 py-0.5 rounded-full text-white",
+                style: { backgroundColor: tag.color ?? "#64748b" },
+              }))}
+              max={2}
+            />
+          </div>
+
+          {/* Stats */}
+          <p className="text-xs mt-auto" style={{ color: "var(--text-muted)" }}>
+            {soldTotal > 0 && (
+              <span
+                style={{
+                  color: soldTotal > 1000 ? "var(--accent-success)" : "var(--text-muted)",
+                  fontWeight: soldTotal > 1000 ? 600 : 400,
+                }}
+              >
+                ↑ {soldTotal.toLocaleString("vi-VN")} bán ·{" "}
+              </span>
+            )}
+            {new Date(product.createdAt).toLocaleDateString("vi-VN")}
+          </p>
+        </div>
+      </Link>
+    </div>
   );
 }
