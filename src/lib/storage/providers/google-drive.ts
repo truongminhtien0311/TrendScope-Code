@@ -52,7 +52,7 @@ export function getRedirectUri(): string {
   return `http://localhost:${process.env.PORT ?? 3000}${GOOGLE_REDIRECT_PATH}`;
 }
 
-const ROOT_FOLDER_NAME = "ProductHunt-DoNotDelete";
+const ROOT_FOLDER_NAME = "TrendScope-DoNotDelete";
 const IMAGES_FOLDER_NAME = "images";
 const MAX_IMAGE_DIMENSION = 1600; // px — cạnh dài tối đa sau khi resize
 
