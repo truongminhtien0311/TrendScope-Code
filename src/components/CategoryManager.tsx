@@ -79,7 +79,7 @@ export default function CategoryManager({ categories }: { categories: CategoryIt
       </form>
 
       {categories.length === 0 ? (
-        <p className="text-sm text-slate-400">Chưa có ngành hàng nào.</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400">Chưa có ngành hàng nào.</p>
       ) : (
         <ul className="space-y-2">
           {categories.map((c) =>
@@ -93,7 +93,7 @@ export default function CategoryManager({ categories }: { categories: CategoryIt
                 <span className="text-sm">
                   {c.icon ? `${c.icon} ` : ""}
                   {c.name}
-                  <span className="text-xs text-slate-400 ml-2">{c.productCount} sản phẩm</span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400 ml-2">{c.productCount} sản phẩm</span>
                 </span>
                 <span className="flex gap-2 shrink-0">
                   <button

@@ -135,7 +135,7 @@ export default function EditProductForm({ product, allTags, allCategories, isAdm
             </label>
             <div className="flex flex-wrap gap-2">
               {allCategories.length === 0 && (
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-slate-500 dark:text-slate-400">
                   Chưa có ngành hàng nào — thêm ở trang &quot;Tag &amp; Ngành hàng&quot;.
                 </p>
               )}
@@ -167,7 +167,7 @@ export default function EditProductForm({ product, allTags, allCategories, isAdm
             </label>
             <div className="flex flex-wrap gap-2">
               {allTags.length === 0 && (
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-slate-500 dark:text-slate-400">
                   Chưa có tag nào — thêm ở trang &quot;Tag &amp; Ngành hàng&quot;.
                 </p>
               )}

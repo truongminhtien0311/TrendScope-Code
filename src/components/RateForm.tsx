@@ -43,7 +43,7 @@ export default function RateForm({
         <span>
           1 {fromLabel} = {currentRate} {toLabel}
         </span>
-        <span className="text-xs text-slate-400">(chỉ admin sửa được)</span>
+        <span className="text-xs text-slate-500 dark:text-slate-400">(chỉ admin sửa được)</span>
       </div>
     );
   }

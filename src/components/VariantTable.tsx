@@ -170,7 +170,7 @@ function NewVariantRow({ listingId, onDone }: { listingId: number; onDone: () =>
         <button onClick={save} disabled={saving} className="text-xs text-blue-600 dark:text-blue-400 hover:underline disabled:opacity-50">
           {saving ? "..." : "Lưu"}
         </button>
-        <button onClick={onDone} className="text-xs text-slate-400 hover:underline">
+        <button onClick={onDone} className="text-xs text-slate-500 dark:text-slate-400 hover:underline">
           Hủy
         </button>
       </div>
@@ -239,7 +239,7 @@ function VariantRow({ variant: v, rate }: { variant: VariantData; rate: number }
           <button onClick={save} disabled={saving} className="text-xs text-blue-600 dark:text-blue-400 hover:underline disabled:opacity-50">
             {saving ? "..." : "Lưu"}
           </button>
-          <button onClick={() => setEditing(false)} className="text-xs text-slate-400 hover:underline">
+          <button onClick={() => setEditing(false)} className="text-xs text-slate-500 dark:text-slate-400 hover:underline">
             Hủy
           </button>
         </div>
@@ -252,7 +252,7 @@ function VariantRow({ variant: v, rate }: { variant: VariantData; rate: number }
       <span>
         {v.nameVi ?? v.nameOriginal}
         {v.nameVi && v.nameVi !== v.nameOriginal && (
-          <span className="text-xs text-slate-400 ml-2">{v.nameOriginal}</span>
+          <span className="text-xs text-slate-500 dark:text-slate-400 ml-2">{v.nameOriginal}</span>
         )}
       </span>
       <span className="flex items-center gap-3 shrink-0 whitespace-nowrap">
@@ -267,10 +267,10 @@ function VariantRow({ variant: v, rate }: { variant: VariantData; rate: number }
         <span className="font-medium text-blue-600 dark:text-blue-400">
           {formatVnd(cnyToVnd(v.priceCny, rate))}
         </span>
-        <button onClick={() => setEditing(true)} className="text-xs text-slate-400 hover:text-blue-500" title="Sửa">
+        <button onClick={() => setEditing(true)} className="text-xs text-slate-500 dark:text-slate-400 hover:text-blue-500" title="Sửa">
           ✏️
         </button>
-        <button onClick={remove} className="text-xs text-slate-400 hover:text-red-500" title="Xóa">
+        <button onClick={remove} className="text-xs text-slate-500 dark:text-slate-400 hover:text-red-500" title="Xóa">
           🗑️
         </button>
       </span>

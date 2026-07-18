@@ -54,7 +54,7 @@ export default function ExchangeRateAutoPanel({
         <span className="text-sm flex items-center gap-2">
           🔄 Tự động cập nhật CNY→VNĐ hàng ngày
           {!hasApiKey && (
-            <span className="text-xs text-slate-400">
+            <span className="text-xs text-slate-500 dark:text-slate-400">
               (cần bật + nhập key ExchangeRate-API trong mục API bên thứ ba trước)
             </span>
           )}
@@ -75,7 +75,7 @@ export default function ExchangeRateAutoPanel({
         </button>
       </div>
 
-      <div className="flex items-center gap-2 text-xs text-slate-400">
+      <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
         <span>
           Cập nhật lần cuối:{" "}
           {updatedAt ? new Date(updatedAt).toLocaleString("vi-VN") : "chưa lần nào"}

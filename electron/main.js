@@ -1,5 +1,5 @@
 // ============================================================
-// VỎ ELECTRON — cho Product Scrap chạy như 1 app desktop thật (bấm đúp
+// VỎ ELECTRON — cho TrendScope chạy như 1 app desktop thật (bấm đúp
 // mở, không cần biết Node.js/terminal). Next.js vẫn là server thật,
 // chạy NGẦM làm tiến trình con — cửa sổ Electron chỉ mở 1 trang trỏ vào
 // server đó (giống mở trình duyệt, nhưng không có thanh địa chỉ/tab).
@@ -13,7 +13,7 @@
 //     .env của repo. Không chạy seed — máy trống sẽ tự hiện màn hình
 //     "Thiết lập lần đầu" (xem src/app/setup/page.tsx).
 // ============================================================
-const { app, BrowserWindow, Menu, ipcMain, dialog, shell } = require("electron");
+const { app, BrowserWindow, Menu, ipcMain, dialog, shell, Notification } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const http = require("http");
@@ -163,14 +163,44 @@ async function createWindow() {
     // khớp màu navy của sidebar, xem src/app/globals.css --bg-sidebar).
     titleBarStyle: "hidden",
     titleBarOverlay: {
-      color: "#101c2c",
-      symbolColor: "#e2e8f0",
-      height: 36,
+      // Đồng bộ với --bg-sidebar của dark mode (gần đen trung tính, xem
+      // src/app/globals.css) thay vì navy đặc — nhìn phẳng/hiện đại hơn,
+      // đỡ giống thanh tiêu đề Win32 cũ. Icon dùng màu xám dịu thay vì
+      // trắng chói, đỡ "gắt" khi cửa sổ không active.
+      color: "#08090c",
+      symbolColor: "#9199a8",
+      height: 32,
     },
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
     },
   });
+  // Mọi lượt tải xuống từ trang web (PDF báo cáo, xuất CSV/JSON...) — mặc
+  // định Electron tự lưu thẳng vào thư mục Downloads không hỏi gì, người
+  // dùng không biết file nằm đâu. Chặn lại để: (1) luôn hỏi nơi lưu bằng
+  // hộp thoại "Lưu file" thật của Windows, (2) báo thành công bằng
+  // notification hệ thống, bấm vào mở luôn thư mục chứa file đó.
+  mainWindow.webContents.session.on("will-download", (event, item) => {
+    const savePath = dialog.showSaveDialogSync(mainWindow, {
+      title: "Lưu file",
+      defaultPath: path.join(app.getPath("downloads"), item.getFilename()),
+    });
+    if (!savePath) {
+      item.cancel();
+      return;
+    }
+    item.setSavePath(savePath);
+    item.once("done", (_event, state) => {
+      if (state !== "completed") return;
+      const notification = new Notification({
+        title: "Đã tải xong",
+        body: path.basename(savePath),
+      });
+      notification.on("click", () => shell.showItemInFolder(savePath));
+      notification.show();
+    });
+  });
+
   // Next.js tự đặt <title> riêng (xem src/app/layout.tsx) — nếu không chặn,
   // Electron sẽ tự đổi tiêu đề cửa sổ theo đó lúc trang tải xong, mất luôn
   // số version đã đặt ở trên. Giữ nguyên tiêu đề có version thay vì để
@@ -255,7 +285,7 @@ app.whenReady().then(async () => {
     // rõ ràng bằng hộp thoại rồi thoát hẳn, KHÔNG được để app treo âm
     // thầm hoặc lặp lại logic khởi động (từng gây ra hàng trăm tiến
     // trình con lúc test — xem NODE_ENV_OVERRIDE ở trên).
-    dialog.showErrorBox("Product Scrap không khởi động được", String(err && err.stack ? err.stack : err));
+    dialog.showErrorBox("TrendScope không khởi động được", String(err && err.stack ? err.stack : err));
     killServer();
     app.quit();
   }

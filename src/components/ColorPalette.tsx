@@ -30,7 +30,7 @@ const COLUMNS: string[][] = [
   ["#fdf2f8", "#fbcfe8", "#f472b6", "#db2777", "#9d174d"],
 ];
 
-const RECENT_KEY = "product-scrap:recent-tag-colors";
+const RECENT_KEY = "trendscope:recent-tag-colors";
 
 function loadRecent(): string[] {
   try {
@@ -91,7 +91,7 @@ export default function ColorPalette({ value, onChange }: { value: string; onCha
 
       {recent.length > 0 && (
         <div>
-          <p className="text-xs text-slate-400 mb-1">Gần đây</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">Gần đây</p>
           <div className="flex gap-1.5 flex-wrap">
             {recent.map((c) => (
               <Swatch key={c} c={c} />

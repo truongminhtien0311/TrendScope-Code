@@ -44,7 +44,7 @@ export default function SmartImage({
   if (failed) {
     return (
       <span
-        className={`${className ?? ""} flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-400 text-xl`}
+        className={`${className ?? ""} flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-xl`}
         style={{ display: "block" }}
         title="Không tải được ảnh"
       >

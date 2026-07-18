@@ -4,7 +4,7 @@
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
-# Project: Product Scrap
+# Project: TrendScope
 
 App quản lý & nghiên cứu sản phẩm nguồn Trung Quốc (Taobao/Tmall/JD + Alibaba/1688) cho người dùng Việt Nam. Chủ dự án KHÔNG phải dev — giải thích bằng tiếng Việt, đơn giản, tránh thuật ngữ khi trả lời.
 

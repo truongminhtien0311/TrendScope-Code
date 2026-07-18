@@ -56,7 +56,7 @@ export default async function ReportsPage() {
             >
               <summary className="cursor-pointer px-4 py-3 flex items-center justify-between gap-3 flex-wrap select-none">
                 <span className="font-semibold flex items-center gap-2">
-                  <span className="text-slate-400 group-open:rotate-90 transition-transform inline-block">
+                  <span className="text-slate-500 dark:text-slate-400 group-open:rotate-90 transition-transform inline-block">
                     ▶
                   </span>
                   📅 {day}{" "}
@@ -77,18 +77,18 @@ export default async function ReportsPage() {
                         className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-800/60"
                       >
                         <span className="text-emerald-500 shrink-0">✓</span>
-                        <span className="text-slate-400 shrink-0 w-16">
+                        <span className="text-slate-500 dark:text-slate-400 shrink-0 w-16">
                           {new Date(log.createdAt).toLocaleTimeString("vi-VN")}
                         </span>
                         <span className="flex-1 truncate">
-                          {log.product?.name || <span className="italic text-slate-400">(chưa đặt tên)</span>}
+                          {log.product?.name || <span className="italic text-slate-500 dark:text-slate-400">(chưa đặt tên)</span>}
                         </span>
                         <span className="text-slate-500 dark:text-slate-400 shrink-0">
                           {log.user?.name ?? "—"}
                         </span>
                       </Link>
                     ) : (
-                      <div className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-400">
+                      <div className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-500 dark:text-slate-400">
                         <span className="shrink-0">✓</span>
                         <span className="shrink-0 w-16">{new Date(log.createdAt).toLocaleTimeString("vi-VN")}</span>
                         <span className="flex-1 italic">

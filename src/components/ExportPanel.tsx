@@ -107,7 +107,7 @@ export default function ExportPanel({ categories, tags }: Props) {
         <div>
           <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2">Ngành hàng</h3>
           <div className="flex flex-wrap gap-2">
-            {categories.length === 0 && <p className="text-xs text-slate-400">Chưa có ngành hàng nào.</p>}
+            {categories.length === 0 && <p className="text-xs text-slate-500 dark:text-slate-400">Chưa có ngành hàng nào.</p>}
             {categories.map((c) => (
               <label
                 key={c.id}
@@ -132,7 +132,7 @@ export default function ExportPanel({ categories, tags }: Props) {
         <div>
           <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2">Tag</h3>
           <div className="flex flex-wrap gap-2">
-            {tags.length === 0 && <p className="text-xs text-slate-400">Chưa có tag nào.</p>}
+            {tags.length === 0 && <p className="text-xs text-slate-500 dark:text-slate-400">Chưa có tag nào.</p>}
             {tags.map((t) => (
               <label
                 key={t.id}
@@ -153,7 +153,7 @@ export default function ExportPanel({ categories, tags }: Props) {
             ))}
           </div>
         </div>
-        <p className="text-xs text-slate-400">Không chọn gì = xuất toàn bộ sản phẩm.</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400">Không chọn gì = xuất toàn bộ sản phẩm.</p>
       </section>
 
       <section className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 space-y-3">

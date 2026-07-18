@@ -1,6 +1,6 @@
 // API: POST /api/settings/drive-sync/export — đẩy Cài đặt/API key hiện
 // tại lên Google Drive dưới dạng file RIÊNG TƯ (không public) trong folder
-// gốc "ProductHunt-DoNotDelete" — chỉ máy đăng nhập CÙNG tài khoản Google
+// gốc "TrendScope-DoNotDelete" — chỉ máy đăng nhập CÙNG tài khoản Google
 // mới đọc lại được. Xem src/lib/settings-sync/index.ts.
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";

@@ -146,7 +146,7 @@ function ImageZone({
         title="Bấm vào đây rồi Ctrl+V để dán ảnh từ clipboard"
       >
         {images.length === 0 && !uploading && (
-          <p className="text-xs text-slate-400 py-2 text-center">
+          <p className="text-xs text-slate-500 dark:text-slate-400 py-2 text-center">
             Chưa có ảnh — bấm &quot;Tải ảnh lên&quot; hoặc bấm vào đây rồi{" "}
             <kbd className="px-1 bg-slate-100 dark:bg-slate-800 rounded">Ctrl+V</kbd> để dán ảnh
           </p>
@@ -170,7 +170,7 @@ function ImageZone({
             </div>
           ))}
           {uploading && (
-            <div className={`${thumbClass} rounded-lg border border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center text-xs text-slate-400 shrink-0`}>
+            <div className={`${thumbClass} rounded-lg border border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center text-xs text-slate-500 dark:text-slate-400 shrink-0`}>
               Đang tải...
             </div>
           )}

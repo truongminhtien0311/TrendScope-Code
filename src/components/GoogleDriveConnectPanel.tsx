@@ -95,7 +95,7 @@ export default function GoogleDriveConnectPanel({
       )}
 
       {!isAdmin ? (
-        <p className="text-xs text-slate-400">(chỉ admin kết nối/ngắt kết nối được)</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400">(chỉ admin kết nối/ngắt kết nối được)</p>
       ) : (
         <div className="flex flex-wrap gap-2 pt-2">
           <button

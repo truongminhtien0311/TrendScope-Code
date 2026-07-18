@@ -62,21 +62,21 @@ export default function BackupPanel() {
         >
           {creating ? "Đang sao lưu..." : "💾 Sao lưu ngay"}
         </button>
-        <span className="text-xs text-slate-400">Giữ tối đa 10 bản gần nhất, tự xóa bản cũ hơn.</span>
+        <span className="text-xs text-slate-500 dark:text-slate-400">Giữ tối đa 10 bản gần nhất, tự xóa bản cũ hơn.</span>
       </div>
 
       {error && <p className="text-sm text-red-500">{error}</p>}
 
       {loading ? (
-        <p className="text-sm text-slate-400">Đang tải danh sách...</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400">Đang tải danh sách...</p>
       ) : backups.length === 0 ? (
-        <p className="text-sm text-slate-400">Chưa có bản sao lưu nào.</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400">Chưa có bản sao lưu nào.</p>
       ) : (
         <ul className="text-sm space-y-1">
           {backups.map((b) => (
             <li key={b.id} className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/50 py-1">
               <span>{b.name}</span>
-              <span className="text-xs text-slate-400">
+              <span className="text-xs text-slate-500 dark:text-slate-400">
                 {formatSize(b.sizeBytes)} · {new Date(b.createdTime).toLocaleString("vi-VN")}
               </span>
             </li>

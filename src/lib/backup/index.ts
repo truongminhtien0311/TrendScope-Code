@@ -6,7 +6,7 @@
 // lúc app chạy — đồng bộ real-time dễ chụp phải file đang ghi dở, hỏng
 // dữ liệu). Thay vào đó: xuất 1 bản snapshot toàn bộ file .db, NÉN GZIP
 // (giảm dung lượng đáng kể vì SQLite nén tốt), đẩy lên folder con
-// "backups" trong "ProductHunt-DoNotDelete" trên Drive.
+// "backups" trong "TrendScope-DoNotDelete" trên Drive.
 //
 // TỐI ƯU DUNG LƯỢNG: chỉ giữ lại tối đa MAX_BACKUPS_KEPT bản gần nhất —
 // tạo bản mới xong tự xóa bớt bản cũ hơn, tránh phình dung lượng vô hạn

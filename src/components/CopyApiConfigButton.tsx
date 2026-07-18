@@ -36,7 +36,7 @@ export default function CopyApiConfigButton({ providers }: { providers: Provider
 
   if (shareable.length === 0) {
     return (
-      <p className="text-xs text-slate-400">
+      <p className="text-xs text-slate-500 dark:text-slate-400">
         Chưa có API key nào đang bật để copy — cấu hình + bật provider trước.
       </p>
     );
@@ -50,7 +50,7 @@ export default function CopyApiConfigButton({ providers }: { providers: Provider
       >
         {copied ? "✓ Đã copy" : "📋 Copy cấu hình API cho người dùng khác"}
       </button>
-      <p className="text-xs text-slate-400">
+      <p className="text-xs text-slate-500 dark:text-slate-400">
         Copy xong dán thẳng vào tin nhắn gửi cho người dùng khác — mỗi API cách nhau 1 dòng
         trống, key nằm riêng 1 dòng để double-click chọn nhanh. Họ dán từng key vào đúng ô
         &quot;Cấu hình&quot; ở Cài đặt &gt; API máy họ.

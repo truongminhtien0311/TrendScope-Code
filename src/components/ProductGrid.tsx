@@ -87,7 +87,7 @@ export default function ProductGrid({
                 ⚖️ So sánh
               </button>
             ) : (
-              <span className="text-xs text-slate-400" title="So sánh cần chọn từ 2 đến 5 sản phẩm">
+              <span className="text-xs text-slate-500 dark:text-slate-400" title="So sánh cần chọn từ 2 đến 5 sản phẩm">
                 ⚖️ So sánh (chọn 2-5 sản phẩm)
               </span>
             )

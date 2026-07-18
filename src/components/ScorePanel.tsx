@@ -144,7 +144,7 @@ export default function ScorePanel({
       )}
 
       {!hasAny && !hasPending && (
-        <p className="text-sm text-slate-400">
+        <p className="text-sm text-slate-500 dark:text-slate-400">
           Chưa chấm. AI sẽ chấm 15 trục (gộp 5 nhóm: Tài chính, Vận hành, Thị trường, Pháp lý, Thương hiệu) cho
           từng sản phẩm — chấm tương đối giữa các sản phẩm trong phiên này.
         </p>
@@ -193,7 +193,7 @@ export default function ScorePanel({
                       <span className="text-sm font-semibold">
                         {overall !== null ? Math.round(overall) : "—"}/100
                       </span>
-                      <span className="text-xs text-slate-400">{expanded ? "▲" : "▼"}</span>
+                      <span className="text-xs text-slate-500 dark:text-slate-400">{expanded ? "▲" : "▼"}</span>
                     </span>
                   </button>
                   {expanded && (
@@ -248,7 +248,7 @@ export default function ScorePanel({
                                       />
                                     </div>
                                     {entry?.reason && (
-                                      <p className="text-[11px] text-slate-400 mt-0.5">{entry.reason}</p>
+                                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{entry.reason}</p>
                                     )}
                                   </div>
                                 );
@@ -266,7 +266,7 @@ export default function ScorePanel({
         </>
       )}
 
-      <p className="text-xs text-slate-400">
+      <p className="text-xs text-slate-500 dark:text-slate-400">
         💡 AI chấm hết 15 trục trước, bạn sửa tay được từng trục nếu không đồng ý (bấm "↩ AI: X" để quay lại điểm
         AI gốc). Điểm nhóm/điểm tổng tự tính lại ngay khi sửa.
       </p>

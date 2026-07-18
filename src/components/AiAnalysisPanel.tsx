@@ -373,7 +373,7 @@ export default function AiAnalysisPanel({
       )}
 
       {analyses.length === 0 && (
-        <p className="text-sm text-slate-400">
+        <p className="text-sm text-slate-500 dark:text-slate-400">
           Chưa tạo. Bấm &quot;✨AI Phân tích🔍&quot; — gộp toàn bộ dữ liệu của tất cả link bên
           dưới (tên, ảnh, mô tả, đánh giá) vào 1 request duy nhất, sinh đủ 7 mục: mô tả,
           tệp khách hàng, kênh bán hàng, tùy chỉnh, nhập khẩu, vận chuyển, đánh giá khả thi.
@@ -425,7 +425,7 @@ export default function AiAnalysisPanel({
                   )}
                   <button
                     onClick={() => toggleExpanded(a.id)}
-                    className="text-sm text-slate-400 shrink-0"
+                    className="text-sm text-slate-500 dark:text-slate-400 shrink-0"
                   >
                     {isExpanded ? "▲" : "▼"}
                   </button>
@@ -477,7 +477,7 @@ export default function AiAnalysisPanel({
                           className={`group rounded-lg border-2 p-3 ${CARD_TINTS[i % CARD_TINTS.length]}`}
                         >
                           <summary className="cursor-pointer text-base font-bold py-0.5 flex items-center gap-2 select-none">
-                            <span className="text-slate-400 group-open:rotate-90 transition-transform inline-block">
+                            <span className="text-slate-500 dark:text-slate-400 group-open:rotate-90 transition-transform inline-block">
                               ▶
                             </span>
                             <span className="text-xl">{s.icon}</span> {s.label}
@@ -494,7 +494,7 @@ export default function AiAnalysisPanel({
                                 </ReactMarkdown>
                               </div>
                             ) : (
-                              <p className="text-sm text-slate-400">Chưa có — {s.placeholder}</p>
+                              <p className="text-sm text-slate-500 dark:text-slate-400">Chưa có — {s.placeholder}</p>
                             )}
                           </div>
                         </details>
@@ -508,7 +508,7 @@ export default function AiAnalysisPanel({
         </div>
       )}
 
-      <p className="text-xs text-slate-400">
+      <p className="text-xs text-slate-500 dark:text-slate-400">
         💡 <strong>Cảnh báo:</strong> AI có thể bị lừa bởi review ảo. Các số liệu thuế/cước phí mang tính tham khảo, vui lòng đối chiếu luật hiện hành.
         Dùng Google Gemini (cần nhập API key trong Cài đặt). Không giới hạn số bản — tự xóa tay bản không cần giữ.
       </p>
@@ -524,7 +524,7 @@ export default function AiAnalysisPanel({
               </div>
               <button
                 onClick={() => setShowPreview(false)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                className="text-slate-500 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
               >
                 ✕
               </button>

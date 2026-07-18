@@ -3,11 +3,9 @@
 // prisma/schema.prisma), bấm vào mở lại /compare/[sessionId] xem tiếp
 // toàn bộ lượt so sánh + điểm đa trục đã lưu.
 // ============================================================
-import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { resolveProductImage } from "@/lib/product-image";
-import SmartImage from "@/components/SmartImage";
-import SessionNameEditor from "@/components/SessionNameEditor";
+import CompareHistoryGrid from "@/components/CompareHistoryGrid";
 
 export const dynamic = "force-dynamic";
 
@@ -54,56 +52,18 @@ export default async function CompareHistoryPage() {
           <p>Chưa có phiên đánh giá nào — vào trang &quot;So sánh sản phẩm&quot; chọn ≥2 sản phẩm để tạo phiên mới.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
-          {sessions.map((s) => {
+        <CompareHistoryGrid
+          sessions={sessions.map((s) => {
             const ids: number[] = JSON.parse(s.productIds);
-            const entries = ids.map((id) => productById.get(id) ?? { name: `#${id}`, image: null });
-            return (
-              <Link
-                key={s.id}
-                href={`/compare/${s.id}`}
-                className="block rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 hover:border-blue-400 dark:hover:border-blue-500 transition-colors"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <SessionNameEditor
-                    sessionId={s.id}
-                    name={s.name}
-                    fallback={`Phiên #${s.id}`}
-                    className="font-medium"
-                  />
-                  <span className="text-xs text-slate-400 shrink-0">{s.createdAt.toLocaleString("vi-VN")}</span>
-                </div>
-
-                {/* Ảnh sản phẩm xếp chồng xiên như bộ bài — tránh chiếm quá nhiều
-                    diện tích khi 1 phiên gom nhiều sản phẩm (tối đa 5). */}
-                <div className="flex items-center mt-3 mb-2" style={{ paddingLeft: "4px" }}>
-                  {entries.map((entry, i) => (
-                    <div
-                      key={i}
-                      title={entry.name}
-                      className="w-12 h-12 rounded-lg overflow-hidden border-2 border-white dark:border-slate-900 bg-slate-100 dark:bg-slate-800 shadow-sm shrink-0 flex items-center justify-center text-lg"
-                      style={{
-                        marginLeft: i === 0 ? 0 : "-18px",
-                        transform: `rotate(${(i % 2 === 0 ? -1 : 1) * (4 + i * 2)}deg)`,
-                        zIndex: entries.length - i,
-                      }}
-                    >
-                      {entry.image ? (
-                        <SmartImage src={entry.image} alt={entry.name} className="w-full h-full object-cover" />
-                      ) : (
-                        "📦"
-                      )}
-                    </div>
-                  ))}
-                </div>
-
-                <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-1">
-                  {entries.map((e) => e.name).join(" · ")}
-                </p>
-              </Link>
-            );
+            return {
+              id: s.id,
+              createdAt: s.createdAt.toISOString(),
+              name: s.name,
+              productIds: ids,
+              products: ids.map((id) => productById.get(id) ?? { name: `#${id}`, image: null }),
+            };
           })}
-        </div>
+        />
       )}
     </div>
   );

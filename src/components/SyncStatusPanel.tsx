@@ -70,7 +70,7 @@ export default function SyncStatusPanel() {
           💻 Google Drive chưa bật — {totalImages} ảnh đang chỉ lưu trên máy này.
         </p>
       )}
-      <p className="text-xs text-slate-400">
+      <p className="text-xs text-slate-500 dark:text-slate-400">
         📦 Database: {dbSizeText} · 🧠 {status.analysisCount} phân tích AI đã lưu
       </p>
     </section>

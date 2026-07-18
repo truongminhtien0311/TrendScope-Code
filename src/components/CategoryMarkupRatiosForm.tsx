@@ -134,7 +134,7 @@ export default function CategoryMarkupRatiosForm({
               <button
                 type="button"
                 onClick={() => removeRow(r.id)}
-                className="text-slate-400 hover:text-red-500 text-sm justify-self-start sm:justify-self-center"
+                className="text-slate-500 dark:text-slate-400 hover:text-red-500 text-sm justify-self-start sm:justify-self-center"
                 title="Xóa dòng này"
               >
                 🗑️
@@ -143,14 +143,14 @@ export default function CategoryMarkupRatiosForm({
           </div>
         ))}
         {rows.length === 0 && (
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-slate-500 dark:text-slate-400">
             Chưa có dòng nào (đã xóa hết) — AI sẽ tự nêu rõ chưa có tỷ lệ để ước tính. Bấm &quot;+ Thêm ngành
             hàng&quot; để thêm lại.
           </p>
         )}
       </div>
 
-      {!isAdmin && <p className="text-xs text-slate-400">(chỉ admin sửa được)</p>}
+      {!isAdmin && <p className="text-xs text-slate-500 dark:text-slate-400">(chỉ admin sửa được)</p>}
 
       {isAdmin && (
         <>
@@ -171,7 +171,7 @@ export default function CategoryMarkupRatiosForm({
               {saved ? "✓ Đã lưu" : saving ? "Đang lưu..." : "Lưu"}
             </button>
           </div>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-slate-500 dark:text-slate-400">
             💡 Markup (%) tính trên GIÁ XƯỞNG (giá vốn) — vd markup 150% nghĩa là giá bán lẻ ≈ giá
             xưởng × 2.5 (ô &quot;Gấp X lần&quot; bên cạnh). 2 ô tự đồng bộ, sửa ô nào cũng được. App
             đã điền sẵn mức markup GỢI Ý theo ngành hàng (ước tính tham khảo, KHÔNG chính xác cho

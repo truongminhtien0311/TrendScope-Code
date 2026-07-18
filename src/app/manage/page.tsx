@@ -51,7 +51,7 @@ export default async function ManagePage() {
         </section>
       </div>
 
-      <p className="text-xs text-slate-400">
+      <p className="text-xs text-slate-500 dark:text-slate-400">
         💡 Xóa tag/ngành hàng không xóa sản phẩm — sản phẩm chỉ được gỡ tag hoặc về
         &quot;chưa phân loại&quot;.
       </p>

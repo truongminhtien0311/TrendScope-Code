@@ -1,6 +1,6 @@
 {
-  "name": "product-scrap",
-  "version": "1.0.1",
+  "name": "trendscope",
+  "version": "1.0.2",
   "private": true,
   "main": "electron/main.js",
   "scripts": {

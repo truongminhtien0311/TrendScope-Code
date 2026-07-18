@@ -1,7 +1,7 @@
 # 02 — Cấu trúc thư mục: muốn sửa gì thì mở file nào
 
 ```
-product-scrap/
+trendscope/
 ├── prisma/
 │   ├── schema.prisma      ← ĐỊNH NGHĨA DATABASE (các bảng dữ liệu)
 │   ├── seed.ts            ← Dữ liệu mẫu (chạy: npx prisma db seed)

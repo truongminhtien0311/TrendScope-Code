@@ -94,7 +94,7 @@ function UserManagement({ currentUserId, isOwner }: { currentUserId: number; isO
       <p className="text-sm font-medium">👥 Quản lý tài khoản (admin)</p>
 
       {loading ? (
-        <p className="text-sm text-slate-400">Đang tải...</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400">Đang tải...</p>
       ) : (
         <ul className="text-sm space-y-1">
           {users.map((u) => {
@@ -106,7 +106,7 @@ function UserManagement({ currentUserId, isOwner }: { currentUserId: number; isO
               <li key={u.id} className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/50 py-1">
                 <span>
                   {u.name} · {u.email}{" "}
-                  <span className="text-xs text-slate-400">
+                  <span className="text-xs text-slate-500 dark:text-slate-400">
                     ({u.role}
                     {u.isOwner ? " · ⭐ Chủ tài khoản" : ""}
                     {u.hasPassword ? "" : " — chưa đăng nhập lần nào"})
@@ -156,7 +156,7 @@ function UserManagement({ currentUserId, isOwner }: { currentUserId: number; isO
         </button>
       </form>
       {error && <p className="text-xs text-red-500">{error}</p>}
-      <p className="text-xs text-slate-400">
+      <p className="text-xs text-slate-500 dark:text-slate-400">
         💡 Không cần đặt mật khẩu ngay — người được thêm tự đặt mật khẩu ở lần đăng nhập đầu
         tiên bằng email này. Tài khoản "Admin" toàn quyền như bạn, nhưng chỉ ⭐ Chủ tài khoản
         mới xóa được tài khoản admin khác — admin thường không xóa lẫn nhau được.

@@ -192,7 +192,7 @@ export default async function SettingsPage() {
                 <RateForm key={rate} settingKey="cny_vnd_rate" currentRate={rate} fromLabel="CNY" toLabel="VNĐ" isAdmin={isAdmin} />
                 <RateForm key={usdRate} settingKey="usd_cny_rate" currentRate={usdRate} fromLabel="USD" toLabel="CNY" isAdmin={isAdmin} />
               </div>
-              <p className="text-xs text-slate-400 mt-2">
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
                 CNY→VNĐ dùng để hiển thị giá VNĐ toàn app. USD→CNY dùng khi nhập tay giá
                 bằng USD (form nhập tay sẽ tự quy đổi về CNY để lưu).
               </p>
@@ -255,7 +255,7 @@ export default async function SettingsPage() {
                   isAdmin={isAdmin}
                 />
               </Suspense>
-              <p className="text-xs text-slate-400 mt-2">
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
                 Bật provider &quot;Google Drive&quot; ở mục API phía trên để app tự sao lưu ảnh lên Drive
                 ở nền (không chặn lúc cào) — ảnh vẫn luôn có sẵn bản trên máy này dù Drive có bật hay không.
               </p>
@@ -362,7 +362,7 @@ export default async function SettingsPage() {
                   currentUserId={currentUser.id}
                 />
               )}
-              <p className="text-xs text-slate-400 mt-3">
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-3">
                 💡 Muốn dùng chung dữ liệu với máy khác? Xem mục &quot;🔄 Đồng bộ dữ liệu&quot; ở sidebar.
               </p>
             </Section>

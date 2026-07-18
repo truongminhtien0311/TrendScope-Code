@@ -670,6 +670,13 @@ body {
     780px 490px rgba(255,255,255,0.5);
 }
 
+/* === PRINT === */
+/* Ẩn phần tử không cần lộ ra khi in/xuất PDF (vd nút "Quay lại" trên
+   trang Báo cáo trình bày — xem src/components/ReportBackBar.tsx). */
+@media print {
+  .no-print { display: none !important; }
+}
+
 /* === SHARED COSMIC UI COMPONENTS === */
 .title-gradient {
   font-family: 'Space Grotesk', sans-serif;

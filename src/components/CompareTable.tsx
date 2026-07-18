@@ -420,7 +420,7 @@ export default function CompareTable({
                     <span className="text-xs font-normal text-slate-500 dark:text-slate-400">
                       {run.status === "PENDING" ? "⏳ đang chạy..." : run.status === "FAILED" ? "❌ thất bại" : "✅"}
                     </span>
-                    <span className="ml-auto text-sm text-slate-400">{run.expanded ? "▲" : "▼"}</span>
+                    <span className="ml-auto text-sm text-slate-500 dark:text-slate-400">{run.expanded ? "▲" : "▼"}</span>
                   </button>
                 </div>
 
@@ -461,7 +461,7 @@ export default function CompareTable({
             >
               {synthesizing ? "Đang gửi yêu cầu..." : `🧑‍⚖️ Tổng hợp hội đồng (${selectedForSynthesis.size})`}
             </button>
-            <span className="text-xs text-slate-400">Đã chọn {selectedForSynthesis.size} báo cáo để đối chiếu.</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400">Đã chọn {selectedForSynthesis.size} báo cáo để đối chiếu.</span>
           </div>
         )}
         {synthesisError && <p className="text-sm text-red-500">{synthesisError}</p>}
@@ -477,7 +477,7 @@ export default function CompareTable({
                 </div>
                 <button
                   onClick={() => setShowPreview(false)}
-                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                  className="text-slate-500 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
                 >
                   ✕
                 </button>
@@ -538,7 +538,7 @@ export default function CompareTable({
                     <li key={r.comparisonId}>{r.presetName}</li>
                   ))}
                 </ul>
-                <p className="text-xs text-slate-400 pt-2">
+                <p className="text-xs text-slate-500 dark:text-slate-400 pt-2">
                   💡 AI sẽ đọc lại dữ liệu cào gốc của {products.length} sản phẩm để kiểm chứng các báo cáo trên
                   trước khi kết luận — không tin tuyệt đối vào báo cáo AI trước đó.
                 </p>
@@ -561,7 +561,7 @@ export default function CompareTable({
           </div>
         )}
 
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-slate-500 dark:text-slate-400">
           💡 Dùng dữ liệu cào GỐC (chưa qua AI dịch/tổng hợp trước đó) để tránh thiên kiến cộng dồn. Kết quả AI chỉ
           mang tính tham khảo — luôn kiểm tra lại nguồn trước khi quyết định.
         </p>

@@ -49,13 +49,15 @@ export default function ThemeToggle({ compact = false }: { compact?: boolean }) 
     );
   }
 
-  // Expanded mode: pill toggle with label
+  // Expanded mode: pill toggle with label — dùng trong card nền trắng/tối
+  // của trang Cài đặt (không phải sidebar), nên phải dùng --text-secondary
+  // (đủ tương phản trên card) thay vì --text-sidebar-muted (chỉ hợp nền tối).
   return (
     <button
       onClick={toggle}
       title={dark ? "Chuyển sang Light mode" : "Chuyển sang Dark mode"}
       className="flex items-center gap-2.5 w-full px-2 py-1.5 rounded-lg transition-all"
-      style={{ color: "var(--text-sidebar-muted)" }}
+      style={{ color: "var(--text-secondary)" }}
     >
       {/* Pill track */}
       <div className="theme-toggle-track" aria-hidden="true">

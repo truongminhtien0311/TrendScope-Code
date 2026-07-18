@@ -79,21 +79,21 @@ export default function ProviderRow({
               target="_blank"
               rel="noopener noreferrer"
               title="Mở link tham khảo (trang đăng ký/quản lý/thanh toán của nhà cung cấp)"
-              className="text-slate-400 hover:text-blue-500"
+              className="text-slate-500 dark:text-slate-400 hover:text-blue-500"
             >
               🔗
             </a>
           )}
           {!hasSeparateConfig && (
             <span
-              className={`text-xs ${hasKey ? "text-green-600 dark:text-green-400" : "text-slate-400"}`}
+              className={`text-xs ${hasKey ? "text-green-600 dark:text-green-400" : "text-slate-500 dark:text-slate-400"}`}
               title={hasKey ? "Đã có API key" : "Chưa có API key"}
             >
               {hasKey ? "🔑 đã cấu hình" : "chưa có key"}
             </span>
           )}
           {hasSeparateConfig && (
-            <span className="text-xs text-slate-400">👇 cấu hình ở khối &quot;Lưu trữ&quot; bên dưới</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400">👇 cấu hình ở khối &quot;Lưu trữ&quot; bên dưới</span>
           )}
         </span>
         <div className="flex items-center gap-2">
@@ -106,7 +106,7 @@ export default function ProviderRow({
             </button>
           )}
           {!isAdmin && (
-            <span className="text-xs text-slate-400">(chỉ admin sửa được)</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400">(chỉ admin sửa được)</span>
           )}
           <button
             onClick={toggle}
@@ -166,7 +166,7 @@ export default function ProviderRow({
               placeholder="https://rapidapi.com/..."
               className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-1.5 text-sm"
             />
-            <p className="text-xs text-slate-400 mt-1">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
               💡 Chỉ để tiện bấm vào lại sau này (đăng ký gói/nâng cấp/thanh toán) — không dùng
               để gọi API. Nhà cung cấp có thể đổi link theo thời gian, sửa lại ở đây khi cần.
             </p>
@@ -178,7 +178,7 @@ export default function ProviderRow({
           >
             {saved ? "✓ Đã lưu" : savingKey ? "Đang lưu..." : "Lưu"}
           </button>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-slate-500 dark:text-slate-400">
             💡 Key chỉ dùng khi provider này thực sự được nối API thật. Bật/tắt không tự kiểm
             tra key hợp lệ.
           </p>

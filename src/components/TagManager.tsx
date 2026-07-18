@@ -84,7 +84,7 @@ export default function TagManager({ tags }: { tags: TagItem[] }) {
       </form>
 
       {tags.length === 0 ? (
-        <p className="text-sm text-slate-400">Chưa có tag nào.</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400">Chưa có tag nào.</p>
       ) : (
         <ul className="space-y-2">
           {tags.map((t) =>
@@ -103,7 +103,7 @@ export default function TagManager({ tags }: { tags: TagItem[] }) {
                     {t.icon ? `${t.icon} ` : ""}
                     {t.name}
                   </span>
-                  <span className="text-xs text-slate-400">{t.productCount} sản phẩm</span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400">{t.productCount} sản phẩm</span>
                 </span>
                 <span className="flex gap-2 shrink-0">
                   <button

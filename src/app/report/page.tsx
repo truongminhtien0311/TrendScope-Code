@@ -7,15 +7,21 @@
 //
 // Luôn dùng class KHÔNG có "dark:" — Playwright mở context mới (không
 // có theme dark đã lưu ở localStorage) nên PDF luôn ra nền trắng chữ
-// đen; bản xem web cũng đồng nhất giao diện với PDF.
+// đen; bản xem web cũng đồng nhất giao diện với PDF. Style "sáng, sang
+// trọng, tối giản": nhiều khoảng trắng, 1 màu nhấn (xanh) dùng tiết chế,
+// đường kẻ mảnh thay viền box nặng.
 // Sidebar bị ẩn cho route này — xem src/middleware.ts + src/app/layout.tsx.
 // ============================================================
 import { prisma } from "@/lib/db";
 import { getCnyVndRate, cnyToVnd, formatVnd, formatCny } from "@/lib/currency";
 import ReactMarkdown from "react-markdown";
 import SmartImage from "@/components/SmartImage";
+import ReportBackBar from "@/components/ReportBackBar";
 
 export const dynamic = "force-dynamic";
+
+const ACCENT = "#2563eb";
+const ACCENT_SOFT = "#eff6ff";
 
 const AI_SECTIONS: { key: keyof AiAnalysisData; icon: string; label: string }[] = [
   { key: "aiSummary", icon: "🤖", label: "Mô tả tổng hợp" },
@@ -81,11 +87,28 @@ export default async function ReportPage({
     );
   }
 
+  const exportDate = new Date().toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
+
   return (
     <div className="bg-white text-slate-900 min-h-screen">
-      <div className="max-w-4xl mx-auto p-10 space-y-16">
-        {ordered.map((product) => (
-          <ReportProductSection key={product.id} product={product} rate={rate} />
+      <ReportBackBar />
+
+      {/* Dải thương hiệu mảnh — in ra cả trong PDF, không phải điều hướng nên không cần ẩn */}
+      <div className="border-b border-slate-100 px-10 py-4 flex items-center justify-between max-w-4xl mx-auto">
+        <span
+          className="text-sm font-bold tracking-tight"
+          style={{ fontFamily: "'Space Grotesk', sans-serif", color: ACCENT }}
+        >
+          TrendScope
+        </span>
+        <span className="text-xs text-slate-400">
+          Báo cáo sản phẩm · {ordered.length} sản phẩm · {exportDate}
+        </span>
+      </div>
+
+      <div className="max-w-4xl mx-auto px-10 py-12 space-y-20">
+        {ordered.map((product, i) => (
+          <ReportProductSection key={product.id} product={product} rate={rate} index={i} total={ordered.length} />
         ))}
       </div>
     </div>
@@ -102,7 +125,17 @@ interface ReportProduct {
   aiAnalyses: AiAnalysisData[];
 }
 
-function ReportProductSection({ product, rate }: { product: ReportProduct; rate: number }) {
+function ReportProductSection({
+  product,
+  rate,
+  index,
+  total,
+}: {
+  product: ReportProduct;
+  rate: number;
+  index: number;
+  total: number;
+}) {
   const priceRange = (sourceType: string) => {
     const prices = product.listings
       .filter((l) => l.sourceType === sourceType)
@@ -119,58 +152,89 @@ function ReportProductSection({ product, rate }: { product: ReportProduct; rate:
   const analysis = product.aiAnalyses[0];
 
   return (
-    <section className="space-y-6 break-inside-avoid" style={{ pageBreakAfter: "always" }}>
+    <section className="space-y-10">
+      {index > 0 && <div className="border-t border-slate-100 -mt-4 mb-4" />}
       <div>
-        <h1 className="text-2xl font-bold">{product.name || "(Chưa đặt tên)"}</h1>
-        {product.description && <p className="text-slate-600 mt-1">{product.description}</p>}
-        <div className="flex flex-wrap gap-2 mt-2">
-          {product.categories.map((c) => (
-            <span key={c.id} className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-              {c.icon ? `${c.icon} ` : ""}
-              {c.name}
-            </span>
-          ))}
-          {product.tags.map((t) => (
-            <span
-              key={t.id}
-              className="text-xs px-2 py-0.5 rounded-full text-white"
-              style={{ backgroundColor: t.color ?? "#64748b" }}
-            >
-              {t.icon ? `${t.icon} ` : ""}
-              {t.name}
-            </span>
-          ))}
-        </div>
+        {total > 1 && (
+          <p className="text-xs font-semibold tracking-wide text-slate-400 mb-2">
+            SẢN PHẨM {index + 1} / {total}
+          </p>
+        )}
+        <h1
+          className="text-3xl font-bold tracking-tight"
+          style={{ fontFamily: "'Space Grotesk', sans-serif" }}
+        >
+          {product.name || "(Chưa đặt tên)"}
+        </h1>
+        <div className="w-10 h-[3px] rounded-full mt-3" style={{ background: ACCENT }} />
+        {product.description && <p className="text-slate-500 mt-4 leading-relaxed">{product.description}</p>}
+        {(product.categories.length > 0 || product.tags.length > 0) && (
+          <div className="flex flex-wrap gap-2 mt-4">
+            {product.categories.map((c) => (
+              <span key={c.id} className="text-xs px-2.5 py-1 rounded-full bg-slate-50 text-slate-500 border border-slate-100">
+                {c.icon ? `${c.icon} ` : ""}
+                {c.name}
+              </span>
+            ))}
+            {product.tags.map((t) => (
+              <span
+                key={t.id}
+                className="text-xs px-2.5 py-1 rounded-full text-white font-medium"
+                style={{ backgroundColor: t.color ?? "#64748b" }}
+              >
+                {t.icon ? `${t.icon} ` : ""}
+                {t.name}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
-      <div className="grid grid-cols-4 gap-3">
-        <ReportStat label="Giá bán lẻ (tham khảo)" value={retailRange ? `${formatVnd(retailRange.min)} ~ ${formatVnd(retailRange.max)}` : "—"} />
-        <ReportStat label="Giá nhập (tham khảo)" value={factoryRange ? `${formatVnd(factoryRange.min)} ~ ${formatVnd(factoryRange.max)}` : "—"} />
+      <div className="grid grid-cols-4 gap-px bg-slate-100 rounded-2xl overflow-hidden">
+        <ReportStat label="Giá bán lẻ" value={retailRange ? `${formatVnd(retailRange.min)} ~ ${formatVnd(retailRange.max)}` : "—"} />
+        <ReportStat label="Giá nhập" value={factoryRange ? `${formatVnd(factoryRange.min)} ~ ${formatVnd(factoryRange.max)}` : "—"} />
         <ReportStat label="Tổng lượt bán" value={soldTotal ? soldTotal.toLocaleString("vi-VN") : "—"} />
-        <ReportStat label="Lượt bán tháng" value={soldMonthly ? soldMonthly.toLocaleString("vi-VN") : "—"} />
+        <ReportStat label="Lượt bán / tháng" value={soldMonthly ? soldMonthly.toLocaleString("vi-VN") : "—"} />
       </div>
 
       {analysis && (
-        <div className="rounded-xl border border-slate-200 p-4 space-y-4">
-          <h2 className="font-semibold">🧠 Phân tích AI toàn diện</h2>
-          {AI_SECTIONS.map((s) =>
-            analysis[s.key] ? (
-              <div key={s.key}>
-                <h3 className="text-sm font-semibold mb-1">
-                  {s.icon} {s.label}
-                </h3>
-                <div className="prose prose-sm max-w-none">
-                  <ReactMarkdown>{analysis[s.key] as string}</ReactMarkdown>
+        <div className="space-y-6">
+          <SectionHeading icon="🧠" title="Phân tích AI toàn diện" />
+          <div className="space-y-6">
+            {AI_SECTIONS.map((s) =>
+              analysis[s.key] ? (
+                <div key={s.key} className="pl-4" style={{ borderLeft: `2px solid ${ACCENT_SOFT}` }}>
+                  <h3 className="text-sm font-semibold mb-1.5 flex items-center gap-1.5">
+                    <span>{s.icon}</span>
+                    {s.label}
+                  </h3>
+                  <div className="prose prose-sm max-w-none prose-slate prose-p:leading-relaxed prose-p:text-slate-600">
+                    <ReactMarkdown>{analysis[s.key] as string}</ReactMarkdown>
+                  </div>
                 </div>
-              </div>
-            ) : null
-          )}
+              ) : null
+            )}
+          </div>
         </div>
       )}
 
-      <ReportListingGroup title="🛍️ Shop bán lẻ (Taobao, Tmall, JD)" listings={retailListings} rate={rate} />
-      <ReportListingGroup title="🏭 Nhà sản xuất (Alibaba, 1688)" listings={factoryListings} rate={rate} />
+      <ReportListingGroup title="Shop bán lẻ" icon="🛍️" subtitle="Taobao, Tmall, JD" listings={retailListings} rate={rate} />
+      <ReportListingGroup title="Nhà sản xuất" icon="🏭" subtitle="Alibaba, 1688" listings={factoryListings} rate={rate} />
     </section>
+  );
+}
+
+function SectionHeading({ icon, title }: { icon: string; title: string }) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <span
+        className="w-7 h-7 rounded-lg flex items-center justify-center text-sm shrink-0"
+        style={{ background: ACCENT_SOFT }}
+      >
+        {icon}
+      </span>
+      <h2 className="font-semibold text-base tracking-tight">{title}</h2>
+    </div>
   );
 }
 
@@ -191,28 +255,46 @@ interface ReportListing {
   reviews: { id: number; contentOriginal: string; contentVi: string | null; rating: number | null }[];
 }
 
-function ReportListingGroup({ title, listings, rate }: { title: string; listings: ReportListing[]; rate: number }) {
+function ReportListingGroup({
+  title,
+  icon,
+  subtitle,
+  listings,
+  rate,
+}: {
+  title: string;
+  icon: string;
+  subtitle: string;
+  listings: ReportListing[];
+  rate: number;
+}) {
   if (listings.length === 0) return null;
   return (
-    <div className="space-y-4">
-      <h2 className="font-semibold text-lg">{title}</h2>
+    <div className="space-y-5">
+      <div className="flex items-baseline gap-2">
+        <SectionHeading icon={icon} title={title} />
+        <span className="text-xs text-slate-400">{subtitle}</span>
+      </div>
       {listings.map((l) => (
-        <div key={l.id} className="rounded-xl border border-slate-200 p-4 space-y-3">
+        <div key={l.id} className="rounded-2xl border border-slate-100 p-5 space-y-4">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="font-medium">{l.titleVi ?? l.titleOriginal ?? "(chưa có tên)"}</p>
-              {l.titleVi && l.titleOriginal && <p className="text-xs text-slate-500 mt-0.5">{l.titleOriginal}</p>}
-              {l.sellerName && <p className="text-xs text-slate-500 mt-0.5">🏪 {l.sellerName}</p>}
+              {l.titleVi && l.titleOriginal && <p className="text-xs text-slate-400 mt-0.5">{l.titleOriginal}</p>}
+              {l.sellerName && <p className="text-xs text-slate-400 mt-0.5">🏪 {l.sellerName}</p>}
             </div>
-            <span className="text-xs px-2 py-1 rounded-full bg-blue-50 text-blue-700 font-medium shrink-0">
+            <span
+              className="text-xs px-2.5 py-1 rounded-full font-medium shrink-0"
+              style={{ background: ACCENT_SOFT, color: ACCENT }}
+            >
               {l.platform}
             </span>
           </div>
 
           {l.images.length > 0 && (
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-4 gap-2.5">
               {l.images.map((img) => (
-                <SmartImage key={img.id} src={img.url} alt="" className="w-full aspect-square object-cover rounded-lg" />
+                <SmartImage key={img.id} src={img.url} alt="" className="w-full aspect-square object-cover rounded-xl" />
               ))}
             </div>
           )}
@@ -221,10 +303,10 @@ function ReportListingGroup({ title, listings, rate }: { title: string; listings
             <table className="w-full text-sm">
               <tbody>
                 {l.variants.map((v) => (
-                  <tr key={v.id} className="border-b border-slate-100 last:border-0">
-                    <td className="py-1">{v.nameVi ?? v.nameOriginal}</td>
-                    <td className="py-1 text-right whitespace-nowrap">{formatCny(v.priceCny)}</td>
-                    <td className="py-1 text-right whitespace-nowrap font-medium text-blue-700">
+                  <tr key={v.id} className="border-b border-slate-50 last:border-0">
+                    <td className="py-2 text-slate-600">{v.nameVi ?? v.nameOriginal}</td>
+                    <td className="py-2 text-right whitespace-nowrap text-slate-400">{formatCny(v.priceCny)}</td>
+                    <td className="py-2 text-right whitespace-nowrap font-semibold" style={{ color: ACCENT }}>
                       {formatVnd(cnyToVnd(v.priceCny, rate))}
                     </td>
                   </tr>
@@ -234,14 +316,14 @@ function ReportListingGroup({ title, listings, rate }: { title: string; listings
           )}
 
           {(l.descriptionVi || l.descriptionOriginal) && (
-            <p className="text-sm">{l.descriptionVi ?? l.descriptionOriginal}</p>
+            <p className="text-sm text-slate-600 leading-relaxed">{l.descriptionVi ?? l.descriptionOriginal}</p>
           )}
 
           {l.reviews.length > 0 && (
-            <div className="space-y-1">
-              <p className="text-xs font-medium text-slate-500">Đánh giá người mua</p>
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium text-slate-400">Đánh giá người mua</p>
               {l.reviews.map((r) => (
-                <p key={r.id} className="text-sm text-slate-600">
+                <p key={r.id} className="text-sm text-slate-500">
                   {r.rating ? "⭐".repeat(r.rating) + " " : ""}
                   {r.contentVi ?? r.contentOriginal}
                 </p>
@@ -260,9 +342,9 @@ function ReportListingGroup({ title, listings, rate }: { title: string; listings
 
 function ReportStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-slate-200 p-3">
-      <p className="text-xs text-slate-500">{label}</p>
-      <p className="font-semibold mt-1 text-sm">{value}</p>
+    <div className="bg-white p-4">
+      <p className="text-xs text-slate-400">{label}</p>
+      <p className="font-semibold mt-1.5 text-sm">{value}</p>
     </div>
   );
 }

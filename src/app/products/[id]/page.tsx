@@ -123,7 +123,7 @@ export default async function ProductDetailPage({
       {/* ---- Đầu trang: tên, tag, ngành hàng ---- */}
       <div>
         <h1 className="text-2xl font-bold">
-          {product.name || <span className="text-slate-400 italic">(Chưa đặt tên — chạy Phân tích AI hoặc tự đặt)</span>}
+          {product.name || <span className="text-slate-500 dark:text-slate-400 italic">(Chưa đặt tên — chạy Phân tích AI hoặc tự đặt)</span>}
         </h1>
         {product.description && (
           <p className="text-slate-600 dark:text-slate-300 mt-1">{product.description}</p>
@@ -365,7 +365,7 @@ function ListingCard({
       <ReviewManager listingId={l.id} reviews={l.reviews} />
 
       {l.lastScrapedAt && (
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-slate-500 dark:text-slate-400">
           Cào dữ liệu lần cuối: {new Date(l.lastScrapedAt).toLocaleString("vi-VN")}
         </p>
       )}

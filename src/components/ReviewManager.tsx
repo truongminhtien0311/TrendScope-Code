@@ -99,7 +99,7 @@ function NewReviewRow({ listingId, onDone }: { listingId: number; onDone: () => 
       <button onClick={save} disabled={saving} className="text-xs text-blue-600 dark:text-blue-400 hover:underline disabled:opacity-50 py-1">
         {saving ? "..." : "Lưu"}
       </button>
-      <button onClick={onDone} className="text-xs text-slate-400 hover:underline py-1">
+      <button onClick={onDone} className="text-xs text-slate-500 dark:text-slate-400 hover:underline py-1">
         Hủy
       </button>
     </div>
@@ -151,7 +151,7 @@ function ReviewRow({ review: r, listingId: _listingId }: { review: ReviewData; l
         <button onClick={save} disabled={saving} className="text-xs text-blue-600 dark:text-blue-400 hover:underline disabled:opacity-50">
           {saving ? "..." : "Lưu"}
         </button>
-        <button onClick={() => setEditing(false)} className="text-xs text-slate-400 hover:underline">
+        <button onClick={() => setEditing(false)} className="text-xs text-slate-500 dark:text-slate-400 hover:underline">
           Hủy
         </button>
       </li>
@@ -164,14 +164,14 @@ function ReviewRow({ review: r, listingId: _listingId }: { review: ReviewData; l
       <span className="flex-1">
         {r.contentVi ?? r.contentOriginal}
         {r.contentVi && r.contentVi !== r.contentOriginal && (
-          <span className="text-xs text-slate-400 ml-2">{r.contentOriginal}</span>
+          <span className="text-xs text-slate-500 dark:text-slate-400 ml-2">{r.contentOriginal}</span>
         )}
       </span>
       <span className="opacity-0 group-hover:opacity-100 transition shrink-0 whitespace-nowrap">
-        <button onClick={() => setEditing(true)} className="text-xs text-slate-400 hover:text-blue-500 mr-1.5">
+        <button onClick={() => setEditing(true)} className="text-xs text-slate-500 dark:text-slate-400 hover:text-blue-500 mr-1.5">
           ✏️
         </button>
-        <button onClick={remove} className="text-xs text-slate-400 hover:text-red-500">
+        <button onClick={remove} className="text-xs text-slate-500 dark:text-slate-400 hover:text-red-500">
           🗑️
         </button>
       </span>

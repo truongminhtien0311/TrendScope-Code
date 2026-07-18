@@ -1,4 +1,4 @@
-# 🛒 Product Scrap
+# 🛒 TrendScope
 
 App quản lý & nghiên cứu sản phẩm nguồn Trung Quốc: gom link từ **Taobao, Tmall, JD** (shop bán lẻ) và **Alibaba** (nhà sản xuất) về một chỗ, cào dữ liệu thật, dịch sang tiếng Việt, quy đổi giá VNĐ, và dùng AI (Gemini) phân tích sản phẩm — mô tả, tệp khách hàng, kênh bán, chi phí nhập khẩu, tính khả thi kinh doanh...
 
@@ -7,7 +7,7 @@ Chạy dưới dạng **app cài đặt trên Windows** (đóng gói bằng Elec
 ## 📥 Cài đặt (dành cho người dùng)
 
 1. Vào mục [Releases](../../releases) của repo này
-2. Tải file **`Product Scrap Setup x.x.x.exe`** mới nhất
+2. Tải file **`TrendScope-Setup-x.x.x.exe`** mới nhất
 3. Chạy file vừa tải, cài như phần mềm Windows bình thường
 4. Mở app từ Start Menu / Desktop shortcut
 

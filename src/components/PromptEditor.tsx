@@ -158,7 +158,7 @@ export default function PromptEditor({
           </button>
         ) : null}
 
-        {!isAdmin && <span className="text-xs text-slate-400">(chỉ admin sửa được)</span>}
+        {!isAdmin && <span className="text-xs text-slate-500 dark:text-slate-400">(chỉ admin sửa được)</span>}
 
         {isAdmin && (
           <>
@@ -227,7 +227,7 @@ export default function PromptEditor({
         </div>
       )}
       {isAdmin && !matchingDefault && (
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-slate-500 dark:text-slate-400">
           💡 Prompt này do bạn tự tạo nên không có bản gốc để khôi phục.
         </p>
       )}

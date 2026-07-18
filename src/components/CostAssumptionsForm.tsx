@@ -172,7 +172,7 @@ export default function CostAssumptionsForm({
               <button
                 type="button"
                 onClick={() => removeRow(r.id)}
-                className="text-slate-400 hover:text-red-500 text-sm justify-self-start sm:justify-self-center"
+                className="text-slate-500 dark:text-slate-400 hover:text-red-500 text-sm justify-self-start sm:justify-self-center"
                 title="Xóa dòng này"
               >
                 🗑️
@@ -182,7 +182,7 @@ export default function CostAssumptionsForm({
         ))}
       </div>
 
-      {!isAdmin && <p className="text-xs text-slate-400">(chỉ admin sửa được)</p>}
+      {!isAdmin && <p className="text-xs text-slate-500 dark:text-slate-400">(chỉ admin sửa được)</p>}
 
       {isAdmin && (
         <>
@@ -203,7 +203,7 @@ export default function CostAssumptionsForm({
               {saved ? "✓ Đã lưu" : saving ? "Đang lưu..." : "Lưu"}
             </button>
           </div>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-slate-500 dark:text-slate-400">
             💡 Đơn vị 1/2 có gợi ý sẵn nhưng gõ tự do được (bấm vào ô, gõ chữ mới) — AI đọc
             hiểu mọi tên chi phí/đơn vị, không giới hạn theo mẫu cố định. Ô Giá trị tự thêm
             dấu phẩy ngăn hàng nghìn (vd 20,000) khi rời khỏi ô. Sửa số ở đây khi sàn đổi

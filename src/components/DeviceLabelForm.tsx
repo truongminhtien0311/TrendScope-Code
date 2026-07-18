@@ -37,7 +37,7 @@ export default function DeviceLabelForm({
     return (
       <div className="flex items-center gap-2 text-sm">
         <span>{currentLabel || "(chưa đặt tên)"}</span>
-        <span className="text-xs text-slate-400">(chỉ admin sửa được)</span>
+        <span className="text-xs text-slate-500 dark:text-slate-400">(chỉ admin sửa được)</span>
       </div>
     );
   }

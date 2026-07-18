@@ -181,7 +181,7 @@ export default function SettingsDriveSyncPanel() {
       </div>
 
       {driveHadFile === false && (
-        <p className="text-xs text-slate-400">Chưa có cấu hình nào được lưu trên Drive này.</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400">Chưa có cấu hình nào được lưu trên Drive này.</p>
       )}
       {error && <p className="text-sm text-red-500">{error}</p>}
 

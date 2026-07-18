@@ -21,7 +21,7 @@
 //
 // TỔ CHỨC FILE + TỐI ƯU DUNG LƯỢNG (theo yêu cầu: đủ dữ liệu nhưng tối
 // ưu dung lượng):
-//   - Toàn bộ dữ liệu nằm trong 1 folder gốc cố định "ProductHunt-DoNotDelete"
+//   - Toàn bộ dữ liệu nằm trong 1 folder gốc cố định "TrendScope-DoNotDelete"
 //     (đặt tên tiếng Anh, chèn "DoNotDelete" để tránh xóa nhầm), bên
 //     trong có 2 folder con: "images" (ảnh sản phẩm) và "backups" (bản
 //     sao lưu database — xem src/lib/backup). ID các folder cache lại
@@ -218,7 +218,7 @@ async function ensureImagesFolder(providerId: number, config: GoogleDriveConfig,
 }
 
 // Dùng chung cho src/lib/backup và src/lib/sync — lấy (hoặc tạo mới) 1
-// folder con bất kỳ dưới folder gốc "ProductHunt-DoNotDelete", cache
+// folder con bất kỳ dưới folder gốc "TrendScope-DoNotDelete", cache
 // theo tên field truyền vào.
 export async function ensureNamedFolder(
   providerId: number,

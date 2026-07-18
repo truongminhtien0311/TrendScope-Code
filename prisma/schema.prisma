@@ -1,5 +1,5 @@
 // ============================================================
-// SCHEMA DATABASE — Product Scrap
+// SCHEMA DATABASE — TrendScope
 // Database: SQLite (1 file nằm trong prisma/dev.db) — mỗi người tự chạy
 // app độc lập trên máy riêng (không còn server/VPS chung), dữ liệu gộp
 // lại qua tính năng Đồng bộ (xuất/nhập qua Google Drive, xem src/lib/sync/).

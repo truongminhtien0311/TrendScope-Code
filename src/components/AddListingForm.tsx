@@ -386,7 +386,7 @@ function ManualForm({ productId }: { productId: number }) {
                   <button
                     type="button"
                     onClick={() => removeVariant(i)}
-                    className="text-slate-400 hover:text-red-500 px-1"
+                    className="text-slate-500 dark:text-slate-400 hover:text-red-500 px-1"
                   >
                     🗑️
                   </button>
@@ -413,7 +413,7 @@ function ManualForm({ productId }: { productId: number }) {
       >
         {loading ? "Đang lưu..." : "✍️ Lưu link nhập tay"}
       </button>
-      <p className="text-xs text-slate-400">
+      <p className="text-xs text-slate-500 dark:text-slate-400">
         💡 Thêm ảnh và đánh giá sau khi tạo xong, ngay trong thẻ link vừa tạo.
       </p>
     </form>
