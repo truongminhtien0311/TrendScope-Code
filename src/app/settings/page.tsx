@@ -11,20 +11,25 @@ import {
   DEFAULT_COMPARE_PRESETS,
   DEFAULT_COMPARE_SYNTHESIS_PRESETS,
   DEFAULT_COST_ASSUMPTIONS,
+  DEFAULT_CATEGORY_MARKUP_RATIOS,
   type PromptPreset,
   type CostAssumptions,
+  type CategoryMarkupRatio,
 } from "@/lib/llm";
 import ProviderRow from "@/components/ProviderRow";
 import RateForm from "@/components/RateForm";
 import PromptEditor from "@/components/PromptEditor";
 import CostAssumptionsForm from "@/components/CostAssumptionsForm";
+import CategoryMarkupRatiosForm from "@/components/CategoryMarkupRatiosForm";
 import TaobaoLoginPanel from "@/components/TaobaoLoginPanel";
 import GoogleDriveConnectPanel from "@/components/GoogleDriveConnectPanel";
 import BackupPanel from "@/components/BackupPanel";
 import SecurityPanel from "@/components/SecurityPanel";
 import CopyApiConfigButton from "@/components/CopyApiConfigButton";
 import SettingsTabs from "@/components/SettingsTabs";
+import ExchangeRateAutoPanel from "@/components/ExchangeRateAutoPanel";
 import { getCurrentUser } from "@/lib/auth";
+import { SETTING_KEY_AUTO_ENABLED, SETTING_KEY_UPDATED_AT } from "@/lib/exchange-rate";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +38,7 @@ const KIND_LABELS: Record<string, string> = {
   SCRAPER_MANUFACTURER: "Cào dữ liệu nhà sản xuất (Alibaba, 1688)",
   LLM: "AI tổng hợp mô tả (LLM)",
   STORAGE: "Lưu trữ cloud",
+  EXCHANGE_RATE: "Tỷ giá tự động (CNY→VNĐ)",
 };
 
 export default async function SettingsPage() {
@@ -45,10 +51,14 @@ export default async function SettingsPage() {
     presetsSetting,
     activePresetIdSetting,
     costSetting,
+    markupSetting,
     comparePresetsSetting,
     compareActiveSetting,
     synthesisPresetsSetting,
     synthesisActiveSetting,
+    allCategories,
+    exchangeRateAutoEnabledSetting,
+    exchangeRateUpdatedAtSetting,
   ] = await Promise.all([
     prisma.apiProvider.findMany({ orderBy: [{ kind: "asc" }, { id: "asc" }] }),
     getCnyVndRate(),
@@ -56,11 +66,19 @@ export default async function SettingsPage() {
     prisma.setting.findUnique({ where: { key: "ai_prompt_presets" } }),
     prisma.setting.findUnique({ where: { key: "ai_prompt_active_preset_id" } }),
     prisma.setting.findUnique({ where: { key: "business_cost_assumptions" } }),
+    prisma.setting.findUnique({ where: { key: "category_markup_ratios" } }),
     prisma.setting.findUnique({ where: { key: "compare_prompt_presets" } }),
     prisma.setting.findUnique({ where: { key: "compare_prompt_active_preset_id" } }),
     prisma.setting.findUnique({ where: { key: "compare_synthesis_prompt_presets" } }),
     prisma.setting.findUnique({ where: { key: "compare_synthesis_prompt_active_preset_id" } }),
+    prisma.category.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    prisma.setting.findUnique({ where: { key: SETTING_KEY_AUTO_ENABLED } }),
+    prisma.setting.findUnique({ where: { key: SETTING_KEY_UPDATED_AT } }),
   ]);
+
+  const exchangeRateProvider = providers.find(
+    (p) => p.kind === "EXCHANGE_RATE" && p.name === "ExchangeRate-API"
+  );
 
   let promptPresets: PromptPreset[] = DEFAULT_PROMPT_PRESETS;
   if (presetsSetting?.value) {
@@ -100,6 +118,16 @@ export default async function SettingsPage() {
     try {
       const parsed = JSON.parse(costSetting.value);
       if (Array.isArray(parsed)) costAssumptions = parsed;
+    } catch {
+      // JSON hỏng thì dùng mặc định
+    }
+  }
+
+  let markupRatios: CategoryMarkupRatio[] = DEFAULT_CATEGORY_MARKUP_RATIOS;
+  if (markupSetting?.value) {
+    try {
+      const parsed = JSON.parse(markupSetting.value);
+      if (Array.isArray(parsed)) markupRatios = parsed;
     } catch {
       // JSON hỏng thì dùng mặc định
     }
@@ -150,13 +178,22 @@ export default async function SettingsPage() {
             {/* ---- Tỷ giá ---- */}
             <Section title="💱 Tỷ giá quy đổi">
               <div className="space-y-3">
-                <RateForm settingKey="cny_vnd_rate" currentRate={rate} fromLabel="CNY" toLabel="VNĐ" isAdmin={isAdmin} />
-                <RateForm settingKey="usd_cny_rate" currentRate={usdRate} fromLabel="USD" toLabel="CNY" isAdmin={isAdmin} />
+                {/* key={rate}: ép remount lại form khi giá trị server đổi (vd sau
+                    khi tự động/cập nhật tay tỷ giá) — RateForm giữ state nội bộ
+                    riêng, không tự đồng bộ theo prop nếu không remount. */}
+                <RateForm key={rate} settingKey="cny_vnd_rate" currentRate={rate} fromLabel="CNY" toLabel="VNĐ" isAdmin={isAdmin} />
+                <RateForm key={usdRate} settingKey="usd_cny_rate" currentRate={usdRate} fromLabel="USD" toLabel="CNY" isAdmin={isAdmin} />
               </div>
               <p className="text-xs text-slate-400 mt-2">
                 CNY→VNĐ dùng để hiển thị giá VNĐ toàn app. USD→CNY dùng khi nhập tay giá
                 bằng USD (form nhập tay sẽ tự quy đổi về CNY để lưu).
               </p>
+              <ExchangeRateAutoPanel
+                enabled={exchangeRateAutoEnabledSetting?.value === "true"}
+                updatedAt={exchangeRateUpdatedAtSetting?.value}
+                hasApiKey={!!exchangeRateProvider?.enabled && !!exchangeRateProvider?.apiKey}
+                isAdmin={isAdmin}
+              />
             </Section>
           </>
         }
@@ -186,6 +223,7 @@ export default async function SettingsPage() {
                           enabled={p.enabled}
                           apiKey={p.apiKey}
                           baseUrl={p.baseUrl}
+                          referenceUrl={p.referenceUrl}
                           isAdmin={isAdmin}
                           hasSeparateConfig={p.kind === "STORAGE"}
                         />
@@ -286,6 +324,17 @@ export default async function SettingsPage() {
                 sửa prompt.
               </p>
               <CostAssumptionsForm current={costAssumptions} isAdmin={isAdmin} />
+            </Section>
+
+            {/* ---- Tỷ lệ markup giá bán lẻ/giá xưởng theo ngành hàng ---- */}
+            <Section title="📈 Tỷ lệ markup giá bán lẻ / giá xưởng theo ngành hàng">
+              <p className="text-sm text-slate-500 dark:text-slate-400 mb-3">
+                Phần lớn sản phẩm chỉ cào được giá bán lẻ (Taobao/Tmall/JD), chưa có giá xưởng
+                thật (Alibaba/1688). Nhập tỷ lệ markup ước tính theo từng ngành hàng để AI ước
+                tính giá xưởng thay vì nhầm giá bán lẻ là giá vốn khi tính lợi nhuận — AI luôn
+                ưu tiên dùng giá xưởng thật nếu sản phẩm đã có.
+              </p>
+              <CategoryMarkupRatiosForm current={markupRatios} categories={allCategories} isAdmin={isAdmin} />
             </Section>
           </>
         }

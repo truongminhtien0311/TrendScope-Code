@@ -25,10 +25,12 @@ import {
   generateProductAnalysis,
   DEFAULT_COST_ASSUMPTIONS,
   DEFAULT_PROMPT_PRESETS,
+  DEFAULT_CATEGORY_MARKUP_RATIOS,
   type AnalysisInput,
   type CostAssumptions,
   type PromptPreset,
   type AiAnalysisResult,
+  type CategoryMarkupRatio,
 } from "@/lib/llm";
 
 // Giới hạn số bản lưu tối đa cho mỗi sản phẩm — bản cũ nhất tự bị dọn khi
@@ -51,6 +53,7 @@ export async function POST(
       listings: {
         include: { variants: true, images: true, reviews: true },
       },
+      categories: { select: { name: true } },
     },
   });
   if (!product) {
@@ -77,6 +80,7 @@ export async function POST(
   const input: AnalysisInput = {
     productName: product.name,
     userDescription: product.description ?? undefined,
+    categoryNames: product.categories.map((c) => c.name),
     listings: product.listings.map((l) => {
       const prices = l.variants.map((v) => v.priceCny);
       return {
@@ -98,10 +102,11 @@ export async function POST(
   // Prompt: dùng đúng preset "đang dùng" người dùng chọn trong Cài đặt
   // (Cài đặt > Prompt AI cho phép lưu nhiều preset đặt tên riêng, xem
   // src/lib/llm/index.ts). Không có preset nào thì rơi về DEFAULT_PROMPT_PRESETS.
-  const [presetsSetting, activePresetIdSetting, costSetting, allCategories] = await Promise.all([
+  const [presetsSetting, activePresetIdSetting, costSetting, markupSetting, allCategories] = await Promise.all([
     prisma.setting.findUnique({ where: { key: "ai_prompt_presets" } }),
     prisma.setting.findUnique({ where: { key: "ai_prompt_active_preset_id" } }),
     prisma.setting.findUnique({ where: { key: "business_cost_assumptions" } }),
+    prisma.setting.findUnique({ where: { key: "category_markup_ratios" } }),
     prisma.category.findMany({ select: { id: true, name: true } }),
   ]);
 
@@ -129,6 +134,16 @@ export async function POST(
     }
   }
 
+  let markupRatios: CategoryMarkupRatio[] = DEFAULT_CATEGORY_MARKUP_RATIOS;
+  if (markupSetting?.value) {
+    try {
+      const parsed = JSON.parse(markupSetting.value);
+      if (Array.isArray(parsed)) markupRatios = parsed;
+    } catch {
+      // JSON hỏng thì dùng mặc định, không chặn cả request
+    }
+  }
+
   const analysis = await prisma.productAiAnalysis.create({
     data: { productId: product.id, status: "PENDING", presetName: activePreset.name },
   });
@@ -140,7 +155,8 @@ export async function POST(
     provider.apiKey,
     activePreset,
     costAssumptions,
-    allCategories
+    allCategories,
+    markupRatios
   );
 
   return NextResponse.json({ analysisId: analysis.id }, { status: 202 });
@@ -157,7 +173,8 @@ async function runAnalysisInBackground(
   apiKey: string,
   activePreset: PromptPreset,
   costAssumptions: CostAssumptions,
-  allCategories: { id: number; name: string }[]
+  allCategories: { id: number; name: string }[],
+  markupRatios: CategoryMarkupRatio[]
 ) {
   // BẮT BUỘC bọc try/catch TOÀN BỘ thân hàm — đây là promise "bắn rồi
   // quên" (không await ở route handler), nếu throw lỗi không bắt sẽ
@@ -171,7 +188,8 @@ async function runAnalysisInBackground(
         apiKey,
         activePreset.content,
         costAssumptions,
-        allCategories.map((c) => c.name)
+        allCategories.map((c) => c.name),
+        markupRatios
       );
     } catch (err) {
       await prisma.productAiAnalysis.update({

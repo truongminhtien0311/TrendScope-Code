@@ -10,6 +10,7 @@ interface Props {
   enabled: boolean;
   apiKey: string | null;
   baseUrl: string | null;
+  referenceUrl: string | null;
   isAdmin: boolean;
   // true = provider này kết nối bằng cách riêng (vd Google Drive dùng OAuth
   // Client ID/Secret ở khối "Lưu trữ" riêng) — không dùng ô "API key" chung
@@ -23,6 +24,7 @@ export default function ProviderRow({
   enabled,
   apiKey,
   baseUrl,
+  referenceUrl,
   isAdmin,
   hasSeparateConfig,
 }: Props) {
@@ -32,6 +34,7 @@ export default function ProviderRow({
   const [savingKey, setSavingKey] = useState(false);
   const [keyInput, setKeyInput] = useState(apiKey ?? "");
   const [urlInput, setUrlInput] = useState(baseUrl ?? "");
+  const [refUrlInput, setRefUrlInput] = useState(referenceUrl ?? "");
   const [saved, setSaved] = useState(false);
 
   async function toggle() {
@@ -54,6 +57,7 @@ export default function ProviderRow({
       body: JSON.stringify({
         apiKey: keyInput.trim() || null,
         baseUrl: urlInput.trim() || null,
+        referenceUrl: refUrlInput.trim() || null,
       }),
     });
     setSavingKey(false);
@@ -69,6 +73,17 @@ export default function ProviderRow({
       <div className="flex items-center justify-between">
         <span className="text-sm flex items-center gap-2">
           {name}
+          {referenceUrl && (
+            <a
+              href={referenceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Mở link tham khảo (trang đăng ký/quản lý/thanh toán của nhà cung cấp)"
+              className="text-slate-400 hover:text-blue-500"
+            >
+              🔗
+            </a>
+          )}
           {!hasSeparateConfig && (
             <span
               className={`text-xs ${hasKey ? "text-green-600 dark:text-green-400" : "text-slate-400"}`}
@@ -140,6 +155,21 @@ export default function ProviderRow({
               placeholder="https://api.vi-du.com"
               className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-1.5 text-sm"
             />
+          </div>
+          <div>
+            <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">
+              Link tham khảo (trang đăng ký/quản lý/thanh toán của nhà cung cấp)
+            </label>
+            <input
+              value={refUrlInput}
+              onChange={(e) => setRefUrlInput(e.target.value)}
+              placeholder="https://rapidapi.com/..."
+              className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-1.5 text-sm"
+            />
+            <p className="text-xs text-slate-400 mt-1">
+              💡 Chỉ để tiện bấm vào lại sau này (đăng ký gói/nâng cấp/thanh toán) — không dùng
+              để gọi API. Nhà cung cấp có thể đổi link theo thời gian, sửa lại ở đây khi cần.
+            </p>
           </div>
           <button
             type="submit"

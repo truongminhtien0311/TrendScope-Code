@@ -18,7 +18,7 @@ import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
 import { toast } from "sonner";
 import { notifyDone } from "@/lib/notify";
-import type { PromptPreset } from "@/lib/llm";
+import { friendlyGeminiError, type PromptPreset } from "@/lib/llm";
 import SmartImage from "@/components/SmartImage";
 
 export interface ProductAiAnalysisData {
@@ -87,6 +87,25 @@ const SECTIONS: { key: keyof ContentFields; icon: string; label: string; placeho
   },
 ];
 
+// Màu nền + viền cho từng mục phân tích, xoay vòng theo thứ tự — giống hệt
+// cách tô màu các lượt so sánh AI ở trang Lịch sử đánh giá (CompareTable.tsx)
+// để 2 nơi hiển thị nhất quán, dễ nhận ra "mục nào với mục nào" khi lướt.
+const RUN_HEADER_TINTS = [
+  "border-blue-300 dark:border-blue-700 bg-blue-50/60 dark:bg-blue-950/30",
+  "border-emerald-300 dark:border-emerald-700 bg-emerald-50/60 dark:bg-emerald-950/30",
+  "border-amber-300 dark:border-amber-700 bg-amber-50/60 dark:bg-amber-950/30",
+  "border-rose-300 dark:border-rose-700 bg-rose-50/60 dark:bg-rose-950/30",
+  "border-cyan-300 dark:border-cyan-700 bg-cyan-50/60 dark:bg-cyan-950/30",
+];
+
+const CARD_TINTS = [
+  "border-blue-300 dark:border-blue-700 bg-blue-50/60 dark:bg-blue-950/30",
+  "border-emerald-300 dark:border-emerald-700 bg-emerald-50/60 dark:bg-emerald-950/30",
+  "border-amber-300 dark:border-amber-700 bg-amber-50/60 dark:bg-amber-950/30",
+  "border-rose-300 dark:border-rose-700 bg-rose-50/60 dark:bg-rose-950/30",
+  "border-cyan-300 dark:border-cyan-700 bg-cyan-50/60 dark:bg-cyan-950/30",
+];
+
 const STALE_MS = 5 * 60 * 1000; // quá 5 phút vẫn PENDING = có thể đã treo
 const POLL_MS = 2500;
 
@@ -107,6 +126,18 @@ const MARKDOWN_COMPONENTS = {
       <SmartImage src={src || ""} alt={alt || ""} {...props} />
     </div>
   ),
+  h2: ({ node, ...props }: any) => (
+    <h2
+      className="!mt-0 !mb-3 text-lg font-extrabold border-l-4 border-current pl-3 py-1 bg-black/5 dark:bg-white/10 rounded-r-md"
+      {...props}
+    />
+  ),
+  h3: ({ node, ...props }: any) => (
+    <h3
+      className="!mt-4 !mb-2 text-base font-bold border-l-4 border-current/60 pl-3 py-0.5 bg-black/5 dark:bg-white/10 rounded-r-md"
+      {...props}
+    />
+  ),
 };
 
 export default function AiAnalysisPanel({
@@ -114,6 +145,7 @@ export default function AiAnalysisPanel({
   analyses,
   presets,
   activePresetId,
+  hasFactoryPrice,
 }: {
   productId: number;
   analyses: ProductAiAnalysisData[];
@@ -122,11 +154,15 @@ export default function AiAnalysisPanel({
   // khác (xem PromptEditor.tsx, cùng nguồn dữ liệu Setting).
   presets: PromptPreset[];
   activePresetId: string;
+  // false = sản phẩm CHƯA có link nhà sản xuất (Alibaba/1688) nào — chỉ có
+  // giá bán lẻ, AI đang phải ƯỚC TÍNH giá xưởng (xem {{PRICE_BASIS_NOTE}}
+  // trong src/lib/llm/index.ts). Hiện badge cảnh báo ngay đầu panel.
+  hasFactoryPrice: boolean;
 }) {
   const router = useRouter();
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
-  const [editing, setEditing] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [drafts, setDrafts] = useState<ContentFields | null>(null);
   const [saving, setSaving] = useState(false);
   const [now, setNow] = useState(() => Date.now());
@@ -137,19 +173,30 @@ export default function AiAnalysisPanel({
 
   const pending = analyses.find((a) => a.status === "PENDING");
   const latestDone = analyses.find((a) => a.status === "DONE");
-  const [selectedId, setSelectedId] = useState<number | undefined>(
-    () => (latestDone ?? analyses[0])?.id
+
+  // Liệt kê SẴN toàn bộ các lần phân tích AI (không chỉ 1 bản chọn qua dropdown
+  // như trước) — mỗi bản là 1 dòng bấm mở ra xem, giống cách hiển thị các
+  // lượt so sánh AI ở trang Lịch sử đánh giá (CompareTable.tsx). Mặc định mở
+  // sẵn bản DONE mới nhất.
+  const [expandedIds, setExpandedIds] = useState<Set<number>>(
+    () => new Set(latestDone ? [latestDone.id] : [])
   );
-  
   const previousLatestRef = useRef(latestDone?.id);
   useEffect(() => {
     if (latestDone?.id && latestDone.id !== previousLatestRef.current) {
-      setSelectedId(latestDone.id);
+      setExpandedIds((prev) => new Set(prev).add(latestDone.id));
       previousLatestRef.current = latestDone.id;
     }
   }, [latestDone?.id]);
 
-  const selected = analyses.find((a) => a.id === selectedId) ?? latestDone ?? analyses[0];
+  function toggleExpanded(id: number) {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   const pendingAgeMs = pending ? now - new Date(pending.startedAt).getTime() : 0;
   const isStale = pending ? pendingAgeMs > STALE_MS : false;
@@ -177,6 +224,25 @@ export default function AiAnalysisPanel({
     return () => clearInterval(poll);
   }, [pending, isStale, productId, router]);
 
+  // Bản FAILED không cần giữ lại làm rác danh sách — chỉ cần báo lỗi chi
+  // tiết ngay trên màn hình (toast) rồi tự xóa khỏi DB, còn lại đã có
+  // logActivity ghi trong route DELETE để tra cứu sau nếu cần. Dùng ref
+  // đánh dấu id đã xử lý để không xóa lặp khi effect chạy lại (StrictMode,
+  // re-render khác nguyên nhân).
+  const cleanedFailedIds = useRef<Set<number>>(new Set());
+  useEffect(() => {
+    const failed = analyses.filter((a) => a.status === "FAILED" && !cleanedFailedIds.current.has(a.id));
+    if (!failed.length) return;
+    (async () => {
+      for (const a of failed) {
+        cleanedFailedIds.current.add(a.id);
+        toast.error(`❌ Phân tích AI lỗi: ${friendlyGeminiError(a.errorMessage)}`);
+        await fetch(`/api/products/${productId}/ai-analyses/${a.id}`, { method: "DELETE" }).catch(() => {});
+      }
+      router.refresh();
+    })();
+  }, [analyses, productId, router]);
+
   async function confirmGenerate() {
     setShowPreview(false);
     setGenerating(true);
@@ -195,31 +261,30 @@ export default function AiAnalysisPanel({
     }
   }
 
-  function startEdit() {
-    if (!selected) return;
+  function startEdit(a: ProductAiAnalysisData) {
     setDrafts({
-      aiSummary: selected.aiSummary,
-      aiAudience: selected.aiAudience,
-      aiChannels: selected.aiChannels,
-      aiCustomization: selected.aiCustomization,
-      aiImportInfo: selected.aiImportInfo,
-      aiShipping: selected.aiShipping,
-      aiFeasibility: selected.aiFeasibility,
+      aiSummary: a.aiSummary,
+      aiAudience: a.aiAudience,
+      aiChannels: a.aiChannels,
+      aiCustomization: a.aiCustomization,
+      aiImportInfo: a.aiImportInfo,
+      aiShipping: a.aiShipping,
+      aiFeasibility: a.aiFeasibility,
     });
-    setEditing(true);
+    setEditingId(a.id);
   }
 
   async function save() {
-    if (!selected || !drafts) return;
+    if (!editingId || !drafts) return;
     setSaving(true);
-    const res = await fetch(`/api/products/${productId}/ai-analyses/${selected.id}`, {
+    const res = await fetch(`/api/products/${productId}/ai-analyses/${editingId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(drafts),
     });
     setSaving(false);
     if (res.ok) {
-      setEditing(false);
+      setEditingId(null);
       router.refresh();
     } else {
       toast.error("Lưu thất bại, thử lại nhé.");
@@ -236,27 +301,6 @@ export default function AiAnalysisPanel({
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <h2 className="font-semibold">🧠 Phân tích AI toàn diện</h2>
         <div className="flex gap-2 shrink-0 items-center flex-wrap">
-          {analyses.length > 0 && (
-            <select
-              value={selected?.id}
-              onChange={(e) => setSelectedId(Number(e.target.value))}
-              className="text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1.5"
-            >
-              {analyses.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {formatVersionLabel(a)}
-                </option>
-              ))}
-            </select>
-          )}
-          {!editing && selected?.status === "DONE" && (
-            <button
-              onClick={startEdit}
-              className="text-xs rounded-lg border border-slate-300 dark:border-slate-700 px-2.5 py-1 hover:bg-slate-100 dark:hover:bg-slate-800"
-            >
-              ✏️ Sửa
-            </button>
-          )}
           <select
             value={chosenPresetId}
             onChange={(e) => setChosenPresetId(e.target.value)}
@@ -284,6 +328,14 @@ export default function AiAnalysisPanel({
         </div>
       </div>
 
+      {!hasFactoryPrice && (
+        <p className="text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2">
+          ⚠️ Sản phẩm chưa có link nhà sản xuất (Alibaba/1688) — AI đang phải <strong>ước tính</strong> giá
+          xưởng dựa trên giá bán lẻ, có thể sai lệch so với thực tế. Thêm link nhà sản xuất hoặc kiểm tra
+          tỷ lệ markup ngành hàng trong Cài đặt để phân tích lợi nhuận chính xác hơn.
+        </p>
+      )}
+
       {error && <p className="text-sm text-red-500">{error}</p>}
 
       {pending && !isStale && (
@@ -297,11 +349,8 @@ export default function AiAnalysisPanel({
           ⚠️ Bản đang chờ này đã quá 5 phút, có thể đã bị treo (vd server khởi động lại giữa chừng) — bấm &quot;✨AI Phân tích🔍&quot; để thử tạo bản mới.
         </p>
       )}
-      {selected?.status === "FAILED" && (
-        <p className="text-sm text-red-500">❌ Bản này bị lỗi: {selected.errorMessage}</p>
-      )}
 
-      {analyses.length === 0 && !editing && (
+      {analyses.length === 0 && (
         <p className="text-sm text-slate-400">
           Chưa tạo. Bấm &quot;✨AI Phân tích🔍&quot; — gộp toàn bộ dữ liệu của tất cả link bên
           dưới (tên, ảnh, mô tả, đánh giá) vào 1 request duy nhất, sinh đủ 7 mục: mô tả,
@@ -310,67 +359,121 @@ export default function AiAnalysisPanel({
         </p>
       )}
 
-      {editing && drafts ? (
-        <div className="space-y-4">
-          {SECTIONS.map((s) => (
-            <div key={s.key}>
-              <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
-                {s.icon} {s.label} (markdown)
-              </label>
-              <textarea
-                value={drafts[s.key] ?? ""}
-                onChange={(e) => setDrafts({ ...drafts, [s.key]: e.target.value })}
-                rows={6}
-                className={textareaClass}
-              />
-            </div>
-          ))}
-          <div className="flex gap-2">
-            <button
-              onClick={save}
-              disabled={saving}
-              className="rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-3 py-1.5 text-sm"
-            >
-              {saving ? "Đang lưu..." : "Lưu"}
-            </button>
-            <button
-              onClick={() => setEditing(false)}
-              className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-1.5 text-sm"
-            >
-              Hủy
-            </button>
-          </div>
-        </div>
-      ) : (
-        selected?.status === "DONE" && (
-          <div className="space-y-2">
-            {SECTIONS.map((s) => (
-              <details key={s.key} open={s.key === "aiSummary"} className="group">
-                <summary className="cursor-pointer text-sm font-medium py-1.5 flex items-center gap-2 select-none">
-                  <span className="text-slate-400 group-open:rotate-90 transition-transform inline-block">
-                    ▶
-                  </span>
-                  {s.icon} {s.label}
-                </summary>
-                <div className="pl-6 pb-2">
-                  {selected[s.key] ? (
-                    <div className="prose prose-sm dark:prose-invert max-w-none">
-                      <ReactMarkdown 
-                        remarkPlugins={[remarkGfm, remarkBreaks, remarkMath]}
-                        rehypePlugins={[rehypeRaw, rehypeKatex]}
-                        components={MARKDOWN_COMPONENTS}
-                      >
-                        {(selected[s.key] as string).replace(/\\n/g, "\n")}
-                      </ReactMarkdown>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-slate-400">Chưa có — {s.placeholder}</p>
+      {/* Liệt kê TOÀN BỘ các lần phân tích AI — mỗi bản 1 dòng bấm mở ra xem,
+          màu xoay vòng theo thứ tự, giống hệt cách hiển thị các lượt so sánh
+          AI ở trang Lịch sử đánh giá (xem CompareTable.tsx). */}
+      {analyses.length > 0 && (
+        <div className="space-y-3">
+          {analyses.map((a, runIndex) => {
+            const isExpanded = expandedIds.has(a.id);
+            const isEditing = editingId === a.id;
+            return (
+              <div
+                key={a.id}
+                className={`rounded-lg border-2 p-3 ${
+                  a.status === "FAILED"
+                    ? "border-red-300 dark:border-red-700 bg-red-50/50 dark:bg-red-950/20"
+                    : RUN_HEADER_TINTS[runIndex % RUN_HEADER_TINTS.length]
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => toggleExpanded(a.id)}
+                    className="flex-1 flex items-center gap-2 text-left font-bold text-base"
+                  >
+                    <span>{formatVersionLabel(a)}</span>
+                  </button>
+                  {!isEditing && a.status === "DONE" && (
+                    <button
+                      onClick={() => startEdit(a)}
+                      className="text-xs rounded-lg border border-slate-300 dark:border-slate-700 px-2.5 py-1 hover:bg-white dark:hover:bg-slate-800 shrink-0"
+                    >
+                      ✏️ Sửa
+                    </button>
                   )}
+                  <button
+                    onClick={() => toggleExpanded(a.id)}
+                    className="text-sm text-slate-400 shrink-0"
+                  >
+                    {isExpanded ? "▲" : "▼"}
+                  </button>
                 </div>
-              </details>
-            ))}
-          </div>
-        )
+
+                {a.status === "FAILED" && isExpanded && (
+                  <p className="text-sm text-red-500 mt-2">❌ Bản này bị lỗi: {friendlyGeminiError(a.errorMessage)}</p>
+                )}
+
+                {isEditing && drafts ? (
+                  <div className="space-y-4 mt-3">
+                    {SECTIONS.map((s) => (
+                      <div key={s.key}>
+                        <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
+                          {s.icon} {s.label} (markdown)
+                        </label>
+                        <textarea
+                          value={drafts[s.key] ?? ""}
+                          onChange={(e) => setDrafts({ ...drafts, [s.key]: e.target.value })}
+                          rows={6}
+                          className={textareaClass}
+                        />
+                      </div>
+                    ))}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={save}
+                        disabled={saving}
+                        className="rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-3 py-1.5 text-sm"
+                      >
+                        {saving ? "Đang lưu..." : "Lưu"}
+                      </button>
+                      <button
+                        onClick={() => setEditingId(null)}
+                        className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-1.5 text-sm bg-white dark:bg-slate-900"
+                      >
+                        Hủy
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  a.status === "DONE" &&
+                  isExpanded && (
+                    <div className="space-y-3 mt-3">
+                      {SECTIONS.map((s, i) => (
+                        <details
+                          key={s.key}
+                          open={s.key === "aiSummary"}
+                          className={`group rounded-lg border-2 p-3 ${CARD_TINTS[i % CARD_TINTS.length]}`}
+                        >
+                          <summary className="cursor-pointer text-base font-bold py-0.5 flex items-center gap-2 select-none">
+                            <span className="text-slate-400 group-open:rotate-90 transition-transform inline-block">
+                              ▶
+                            </span>
+                            <span className="text-xl">{s.icon}</span> {s.label}
+                          </summary>
+                          <div className="pl-6 pt-2">
+                            {a[s.key] ? (
+                              <div className="prose prose-sm dark:prose-invert max-w-none">
+                                <ReactMarkdown
+                                  remarkPlugins={[remarkGfm, remarkBreaks, remarkMath]}
+                                  rehypePlugins={[rehypeRaw, rehypeKatex]}
+                                  components={MARKDOWN_COMPONENTS}
+                                >
+                                  {(a[s.key] as string).replace(/\\n/g, "\n")}
+                                </ReactMarkdown>
+                              </div>
+                            ) : (
+                              <p className="text-sm text-slate-400">Chưa có — {s.placeholder}</p>
+                            )}
+                          </div>
+                        </details>
+                      ))}
+                    </div>
+                  )
+                )}
+              </div>
+            );
+          })}
+        </div>
       )}
 
       <p className="text-xs text-slate-400">

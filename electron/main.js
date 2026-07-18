@@ -200,7 +200,15 @@ function setupAutoUpdate() {
   if (!isPackaged) return;
 
   autoUpdater.autoDownload = true;
-  autoUpdater.on("update-available", () => sendUpdateStatus({ status: "available" }));
+  // Báo đủ TỪNG bước cho trang web hiện tiến trình rõ ràng (xem
+  // src/components/UpdateNotifier.tsx) thay vì chỉ im lặng tới lúc tải
+  // xong — người dùng biết app đang làm gì, không tưởng app bị treo.
+  autoUpdater.on("checking-for-update", () => sendUpdateStatus({ status: "checking" }));
+  autoUpdater.on("update-available", (info) => sendUpdateStatus({ status: "available", version: info.version }));
+  autoUpdater.on("update-not-available", () => sendUpdateStatus({ status: "not-available" }));
+  autoUpdater.on("download-progress", (progress) =>
+    sendUpdateStatus({ status: "downloading", percent: Math.round(progress.percent) })
+  );
   autoUpdater.on("update-downloaded", (info) => sendUpdateStatus({ status: "downloaded", version: info.version }));
   autoUpdater.on("error", (err) => sendUpdateStatus({ status: "error", message: String(err) }));
 
@@ -208,7 +216,11 @@ function setupAutoUpdate() {
   setInterval(() => autoUpdater.checkForUpdates().catch(() => {}), CHECK_UPDATE_INTERVAL_MS);
 }
 
-ipcMain.on("restart-and-install", () => autoUpdater.quitAndInstall());
+// isSilent=true: cài đặt không hiện thêm cửa sổ trình cài đặt NSIS (chạy
+// ngầm) — isForceRunAfter=true: tự mở lại app ngay sau khi cài xong, đúng
+// yêu cầu "tự khởi động lại khi cài đặt thành công", không bắt người dùng
+// tự mở lại app.
+ipcMain.on("restart-and-install", () => autoUpdater.quitAndInstall(true, true));
 ipcMain.handle("get-app-version", () => app.getVersion());
 
 app.whenReady().then(async () => {

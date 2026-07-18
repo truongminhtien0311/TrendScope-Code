@@ -1,8 +1,10 @@
 [
-  { "kind": "SCRAPER_RETAIL", "name": "Otapi - Taobao & Tmall (RapidAPI)", "enabled": false },
+  { "kind": "SCRAPER_RETAIL", "name": "Otapi - Taobao & Tmall (RapidAPI)", "enabled": false, "referenceUrl": "https://rapidapi.com/open-trade-commerce-open-trade-commerce-default/api/taobao-tmall1/pricing" },
+  { "kind": "SCRAPER_RETAIL", "name": "Taobao DataHub (RapidAPI)", "enabled": false, "referenceUrl": "https://rapidapi.com/ecommdatahub/api/taobao-datahub/pricing" },
   { "kind": "SCRAPER_MANUFACTURER", "name": "Alibaba DataHub (RapidAPI)", "enabled": false },
   { "kind": "LLM", "name": "Google Gemini", "enabled": false },
   { "kind": "LLM", "name": "Grok (xAI)", "enabled": false },
   { "kind": "STORAGE", "name": "Google Drive", "enabled": false },
-  { "kind": "STORAGE", "name": "Lark Drive", "enabled": false }
+  { "kind": "STORAGE", "name": "Lark Drive", "enabled": false },
+  { "kind": "EXCHANGE_RATE", "name": "ExchangeRate-API", "enabled": false, "referenceUrl": "https://www.exchangerate-api.com/" }
 ]

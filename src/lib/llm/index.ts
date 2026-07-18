@@ -30,10 +30,61 @@
 // ============================================================
 import { GoogleGenAI, Type } from "@google/genai";
 
+// Gemini hay trả lỗi 503 "high demand" (quá tải TẠM THỜI phía Google, đặc
+// biệt model flash miễn phí) — thử lại vài lần với độ trễ tăng dần trước
+// khi thật sự báo lỗi, thay vì để y 1 lần gọi là hỏng cả phân tích.
+// CHỈ retry lỗi 503 — lỗi 429/RESOURCE_EXHAUSTED thường là đã HẾT HẠN MỨC
+// MIỄN PHÍ TRONG NGÀY (quotaId "...PerDay...", xem message lỗi), retry
+// ngay trong vài giây không ích gì (quota không tự hồi trong giây lát) mà
+// còn có nguy cơ tốn thêm lượt gọi — để lỗi đó báo NGAY cho người dùng biết.
+const RETRY_DELAYS_MS = [2000, 5000, 10000];
+
+function isRetryableGeminiError(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+  return /"code":503|UNAVAILABLE/.test(message) && !/RESOURCE_EXHAUSTED|PerDay/.test(message);
+}
+
+// Dịch lỗi kỹ thuật của Gemini (thường là 1 khối JSON dài, khó đọc với người
+// không phải dev) sang câu tiếng Việt dễ hiểu — dùng ở mọi nơi hiển thị
+// errorMessage của 1 lượt AI thất bại (AiAnalysisPanel, CompareTable,
+// ScorePanel...). Trả về nguyên văn gốc nếu không nhận diện được dạng lỗi.
+export function friendlyGeminiError(raw: string | null | undefined): string {
+  if (!raw) return "Lỗi không rõ nguyên nhân.";
+  if (/RESOURCE_EXHAUSTED|PerDay/.test(raw)) {
+    return "Đã dùng hết hạn mức Gemini MIỄN PHÍ trong ngày (thường 20 lượt/ngày) — đợi Google reset hạn mức (thường vào trưa hôm sau giờ Việt Nam) hoặc bật trả phí trong Google AI Studio để tăng hạn mức.";
+  }
+  if (/"code":429/.test(raw)) {
+    return "Gemini báo gọi quá nhanh/quá nhiều trong thời gian ngắn — đợi 1-2 phút rồi thử lại.";
+  }
+  if (/"code":503|UNAVAILABLE/.test(raw)) {
+    return "Gemini đang quá tải tạm thời (lỗi từ phía Google) — đã tự thử lại vài lần nhưng vẫn lỗi, đợi ít phút rồi bấm tạo lại.";
+  }
+  if (/API key not valid|API_KEY_INVALID/.test(raw)) {
+    return "API key Gemini không hợp lệ — kiểm tra lại API key trong Cài đặt.";
+  }
+  return raw;
+}
+
+async function withGeminiRetry<T>(fn: () => Promise<T>): Promise<T> {
+  let lastErr: unknown;
+  for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      if (!isRetryableGeminiError(err) || attempt === RETRY_DELAYS_MS.length) throw err;
+      console.error(`Gemini lỗi tạm thời (lần ${attempt + 1}), thử lại sau ${RETRY_DELAYS_MS[attempt]}ms:`, err);
+      await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt]));
+    }
+  }
+  throw lastErr;
+}
+
 // Dữ liệu gộp từ TOÀN BỘ các link của 1 sản phẩm
 export interface AnalysisInput {
   productName: string;
   userDescription?: string; // mô tả người dùng tự viết (nếu có)
+  categoryNames?: string[]; // ngành hàng sản phẩm đang gắn — dùng để tra tỷ lệ markup (xem CategoryMarkupRatio), lấy ngành ĐẦU TIÊN nếu có nhiều
   listings: {
     id: number;
     sourceType: string; // RETAIL | MANUFACTURER
@@ -116,6 +167,104 @@ function formatCostAssumptions(items: CostAssumptions): string {
   return items.map((i) => `- ${i.name}: ${i.value} ${i.unit1} ${i.unit2}`).join("\n");
 }
 
+// ------------------------------------------------------------
+// TỶ LỆ MARKUP THEO NGÀNH HÀNG (giá bán lẻ / giá xưởng) — sửa được
+// trong Cài đặt vì tỷ lệ này khác nhau nhiều giữa các ngành hàng. Lưu
+// trong Setting key "category_markup_ratios" dạng JSON (mảng). Dùng khi
+// sản phẩm CHỈ có giá bán lẻ (Taobao/Tmall/JD), CHƯA có giá xưởng thực
+// tế (Alibaba/1688) — ước tính giá xưởng ≈ giá bán lẻ / (1 + ratio%) để
+// AI không nhầm giá bán lẻ là giá vốn khi tính lợi nhuận.
+// Sản phẩm thuộc NHIỀU ngành hàng: lấy ratio của ngành hàng ĐẦU TIÊN
+// trong danh sách categoryNames (đã chốt, xem AGENTS.md/kế hoạch).
+// ------------------------------------------------------------
+export interface CategoryMarkupRatio {
+  id: string; // định danh nội bộ cho UI (thêm/xóa dòng), không gửi cho AI
+  categoryName: string; // tên ngành hàng, khớp với Category.name
+  ratio: number; // % markup ước tính: giá bán lẻ ≈ giá xưởng * (1 + ratio/100)
+}
+
+export const DEFAULT_CATEGORY_MARKUP_RATIOS: CategoryMarkupRatio[] = [];
+
+// ------------------------------------------------------------
+// GỢI Ý MARKUP MẶC ĐỊNH THEO NGÀNH HÀNG — ước tính THAM KHẢO, tính từ 2 yếu tố:
+//
+// 1) SÀN "ĂN" BAO NHIÊU % DOANH THU trước khi tới lượt lãi — cộng dồn từ
+//    DEFAULT_COST_ASSUMPTIONS (Cài đặt > Kinh doanh & AI > Giả định chi
+//    phí): phí cố định 16.5% + voucher sàn 5.5% + ads nội sàn 10% + phí
+//    tiếp thị liên kết 10% + thuế GTGT 8% + thuế TNCN 1.5% + phí xử lý
+//    giao dịch 6% = ~57.5% doanh thu, CỘNG THÊM tỷ lệ hoàn hàng 5% (đơn
+//    hoàn coi như mất trắng doanh thu cho phần đó) và phí vận hành cố
+//    định 5.000đ/đơn. Gộp lại, mỗi 100đ doanh thu chỉ còn lại ~35-38đ để
+//    trả giá vốn + có lãi — nghĩa là MARKUP DƯỚI ~170% (giá bán < 2.7 lần
+//    giá xưởng) gần như CHẮC CHẮN LỖ trên các sàn thu phí kiểu này, bất kể
+//    ngành hàng gì. Vì vậy KHÔNG có ngành nào gợi ý dưới mức sàn này.
+// 2) ĐẶC ĐIỂM NGÀNH HÀNG — ngành có giá vốn rẻ, ít bị khách so sánh giá
+//    trực tiếp (phụ kiện, mỹ phẩm, đồng hồ, thời trang) markup được CAO
+//    hơn nhiều so với mức sàn; ngành giá trị cao, khách nhạy cảm giá, dễ
+//    so sánh trực tiếp với hàng chính hãng (laptop, máy ảnh, thiết bị
+//    điện tử) chỉ nhỉnh hơn mức sàn một chút — thực tế các ngành này khi
+//    nhập từ TQ thường KHÔNG phải hàng chính hãng mà là phụ kiện/hàng
+//    tương thích giá rẻ, nếu không thì rất khó có lãi với cơ cấu phí này.
+//
+// LƯU Ý: nếu sửa DEFAULT_COST_ASSUMPTIONS hoặc phí sàn thực tế đổi nhiều,
+// bảng gợi ý này KHÔNG tự tính lại — chỉ là điểm khởi đầu tham khảo, người
+// dùng PHẢI tự chỉnh theo thực tế ngành hàng/nhà cung cấp của mình (xem
+// CategoryMarkupRatiosForm). Khớp theo TÊN ngành hàng — ngành hàng người
+// dùng tự đặt tên khác/thêm mới không khớp tên nào ở đây thì dùng
+// FALLBACK_MARKUP_RATIO.
+// ------------------------------------------------------------
+export const SUGGESTED_MARKUP_BY_CATEGORY: Record<string, number> = {
+  "Phụ kiện & Túi ví nữ": 300, // giá vốn cực rẻ, khó so sánh giá trực tiếp
+  "Đồng hồ": 300,
+  "Sắc đẹp & Sức khỏe": 270, // mỹ phẩm/TPCN giá vốn rẻ, biên rất dày
+  "Thời trang nam": 240,
+  "Thời trang nữ": 240,
+  "Thời trang trẻ em": 220,
+  "Giày dép nam": 220,
+  "Giày dép nữ": 220,
+  "Đồ chơi": 220,
+  "Điện thoại & Phụ kiện": 220, // chủ yếu phụ kiện (ốp/sạc/cáp) giá vốn rất rẻ; nếu bán điện thoại thật phải chỉnh thấp hơn nhiều
+  "Mẹ và bé": 210,
+  "Chăm sóc thú cưng": 200,
+  "Nhà cửa & Đời sống": 200,
+  "Giặt giũ & Chăm sóc nhà cửa": 190,
+  "Thể thao & Du lịch": 190,
+  "Bách hóa Online": 190,
+  "Ô tô, xe máy & Phụ kiện": 190,
+  "Thiết bị điện tử": 190, // gadget/phụ kiện điện tử nhỏ, không phải hàng chính hãng giá trị cao
+  "Nhà sách Online": 190,
+  "Điện gia dụng": 180,
+  "Máy ảnh": 175, // giá trị cao, khách dễ so sánh giá — chỉ nhỉnh hơn mức sàn tối thiểu
+  "Máy tính & Laptop": 175,
+};
+
+// Mức markup mặc định (%) cho ngành hàng KHÔNG khớp tên nào trong bảng
+// gợi ý trên — lấy đúng MỨC SÀN TỐI THIỂU để hòa vốn qua phí sàn (xem
+// giải thích ở SUGGESTED_MARKUP_BY_CATEGORY), an toàn hơn là để 1 số
+// trung tính tùy tiện có thể khiến người dùng tưởng nhầm là có lãi.
+export const FALLBACK_MARKUP_RATIO = 180;
+
+// Sinh nội dung ghi chú cơ sở giá chèn vào prompt qua {{PRICE_BASIS_NOTE}}
+// (phân tích 1 sản phẩm) hoặc trực tiếp vào buildProductsDataText (so
+// sánh nhiều sản phẩm) — dùng CHUNG 1 hàm để 2 nơi luôn nhất quán.
+function buildPriceBasisNote(
+  hasFactoryPrice: boolean,
+  categoryNames: string[] | undefined,
+  markupRatios: CategoryMarkupRatio[]
+): string {
+  if (hasFactoryPrice) {
+    return "Đã có giá xưởng (nhà sản xuất) thực tế bên trên — dùng trực tiếp giá này làm giá vốn, không cần ước tính.";
+  }
+  const firstCategory = categoryNames?.[0];
+  const matched = firstCategory
+    ? markupRatios.find((m) => m.categoryName === firstCategory)
+    : undefined;
+  if (matched && matched.ratio > 0) {
+    return `CHỈ có giá bán lẻ ở trên, CHƯA có giá xưởng thực tế. Theo tỷ lệ markup ngành hàng "${matched.categoryName}" người dùng đã cấu hình (~${matched.ratio}%), ƯỚC TÍNH giá xưởng ≈ giá bán lẻ / (1 + ${matched.ratio}%) — PHẢI nêu rõ đây là số ƯỚC TÍNH, không phải giá vốn thật, và khuyến nghị người dùng xác minh lại giá xưởng thật trước khi quyết định.`;
+  }
+  return "CHỈ có giá bán lẻ ở trên, CHƯA có giá xưởng thực tế và cũng CHƯA có tỷ lệ markup ngành hàng nào được cấu hình để ước tính. TUYỆT ĐỐI KHÔNG được coi giá bán lẻ này là giá vốn/giá xưởng khi tính lợi nhuận — PHẢI nêu rõ giả định/khoảng ước tính hợp lý và khuyến nghị người dùng tìm giá xưởng thật.";
+}
+
 // Prompt mặc định — người dùng sửa được trong Cài đặt, bấm "Khôi phục
 // mặc định" sẽ lấy đúng nguyên văn chuỗi này. Đây cũng là nội dung của
 // preset "default" trong DEFAULT_PROMPT_PRESETS bên dưới.
@@ -147,6 +296,9 @@ SẢN PHẨM: {{PRODUCT_NAME}}
 
 DỮ LIỆU TỪ CÁC LINK NGUỒN (đã gộp từ tất cả link bán lẻ + nhà sản xuất):
 {{LISTINGS_DATA}}
+
+GHI CHÚ CƠ SỞ GIÁ (BẮT BUỘC đọc trước khi tính giá vốn/giá xưởng ở mục 7):
+{{PRICE_BASIS_NOTE}}
 
 GIẢ ĐỊNH CHI PHÍ KINH DOANH (do người dùng tự nhập/cập nhật, dùng số này
 để TÍNH TOÁN — không tự đoán số khác, vì phí sàn thực tế hay thay đổi):
@@ -323,6 +475,9 @@ SẢN PHẨM: {{PRODUCT_NAME}}
 DỮ LIỆU TỪ CÁC LINK NGUỒN:
 {{LISTINGS_DATA}}
 
+GHI CHÚ CƠ SỞ GIÁ (bắt buộc đọc trước khi tính giá vốn/giá xưởng):
+{{PRICE_BASIS_NOTE}}
+
 GIẢ ĐỊNH CHI PHÍ KINH DOANH:
 {{COST_ASSUMPTIONS}}
 
@@ -380,6 +535,9 @@ SẢN PHẨM: {{PRODUCT_NAME}}
 
 DỮ LIỆU TỪ CÁC LINK NGUỒN:
 {{LISTINGS_DATA}}
+
+GHI CHÚ CƠ SỞ GIÁ (bắt buộc đọc trước khi tính giá vốn/giá xưởng):
+{{PRICE_BASIS_NOTE}}
 
 GIẢ ĐỊNH CHI PHÍ KINH DOANH:
 {{COST_ASSUMPTIONS}}
@@ -443,6 +601,9 @@ SẢN PHẨM: {{PRODUCT_NAME}}
 
 DỮ LIỆU TỪ CÁC LINK NGUỒN:
 {{LISTINGS_DATA}}
+
+GHI CHÚ CƠ SỞ GIÁ (bắt buộc đọc trước khi tính giá vốn/giá xưởng):
+{{PRICE_BASIS_NOTE}}
 
 GIẢ ĐỊNH CHI PHÍ KINH DOANH:
 {{COST_ASSUMPTIONS}}
@@ -511,6 +672,9 @@ SẢN PHẨM: {{PRODUCT_NAME}}
 
 DỮ LIỆU TỪ CÁC LINK NGUỒN:
 {{LISTINGS_DATA}}
+
+GHI CHÚ CƠ SỞ GIÁ (bắt buộc đọc trước khi tính giá vốn/giá xưởng):
+{{PRICE_BASIS_NOTE}}
 
 GIẢ ĐỊNH CHI PHÍ KINH DOANH:
 {{COST_ASSUMPTIONS}}
@@ -726,14 +890,15 @@ export async function generateProductAnalysis(
   apiKey: string,
   promptTemplate: string = DEFAULT_PROMPT_TEMPLATE,
   costAssumptions: CostAssumptions = DEFAULT_COST_ASSUMPTIONS,
-  availableCategories: string[] = []
+  availableCategories: string[] = [],
+  markupRatios: CategoryMarkupRatio[] = DEFAULT_CATEGORY_MARKUP_RATIOS
 ): Promise<AiAnalysisResult> {
   const ai = new GoogleGenAI({ apiKey });
 
   const allImageUrls = input.listings.flatMap((l) => l.imageUrls).slice(0, MAX_IMAGE_COUNT);
   const { parts: imageParts, includedUrls } = await fetchImagesAsParts(allImageUrls);
 
-  const analysisPrompt = fillTemplate(promptTemplate, input, includedUrls, costAssumptions);
+  const analysisPrompt = fillTemplate(promptTemplate, input, includedUrls, costAssumptions, markupRatios);
   const prompt = `${analysisPrompt}\n\n${buildTranslationTask(input)}\n\n${buildCategoryTask(availableCategories)}`;
   const contents = [{ role: "user", parts: [{ text: prompt }, ...imageParts] }];
   const baseConfig = {
@@ -748,18 +913,22 @@ export async function generateProductAnalysis(
   // nên tự động thử lại KHÔNG có Search Grounding nếu lần đầu thất bại.
   let response;
   try {
-    response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
-      contents,
-      config: { ...baseConfig, tools: [{ googleSearch: {} }] },
-    });
+    response = await withGeminiRetry(() =>
+      ai.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents,
+        config: { ...baseConfig, tools: [{ googleSearch: {} }] },
+      })
+    );
   } catch (err) {
     console.error("Gemini + Search Grounding lỗi, thử lại không có Search Grounding:", err);
-    response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
-      contents,
-      config: baseConfig,
-    });
+    response = await withGeminiRetry(() =>
+      ai.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents,
+        config: baseConfig,
+      })
+    );
   }
 
   const text = response.text;
@@ -829,7 +998,8 @@ function fillTemplate(
   template: string,
   input: AnalysisInput,
   imageUrls: string[],
-  costAssumptions: CostAssumptions
+  costAssumptions: CostAssumptions,
+  markupRatios: CategoryMarkupRatio[] = DEFAULT_CATEGORY_MARKUP_RATIOS
 ): string {
   const listingsText = input.listings
     .map((l, i) => {
@@ -851,6 +1021,9 @@ function fillTemplate(
     })
     .join("\n\n");
 
+  const hasFactoryPrice = input.listings.some((l) => l.sourceType === "MANUFACTURER");
+  const priceBasisNote = buildPriceBasisNote(hasFactoryPrice, input.categoryNames, markupRatios);
+
   return template
     .replaceAll("{{PRODUCT_NAME}}", input.productName)
     .replaceAll(
@@ -859,7 +1032,8 @@ function fillTemplate(
     )
     .replaceAll("{{LISTINGS_DATA}}", listingsText)
     .replaceAll("{{IMAGE_URLS}}", imageUrls.join(", ") || "(không có ảnh)")
-    .replaceAll("{{COST_ASSUMPTIONS}}", formatCostAssumptions(costAssumptions));
+    .replaceAll("{{COST_ASSUMPTIONS}}", formatCostAssumptions(costAssumptions))
+    .replaceAll("{{PRICE_BASIS_NOTE}}", priceBasisNote);
 }
 
 // Tải ảnh về base64 để gửi kèm cho Gemini (API yêu cầu inlineData,
@@ -901,6 +1075,7 @@ async function fetchImagesAsParts(
 export interface CompareProductInput {
   id: number;
   name: string;
+  categoryNames?: string[]; // ngành hàng sản phẩm — dùng để tra tỷ lệ markup khi thiếu giá xưởng
   listings: {
     sourceType: string;
     platform: string;
@@ -1214,7 +1389,10 @@ export const DEFAULT_COMPARE_SYNTHESIS_PRESETS: PromptPreset[] = [
 // Dựng lại text dữ liệu gốc (giá/mô tả/đánh giá Original) của N sản phẩm —
 // dùng chung cho cả so sánh persona lẫn tổng hợp hội đồng, vì cả 2 đều
 // PHẢI dựa trên dữ liệu cào gốc, không dựa văn bản AI đã tạo trước đó.
-function buildProductsDataText(inputs: CompareProductInput[]): string {
+function buildProductsDataText(
+  inputs: CompareProductInput[],
+  markupRatios: CategoryMarkupRatio[] = DEFAULT_CATEGORY_MARKUP_RATIOS
+): string {
   return inputs
     .map((input, idx) => {
       const pTitle = `### Sản phẩm ${idx + 1}: ${input.name} (#${input.id})`;
@@ -1238,7 +1416,9 @@ ${l.reviewsOriginal.slice(0, 5).map((r) => `- ${r}`).join("\n")}`
             .join("\n");
         })
         .join("\n\n");
-      return [pTitle, listingsText].join("\n");
+      const hasFactoryPrice = input.listings.some((l) => l.sourceType === "MANUFACTURER");
+      const priceBasisNote = buildPriceBasisNote(hasFactoryPrice, input.categoryNames, markupRatios);
+      return [pTitle, listingsText, `Ghi chú cơ sở giá: ${priceBasisNote}`].join("\n");
     })
     .join("\n\n=========================================\n\n");
 }
@@ -1247,7 +1427,8 @@ export async function generateProductComparison(
   inputs: CompareProductInput[],
   apiKey: string,
   promptTemplate: string,
-  comparePurpose: string
+  comparePurpose: string,
+  markupRatios: CategoryMarkupRatio[] = DEFAULT_CATEGORY_MARKUP_RATIOS
 ): Promise<string> {
   const ai = new GoogleGenAI({ apiKey });
 
@@ -1257,20 +1438,22 @@ export async function generateProductComparison(
 
   const { parts: imageParts } = await fetchImagesAsParts(allImageUrls);
 
-  const productsDataText = buildProductsDataText(inputs);
+  const productsDataText = buildProductsDataText(inputs, markupRatios);
 
   let prompt = promptTemplate.replace("{{PRODUCTS_DATA}}", productsDataText);
   prompt = prompt.replace("{{COMPARE_PURPOSE}}", comparePurpose || "(Không có)");
 
   const contents = [{ role: "user", parts: [{ text: prompt }, ...imageParts] }];
 
-  const response = await ai.models.generateContent({
-    model: "gemini-3.5-flash",
-    contents,
-    config: {
-      temperature: 0.2, // Low temp for more brutal and consistent logic
-    },
-  });
+  const response = await withGeminiRetry(() =>
+    ai.models.generateContent({
+      model: "gemini-3.5-flash",
+      contents,
+      config: {
+        temperature: 0.2, // Low temp for more brutal and consistent logic
+      },
+    })
+  );
 
   if (!response.text) throw new Error("Gemini không trả về nội dung.");
 
@@ -1293,7 +1476,8 @@ export async function generateComparisonSynthesis(
   inputs: CompareProductInput[],
   apiKey: string,
   promptTemplate: string,
-  priorReports: PriorComparisonReport[]
+  priorReports: PriorComparisonReport[],
+  markupRatios: CategoryMarkupRatio[] = DEFAULT_CATEGORY_MARKUP_RATIOS
 ): Promise<string> {
   const ai = new GoogleGenAI({ apiKey });
 
@@ -1303,7 +1487,7 @@ export async function generateComparisonSynthesis(
 
   const { parts: imageParts } = await fetchImagesAsParts(allImageUrls);
 
-  const productsDataText = buildProductsDataText(inputs);
+  const productsDataText = buildProductsDataText(inputs, markupRatios);
 
   const priorReportsText = priorReports
     .map((r, idx) => `### Báo cáo ${idx + 1} — Góc nhìn "${r.presetName}"\n${r.resultMarkdown}`)
@@ -1314,15 +1498,139 @@ export async function generateComparisonSynthesis(
 
   const contents = [{ role: "user", parts: [{ text: prompt }, ...imageParts] }];
 
-  const response = await ai.models.generateContent({
-    model: "gemini-3.5-flash",
-    contents,
-    config: {
-      temperature: 0.2,
-    },
-  });
+  const response = await withGeminiRetry(() =>
+    ai.models.generateContent({
+      model: "gemini-3.5-flash",
+      contents,
+      config: {
+        temperature: 0.2,
+      },
+    })
+  );
 
   if (!response.text) throw new Error("Gemini không trả về nội dung.");
 
   return response.text;
+}
+
+// ------------------------------------------------------------
+// CHẤM ĐIỂM ĐA TRỤC (Việc 2) — chấm 15 trục/5 nhóm (xem SCORE_GROUPS
+// trong src/lib/scoring.ts) cho TỪNG sản phẩm trong 1 phiên đánh giá,
+// CHẤM CHUNG 1 REQUEST cho cả bộ sản phẩm (không tách riêng từng cái) để
+// AI chấm TƯƠNG ĐỐI nhất quán giữa các sản phẩm đang so sánh — giống
+// tinh thần generateProductComparison ở trên. Điểm nhóm/điểm tổng KHÔNG
+// tính ở đây — tính ở tầng ứng dụng từ kết quả thô (xem computeGroupScores
+// trong lib/scoring.ts) để đổi công thức sau này không cần gọi lại AI.
+// ------------------------------------------------------------
+export interface ProductAxisScoreResult {
+  productId: number;
+  axes: { axisId: string; score: number; reason: string }[];
+}
+
+function buildScoringResultSchema(axisIds: string[]) {
+  return {
+    type: Type.OBJECT,
+    properties: {
+      products: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            productId: { type: Type.NUMBER },
+            axes: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  axisId: { type: Type.STRING, enum: axisIds },
+                  score: { type: Type.NUMBER },
+                  reason: { type: Type.STRING },
+                },
+                required: ["axisId", "score", "reason"],
+              },
+            },
+          },
+          required: ["productId", "axes"],
+        },
+      },
+    },
+    required: ["products"],
+  };
+}
+
+function buildScoringPrompt(scoreGroupsText: string): string {
+  return `
+Bạn là Hội đồng thẩm định đa chiều — nhiệm vụ DUY NHẤT của bạn là CHẤM ĐIỂM
+từng sản phẩm dưới đây trên 15 trục độc lập, KHÔNG viết văn xuôi phân tích
+dài dòng, KHÔNG lặp lại nội dung đã có ở các báo cáo persona khác.
+
+QUY TẮC CHẤM ĐIỂM (BẮT BUỘC):
+- Thang điểm 0-100 cho MỖI trục, MỌI trục đều đóng khung "điểm cao = tốt"
+  (kể cả trục mang tên "an toàn/rủi ro" — điểm cao nghĩa là RỦI RO THẤP,
+  điểm thấp nghĩa là RỦI RO CAO). Không đảo ngược logic này.
+- Chấm TƯƠNG ĐỐI giữa các sản phẩm trong danh sách (nếu sản phẩm A rõ
+  ràng tốt hơn B ở 1 trục, điểm A phải cao hơn B ở trục đó) — không chấm
+  na ná nhau cho an toàn.
+- MỖI trục PHẢI kèm 1 câu "reason" ngắn gọn (1 câu, tối đa ~25 từ) giải
+  thích CĂN CỨ chấm điểm đó dựa trên dữ liệu thật bên dưới — KHÔNG bịa
+  căn cứ không có trong dữ liệu, nếu thiếu dữ liệu để đánh giá 1 trục thì
+  chấm điểm trung tính (~50) và nói rõ "thiếu dữ liệu để đánh giá chính
+  xác" trong reason.
+- Chấm ĐỦ cả 15 trục cho MỖI sản phẩm, không được bỏ sót trục nào.
+
+DANH SÁCH TRỤC ĐIỂM (id — tên hiển thị, gộp theo nhóm):
+${scoreGroupsText}
+
+DỮ LIỆU CÁC SẢN PHẨM (Bản gốc):
+{{PRODUCTS_DATA}}
+
+Trả về JSON đúng field "products": mảng, mỗi phần tử gồm "productId" (đúng
+số id sản phẩm ở trên) và "axes" (mảng 15 phần tử, mỗi phần tử gồm
+"axisId" đúng id trong danh sách trục, "score" số 0-100, "reason" string).
+`.trim();
+}
+
+export async function generateProductScores(
+  inputs: CompareProductInput[],
+  apiKey: string,
+  scoreGroups: { id: string; label: string; icon: string; axes: { id: string; label: string }[] }[],
+  markupRatios: CategoryMarkupRatio[] = DEFAULT_CATEGORY_MARKUP_RATIOS
+): Promise<ProductAxisScoreResult[]> {
+  const ai = new GoogleGenAI({ apiKey });
+
+  const allImageUrls = inputs.flatMap((input) => input.listings.flatMap((l) => l.imageUrls)).slice(0, 15);
+  const { parts: imageParts } = await fetchImagesAsParts(allImageUrls);
+
+  const productsDataText = buildProductsDataText(inputs, markupRatios);
+  const axisIds = scoreGroups.flatMap((g) => g.axes.map((a) => a.id));
+  const scoreGroupsText = scoreGroups
+    .map(
+      (g) =>
+        `${g.icon} Nhóm "${g.label}":\n${g.axes.map((a) => `  - ${a.id} — ${a.label}`).join("\n")}`
+    )
+    .join("\n");
+
+  const prompt = buildScoringPrompt(scoreGroupsText).replace("{{PRODUCTS_DATA}}", productsDataText);
+  const contents = [{ role: "user", parts: [{ text: prompt }, ...imageParts] }];
+
+  const response = await withGeminiRetry(() =>
+    ai.models.generateContent({
+      model: "gemini-3.5-flash",
+      contents,
+      config: {
+        temperature: 0.3,
+        responseMimeType: "application/json",
+        responseSchema: buildScoringResultSchema(axisIds),
+      },
+    })
+  );
+
+  const text = response.text;
+  if (!text) throw new Error("Gemini không trả về nội dung.");
+
+  const parsed = JSON.parse(text) as { products: ProductAxisScoreResult[] };
+  if (!Array.isArray(parsed.products) || parsed.products.length === 0) {
+    throw new Error("Gemini trả về thiếu dữ liệu điểm.");
+  }
+  return parsed.products;
 }

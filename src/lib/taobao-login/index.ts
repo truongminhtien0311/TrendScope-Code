@@ -64,6 +64,35 @@ const SETTING_KEY_SAVED_AT = "taobao_login_saved_at"; // ISO date string
 const LOGIN_URL = "https://login.taobao.com/havanaone/login/login.htm?bizName=taobao";
 const PENDING_TTL_MS = 5 * 60 * 1000; // 5 phút chưa quét xong thì tự dọn
 
+// ------------------------------------------------------------
+// CHỐNG BỊ TAOBAO NHẬN DIỆN LÀ BOT — dùng CHUNG 1 bộ "vân tay trình
+// duyệt" (userAgent/locale) cho CẢ bước đăng nhập (startLogin) LẪN bước
+// dùng lại session (resolveShortLink). Trước đây 2 bước dùng context
+// KHÁC NHAU (resolveShortLink không set userAgent/locale, rơi về mặc
+// định của Playwright) — cookie tạo ra dưới 1 vân tay, dùng lại dưới
+// vân tay khác rất dễ bị Taobao coi là bất thường và đá về trang login
+// dù cookie vẫn còn hợp lệ. addStealthInit() che thêm vài dấu hiệu lộ
+// automation phổ biến nhất (navigator.webdriver, plugins rỗng...).
+// KHÔNG đảm bảo qua được mọi lớp chống bot của Taobao — đây là cuộc
+// chạy đua, chỉ giảm khả năng bị phát hiện ở mức cơ bản.
+// ------------------------------------------------------------
+const BROWSER_CONTEXT_OPTIONS = {
+  userAgent:
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+  locale: "zh-CN",
+  viewport: { width: 1280, height: 800 },
+};
+
+async function addStealthInit(context: BrowserContext): Promise<void> {
+  await context.addInitScript(() => {
+    Object.defineProperty(navigator, "webdriver", { get: () => undefined });
+    Object.defineProperty(navigator, "languages", { get: () => ["zh-CN", "zh"] });
+    Object.defineProperty(navigator, "plugins", { get: () => [1, 2, 3, 4, 5] });
+    // @ts-expect-error -- window.chrome không tồn tại trên trình duyệt tự động hóa mặc định
+    window.chrome = { runtime: {} };
+  });
+}
+
 interface PendingLogin {
   browser: Browser;
   context: BrowserContext;
@@ -71,8 +100,16 @@ interface PendingLogin {
   createdAt: number;
 }
 
-// Bộ nhớ tạm giữ các phiên đang chờ quét QR (token -> browser đang mở)
-const pending = new Map<string, PendingLogin>();
+// Bộ nhớ tạm giữ các phiên đang chờ quét QR (token -> browser đang mở).
+// BẮT BUỘC gắn vào globalThis (không phải const module-scope thường) —
+// giống cách src/lib/db.ts né lỗi Prisma: Next.js dev (Turbopack) hot-reload
+// module này bất cứ lúc nào có file khác đổi, xóa sạch biến module-scope
+// thường giữa lúc "start" (mở QR) và "poll" (kiểm tra quét xong chưa) chỉ
+// cách nhau vài giây — khiến app tưởng nhầm là "hết thời gian chờ quét mã"
+// dù người dùng chưa kịp quét. globalThis sống sót qua hot-reload.
+const globalForTaobaoLogin = globalThis as unknown as { taobaoLoginPending?: Map<string, PendingLogin> };
+const pending = globalForTaobaoLogin.taobaoLoginPending ?? new Map<string, PendingLogin>();
+if (process.env.NODE_ENV !== "production") globalForTaobaoLogin.taobaoLoginPending = pending;
 
 function cleanupExpired() {
   const now = Date.now();
@@ -90,11 +127,8 @@ export async function startLogin(): Promise<{ token: string; qrImageBase64: stri
   await ensureChromiumInstalled();
 
   const browser = await chromium.launch({ headless: true });
-  const context = await browser.newContext({
-    userAgent:
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
-    locale: "zh-CN",
-  });
+  const context = await browser.newContext(BROWSER_CONTEXT_OPTIONS);
+  await addStealthInit(context);
   const page = await context.newPage();
 
   try {
@@ -183,13 +217,39 @@ export async function resolveShortLink(shortUrl: string): Promise<string> {
   await ensureChromiumInstalled();
   const browser = await chromium.launch({ headless: true });
   try {
+    // CHỈ dùng storageState (nguyên bản) — KHÔNG ghép thêm userAgent/
+    // locale/stealth suy đoán ở đây nữa (đã thử rồi revert, xem lịch sử
+    // debug 2026-07-17): bản production đang chạy ỔN ĐỊNH THẬT với đúng
+    // cấu hình nguyên bản này, còn suy đoán "đồng bộ vân tay" chưa hề
+    // được xác minh có ích (test tại sandbox dev vẫn lỗi y hệt dù đã áp
+    // dụng) — không đánh đổi rủi ro cho 1 fix chưa chứng minh, nhất là
+    // khi code này sắp được đóng gói cập nhật cho bản đang chạy thật.
     const context = await browser.newContext({ storageState });
     const page = await context.newPage();
     // Link rút gọn thường redirect qua JS sau khi trang tải xong, không
     // chỉ HTTP 302 đơn thuần — đợi thêm chút sau "load" để JS kịp chạy.
     await page.goto(shortUrl, { waitUntil: "load", timeout: 30000 });
     await page.waitForTimeout(3000);
-    return page.url();
+    const finalUrl = page.url();
+    // Phiên đăng nhập đã lưu có thể bị Taobao vô hiệu (hết hạn/nghi ngờ
+    // hành vi bất thường) — lúc đó Taobao tự điều hướng về trang login
+    // thay vì ra sản phẩm thật. Trước đây trả thẳng URL login này ra
+    // ngoài khiến bước tách id sản phẩm thất bại với thông báo gây hiểu
+    // lầm ("Không tách được id") — giờ phát hiện sớm và báo đúng nguyên
+    // nhân + xóa session cũ để người dùng biết cần đăng nhập lại.
+    if (finalUrl.includes("login.taobao.com")) {
+      await clearLogin().catch(() => {});
+      // Ghi log CHI TIẾT (link gốc + link cuối bị đá về) — trước đây
+      // clearLogin() ở đây chạy ÂM THẦM, không để lại dấu vết gì trong
+      // Log hoạt động, rất khó tra khi debug (không biết đã thử link nào,
+      // bị đá đi đâu). Không dùng logActivity() ở tầng lib này (tránh
+      // vòng phụ thuộc/side-effect sâu trong hàm thuần) — throw kèm đủ
+      // thông tin để route gọi (resolve-link/route.ts) tự log lại.
+      throw new Error(
+        `Phiên đăng nhập Taobao đã hết hạn hoặc bị Taobao từ chối (bị đá về trang login khi mở "${shortUrl}") — vào Cài đặt > Đăng nhập Taobao để quét mã QR đăng nhập lại. Nếu vừa đăng nhập lại vẫn bị lỗi này ngay, khả năng cao Taobao đang chặn theo mạng/IP hoặc link rút gọn đã hết hạn (link chỉ dùng được 1-2 lần), không phải lỗi phiên đăng nhập.`
+      );
+    }
+    return finalUrl;
   } finally {
     await browser.close().catch(() => {});
   }

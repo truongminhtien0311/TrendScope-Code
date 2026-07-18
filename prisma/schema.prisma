@@ -84,6 +84,7 @@ model Product {
   listings    Listing[]
   aiAnalyses    ProductAiAnalysis[]
   activityLogs  ActivityLog[]
+  scores        ProductScore[]
 }
 
 // ------------------------------------------------------------
@@ -177,6 +178,24 @@ model Review {
 }
 
 // ------------------------------------------------------------
+// PHIÊN ĐÁNH GIÁ — gom 1 bộ sản phẩm (2-5) + toàn bộ lượt so sánh AI
+// (persona/hội đồng, xem ProductComparison.sessionId) + điểm đa trục
+// (xem ProductScore) vào 1 nơi lưu trữ THẬT, thay cho cơ chế cũ chỉ sống
+// trong URL query param + state trình duyệt (mất khi F5, không xem lại
+// được). Trang /compare/[sessionId] hiển thị, /compare/history liệt kê
+// lịch sử các phiên đã tạo.
+// ------------------------------------------------------------
+model EvaluationSession {
+  id          Int      @id @default(autoincrement())
+  name        String? // tên tự đặt, để trống thì hiển thị theo ngày tạo + tên sản phẩm
+  productIds  String // JSON mảng id, vd "[1,2,3]" — giống ProductComparison.productIds
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  comparisons ProductComparison[]
+  scores      ProductScore[]
+}
+
+// ------------------------------------------------------------
 // SO SÁNH SẢN PHẨM — chọn 2-5 sản phẩm, AI so sánh dựa TRÊN DỮ LIỆU CÀO
 // GỐC (không dùng bản đã AI dịch/tổng hợp, tránh thiên kiến cộng dồn qua
 // nhiều lần AI tạo). productIds lưu dạng JSON string (vd "[1,2,3]") vì
@@ -195,10 +214,43 @@ model ProductComparison {
   // lượt "Hội đồng tổng hợp" (vd "[12,15]") — null nghĩa là 1 lượt so
   // sánh persona bình thường, không phải bản tổng hợp.
   sourceComparisonIds String?
+  // Phiên đánh giá chứa lượt so sánh này (xem EvaluationSession) — nullable
+  // vì các dòng cũ tạo TRƯỚC khi có khái niệm "phiên" sẽ không gắn được,
+  // KHÔNG migrate ngược dữ liệu cũ.
+  session    EvaluationSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  sessionId  Int?
   startedAt  DateTime  @default(now())
   finishedAt DateTime?
 
   @@index([startedAt])
+  @@index([sessionId])
+}
+
+// ------------------------------------------------------------
+// ĐIỂM ĐA TRỤC — chấm 15 trục (gộp 5 nhóm, xem SCORE_GROUPS trong
+// src/lib/scoring.ts) cho MỖI sản phẩm trong 1 PHIÊN ĐÁNH GIÁ cụ thể
+// (không phải thuộc tính cố định của sản phẩm — điểm mang tính tương đối
+// giữa các sản phẩm cùng phiên tại thời điểm chấm). AI chấm hết 15 trục
+// trước (kèm lý do ngắn/trục), người dùng override từng trục nếu không
+// đồng ý — lý do AI gốc GIỮ NGUYÊN dù đã override để còn đối chiếu.
+// Cùng cơ chế PENDING -> chạy nền như ProductAiAnalysis.
+// Điểm nhóm/điểm tổng KHÔNG lưu cột cứng — tính ở tầng ứng dụng từ
+// axesJson mỗi lần hiển thị, để đổi công thức sau này không cần migrate.
+// ------------------------------------------------------------
+model ProductScore {
+  id           Int      @id @default(autoincrement())
+  session      EvaluationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId    Int
+  product      Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId    Int
+  status       String   @default("PENDING") // "PENDING" | "DONE" | "FAILED"
+  // JSON: { [axisId]: { ai: number, user: number|null, reason: string } }
+  axesJson     String?
+  errorMessage String?
+  startedAt    DateTime  @default(now())
+  finishedAt   DateTime?
+
+  @@unique([sessionId, productId])
 }
 
 // ------------------------------------------------------------
@@ -213,6 +265,12 @@ model ApiProvider {
   apiKey     String?
   enabled    Boolean  @default(false)
   configJson String? // cấu hình thêm dạng JSON nếu cần
+  // Link tham khảo tới trang đăng ký/quản lý/thanh toán của nhà cung cấp
+  // (vd trang pricing trên RapidAPI) — CHỈ để tiện truy cập lại sau này
+  // (khỏi phải tự tìm), KHÔNG dùng để gọi API. Nhà cung cấp có thể đổi
+  // link theo thời gian nên để người dùng tự sửa được, không hardcode
+  // cứng trong code.
+  referenceUrl String?
   createdAt  DateTime @default(now())
 }
 

@@ -13,9 +13,11 @@ import { logActivity } from "@/lib/log";
 import {
   generateComparisonSynthesis,
   DEFAULT_COMPARE_SYNTHESIS_PRESETS,
+  DEFAULT_CATEGORY_MARKUP_RATIOS,
   type PromptPreset,
   type CompareProductInput,
   type PriorComparisonReport,
+  type CategoryMarkupRatio,
 } from "@/lib/llm";
 
 const MIN_SOURCES = 2;
@@ -26,6 +28,7 @@ export async function POST(request: NextRequest) {
   const sourceComparisonIds: number[] = Array.isArray(body?.sourceComparisonIds)
     ? body.sourceComparisonIds.map(Number)
     : [];
+  const sessionId: number | undefined = body?.sessionId ? Number(body.sessionId) : undefined;
 
   if (sourceComparisonIds.length < MIN_SOURCES) {
     return NextResponse.json(
@@ -72,15 +75,19 @@ export async function POST(request: NextRequest) {
 
   const products = await prisma.product.findMany({
     where: { id: { in: productIds } },
-    include: { listings: { include: { variants: true, images: true, reviews: true } } },
+    include: {
+      listings: { include: { variants: true, images: true, reviews: true } },
+      categories: { select: { name: true } },
+    },
   });
   if (products.length !== productIds.length) {
     return NextResponse.json({ error: "Một số sản phẩm không tồn tại." }, { status: 404 });
   }
 
-  const [presetsSetting, activeIdSetting] = await Promise.all([
+  const [presetsSetting, activeIdSetting, markupSetting] = await Promise.all([
     prisma.setting.findUnique({ where: { key: "compare_synthesis_prompt_presets" } }),
     prisma.setting.findUnique({ where: { key: "compare_synthesis_prompt_active_preset_id" } }),
+    prisma.setting.findUnique({ where: { key: "category_markup_ratios" } }),
   ]);
   let presets: PromptPreset[] = DEFAULT_COMPARE_SYNTHESIS_PRESETS;
   if (presetsSetting?.value) {
@@ -93,9 +100,20 @@ export async function POST(request: NextRequest) {
   }
   const preset = presets.find((p) => p.id === activeIdSetting?.value) ?? presets[0];
 
+  let markupRatios: CategoryMarkupRatio[] = DEFAULT_CATEGORY_MARKUP_RATIOS;
+  if (markupSetting?.value) {
+    try {
+      const parsed = JSON.parse(markupSetting.value);
+      if (Array.isArray(parsed)) markupRatios = parsed;
+    } catch {
+      // JSON hỏng thì dùng mặc định, không chặn cả request
+    }
+  }
+
   const inputs: CompareProductInput[] = products.map((p) => ({
     id: p.id,
     name: p.name,
+    categoryNames: p.categories.map((c) => c.name),
     listings: p.listings.map((l) => {
       const prices = l.variants.map((v) => v.priceCny);
       return {
@@ -121,10 +139,11 @@ export async function POST(request: NextRequest) {
       status: "PENDING",
       presetName: `🧑‍⚖️ ${preset.name}`,
       sourceComparisonIds: JSON.stringify(sourceComparisonIds),
+      ...(sessionId ? { session: { connect: { id: sessionId } } } : {}),
     },
   });
 
-  void runSynthesisInBackground(comparison.id, inputs, provider.apiKey, preset, priorReports);
+  void runSynthesisInBackground(comparison.id, inputs, provider.apiKey, preset, priorReports, markupRatios);
 
   return NextResponse.json({ comparisonId: comparison.id }, { status: 202 });
 }
@@ -134,14 +153,15 @@ async function runSynthesisInBackground(
   inputs: CompareProductInput[],
   apiKey: string,
   preset: PromptPreset,
-  priorReports: PriorComparisonReport[]
+  priorReports: PriorComparisonReport[],
+  markupRatios: CategoryMarkupRatio[]
 ) {
   // BẮT BUỘC bọc try/catch TOÀN BỘ thân hàm — promise "bắn rồi quên",
   // xem giải thích trong src/app/api/products/[id]/analyze/route.ts.
   try {
     let resultMarkdown: string;
     try {
-      resultMarkdown = await generateComparisonSynthesis(inputs, apiKey, preset.content, priorReports);
+      resultMarkdown = await generateComparisonSynthesis(inputs, apiKey, preset.content, priorReports, markupRatios);
     } catch (err) {
       await prisma.productComparison.update({
         where: { id: comparisonId },

@@ -13,8 +13,10 @@ import { logActivity } from "@/lib/log";
 import {
   generateProductComparison,
   DEFAULT_COMPARE_PRESETS,
+  DEFAULT_CATEGORY_MARKUP_RATIOS,
   type PromptPreset,
   type CompareProductInput,
+  type CategoryMarkupRatio,
 } from "@/lib/llm";
 
 const MIN_PRODUCTS = 2;
@@ -25,6 +27,10 @@ export async function POST(request: NextRequest) {
   const productIds: number[] = Array.isArray(body?.productIds) ? body.productIds.map(Number) : [];
   const presetId: string | undefined = body?.presetId;
   const comparePurpose: string = typeof body?.comparePurpose === "string" ? body.comparePurpose : "";
+  // Phiên đánh giá chứa lượt so sánh này (nếu có) — xem EvaluationSession,
+  // prisma/schema.prisma. Không bắt buộc để không phá các lượt so sánh cũ
+  // (trước khi có khái niệm "phiên") vẫn gọi được route này bình thường.
+  const sessionId: number | undefined = body?.sessionId ? Number(body.sessionId) : undefined;
 
   if (productIds.length < MIN_PRODUCTS || productIds.length > MAX_PRODUCTS) {
     return NextResponse.json(
@@ -45,14 +51,18 @@ export async function POST(request: NextRequest) {
 
   const products = await prisma.product.findMany({
     where: { id: { in: productIds } },
-    include: { listings: { include: { variants: true, images: true, reviews: true } } },
+    include: {
+      listings: { include: { variants: true, images: true, reviews: true } },
+      categories: { select: { name: true } },
+    },
   });
   if (products.length !== productIds.length) {
     return NextResponse.json({ error: "Một số sản phẩm không tồn tại." }, { status: 404 });
   }
 
-  const [presetsSetting] = await Promise.all([
+  const [presetsSetting, markupSetting] = await Promise.all([
     prisma.setting.findUnique({ where: { key: "compare_prompt_presets" } }),
+    prisma.setting.findUnique({ where: { key: "category_markup_ratios" } }),
   ]);
   let presets: PromptPreset[] = DEFAULT_COMPARE_PRESETS;
   if (presetsSetting?.value) {
@@ -65,9 +75,20 @@ export async function POST(request: NextRequest) {
   }
   const preset = presets.find((p) => p.id === presetId) ?? presets[0];
 
+  let markupRatios: CategoryMarkupRatio[] = DEFAULT_CATEGORY_MARKUP_RATIOS;
+  if (markupSetting?.value) {
+    try {
+      const parsed = JSON.parse(markupSetting.value);
+      if (Array.isArray(parsed)) markupRatios = parsed;
+    } catch {
+      // JSON hỏng thì dùng mặc định, không chặn cả request
+    }
+  }
+
   const inputs: CompareProductInput[] = products.map((p) => ({
     id: p.id,
     name: p.name,
+    categoryNames: p.categories.map((c) => c.name),
     listings: p.listings.map((l) => {
       const prices = l.variants.map((v) => v.priceCny);
       return {
@@ -83,10 +104,15 @@ export async function POST(request: NextRequest) {
   }));
 
   const comparison = await prisma.productComparison.create({
-    data: { productIds: JSON.stringify(productIds), status: "PENDING", presetName: preset.name },
+    data: {
+      productIds: JSON.stringify(productIds),
+      status: "PENDING",
+      presetName: preset.name,
+      ...(sessionId ? { session: { connect: { id: sessionId } } } : {}),
+    },
   });
 
-  void runComparisonInBackground(comparison.id, inputs, provider.apiKey, preset, comparePurpose);
+  void runComparisonInBackground(comparison.id, inputs, provider.apiKey, preset, comparePurpose, markupRatios);
 
   return NextResponse.json({ comparisonId: comparison.id }, { status: 202 });
 }
@@ -96,14 +122,15 @@ async function runComparisonInBackground(
   inputs: CompareProductInput[],
   apiKey: string,
   preset: PromptPreset,
-  comparePurpose: string
+  comparePurpose: string,
+  markupRatios: CategoryMarkupRatio[]
 ) {
   // BẮT BUỘC bọc try/catch TOÀN BỘ thân hàm — promise "bắn rồi quên",
   // xem giải thích trong src/app/api/products/[id]/analyze/route.ts.
   try {
     let resultMarkdown: string;
     try {
-      resultMarkdown = await generateProductComparison(inputs, apiKey, preset.content, comparePurpose);
+      resultMarkdown = await generateProductComparison(inputs, apiKey, preset.content, comparePurpose, markupRatios);
     } catch (err) {
       await prisma.productComparison.update({
         where: { id: comparisonId },

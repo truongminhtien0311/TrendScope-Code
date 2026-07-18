@@ -20,6 +20,10 @@ export async function POST(request: NextRequest) {
     await logActivity("taobao_login.resolve_link", `Giải mã link rút gọn: ${parsed.data.url} -> ${resolvedUrl}`);
     return NextResponse.json({ resolvedUrl });
   } catch (err) {
+    // Ghi log CẢ lúc lỗi (trước đây chỉ log lúc thành công) — để tra lại
+    // được lịch sử thử/lỗi thật trong "Log hoạt động" khi debug, không
+    // phải dò DB tay như trước.
+    await logActivity("taobao_login.resolve_link_failed", `Giải mã link rút gọn lỗi: ${parsed.data.url} — ${String(err)}`);
     return NextResponse.json({ error: String(err) }, { status: 502 });
   }
 }

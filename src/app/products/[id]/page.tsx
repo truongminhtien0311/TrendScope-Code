@@ -193,6 +193,7 @@ export default async function ProductDetailPage({
         }))}
         presets={promptPresets}
         activePresetId={activePresetId}
+        hasFactoryPrice={!!factoryRange}
       />
 
       {/* ---- Thêm link mới ---- */}

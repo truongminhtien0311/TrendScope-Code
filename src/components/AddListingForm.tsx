@@ -163,6 +163,12 @@ function AutoForm({ productId }: { productId: number }) {
       <p className="text-xs text-slate-500 dark:text-slate-400">
         💡 Nếu API cào lỗi/hết quota, chuyển sang &quot;✍️ Nhập tay&quot; ở trên.
       </p>
+      <p className="text-xs text-slate-500 dark:text-slate-400">
+        📷 Không có sẵn link? Trong app Taobao, bấm <strong>Chia sẻ</strong> sản phẩm → chọn mã QR
+        (&quot;当面扫码&quot;) → quét mã đó bằng Zalo/Camera điện thoại (KHÔNG dùng app Taobao để
+        quét chính mã của nó) → copy link <code>e.tb.cn/...</code> vừa ra → dán vào ô trên, xử lý
+        y hệt link rút gọn thường.
+      </p>
     </form>
   );
 }

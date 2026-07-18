@@ -7,10 +7,14 @@ import { getUsdCnyRate } from "@/lib/currency";
 import type { Platform, SourceType, ScraperProvider, ProviderConfig } from "./types";
 import { otapiTaobaoTmallScraper } from "./providers/otapi-taobao-tmall";
 import { otapiAlibabaScraper } from "./providers/otapi-alibaba";
+import { taobaoDataHubScraper } from "./providers/taobao-datahub";
 
 // Danh sách provider theo thứ tự ưu tiên (đứng trước = ưu tiên hơn nếu
-// nhiều provider cùng bật cho 1 sàn).
-const providers: ScraperProvider[] = [otapiTaobaoTmallScraper, otapiAlibabaScraper];
+// nhiều provider cùng bật cho 1 sàn — thực tế chỉ nên bật 1 provider/sàn
+// cùng lúc, xem Cài đặt > API). taobaoDataHubScraper là nguồn DỰ PHÒNG
+// cho Taobao/Tmall (thêm cạnh Otapi, không thay thế — xem lý do trong
+// src/lib/scrapers/providers/taobao-datahub.ts).
+const providers: ScraperProvider[] = [otapiTaobaoTmallScraper, taobaoDataHubScraper, otapiAlibabaScraper];
 
 // Nhận diện sàn từ URL người dùng dán vào
 export function detectPlatform(url: string): Platform | null {

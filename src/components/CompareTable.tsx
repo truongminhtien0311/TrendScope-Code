@@ -19,9 +19,10 @@ import rehypeRaw from "rehype-raw";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
+import { toast } from "sonner";
 import { cnyToVnd, formatVnd } from "@/lib/currency";
 import SmartImage from "@/components/SmartImage";
-import type { PromptPreset } from "@/lib/llm";
+import { friendlyGeminiError, type PromptPreset } from "@/lib/llm";
 
 export interface CompareProductData {
   id: number;
@@ -66,6 +67,46 @@ function priceRangeText(product: CompareProductData, rate: number, sourceType: s
   return min === max ? min : `${min} ~ ${max}`;
 }
 
+// Bảng màu nền siêu mờ, xoay vòng theo từng đoạn (heading ## hoặc ###) để mắt
+// dễ tách bạch ranh giới các phần khi đọc báo cáo AI dài — không có ý nghĩa
+// gì khác ngoài phân đoạn thị giác.
+// Màu nền + viền cho từng dòng tiêu đề lượt phân tích (khi thu gọn), xoay
+// vòng theo thứ tự để phân biệt nhanh dòng nào với dòng nào trong danh sách.
+const RUN_HEADER_TINTS = [
+  "border-blue-300 dark:border-blue-700 bg-blue-50/60 dark:bg-blue-950/30",
+  "border-emerald-300 dark:border-emerald-700 bg-emerald-50/60 dark:bg-emerald-950/30",
+  "border-amber-300 dark:border-amber-700 bg-amber-50/60 dark:bg-amber-950/30",
+  "border-rose-300 dark:border-rose-700 bg-rose-50/60 dark:bg-rose-950/30",
+  "border-cyan-300 dark:border-cyan-700 bg-cyan-50/60 dark:bg-cyan-950/30",
+];
+
+const SECTION_TINTS = [
+  "bg-blue-100/40 dark:bg-blue-500/10",
+  "bg-emerald-100/40 dark:bg-emerald-500/10",
+  "bg-amber-100/40 dark:bg-amber-500/10",
+  "bg-rose-100/40 dark:bg-rose-500/10",
+  "bg-violet-100/40 dark:bg-violet-500/10",
+  "bg-cyan-100/40 dark:bg-cyan-500/10",
+];
+
+// Cắt markdown thành từng đoạn theo heading cấp 2-3 (## / ###), giữ nguyên
+// heading trong đoạn của nó, để mỗi đoạn có thể tô nền riêng.
+function splitMarkdownIntoSections(markdown: string): string[] {
+  const lines = markdown.split("\n");
+  const sections: string[] = [];
+  let current: string[] = [];
+  for (const line of lines) {
+    if (/^#{2,3}\s/.test(line) && current.length > 0) {
+      sections.push(current.join("\n"));
+      current = [line];
+    } else {
+      current.push(line);
+    }
+  }
+  if (current.length > 0) sections.push(current.join("\n"));
+  return sections.length > 0 ? sections : [markdown];
+}
+
 const MARKDOWN_COMPONENTS = {
   a: ({ node, ...props }: any) => (
     <a target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline" {...props} />
@@ -75,16 +116,39 @@ const MARKDOWN_COMPONENTS = {
       <SmartImage src={src || ""} alt={alt || ""} {...props} />
     </div>
   ),
+  // Tiêu đề đoạn (## / ###) làm to, đậm, có thanh màu bên trái để mắt nhận
+  // ra ngay "sang mục mới" khi lướt qua báo cáo AI dài.
+  h2: ({ node, ...props }: any) => (
+    <h2
+      className="!mt-0 !mb-3 text-lg font-extrabold border-l-4 border-current pl-3 py-1 bg-black/5 dark:bg-white/10 rounded-r-md"
+      {...props}
+    />
+  ),
+  h3: ({ node, ...props }: any) => (
+    <h3
+      className="!mt-4 !mb-2 text-base font-bold border-l-4 border-current/60 pl-3 py-0.5 bg-black/5 dark:bg-white/10 rounded-r-md"
+      {...props}
+    />
+  ),
 };
 
 export default function CompareTable({
   products,
   rate,
   presets,
+  sessionId,
+  initialRuns,
 }: {
   products: CompareProductData[];
   rate: number;
   presets: PromptPreset[];
+  // Phiên đánh giá chứa bảng này (xem EvaluationSession, prisma/schema.prisma)
+  // — lượt so sánh mới tạo được gắn vào đây để KHÔNG mất khi F5. Optional
+  // để tương thích ngược nếu có nơi khác còn dùng CompareTable không qua phiên.
+  sessionId?: number;
+  // Hydrate `runs` từ DB (các ProductComparison đã gắn sessionId) khi mở
+  // lại trang — thay vì luôn bắt đầu rỗng như hành vi cũ.
+  initialRuns?: CompareRun[];
 }) {
   const [presetId, setPresetId] = useState(presets[0]?.id);
   const [comparePurpose, setComparePurpose] = useState("");
@@ -92,7 +156,7 @@ export default function CompareTable({
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
 
-  const [runs, setRuns] = useState<CompareRun[]>([]);
+  const [runs, setRuns] = useState<CompareRun[]>(initialRuns ?? []);
   const runsRef = useRef(runs);
   runsRef.current = runs;
 
@@ -136,6 +200,24 @@ export default function CompareTable({
     setRuns((prev) => prev.map((r) => (r.comparisonId === comparisonId ? { ...r, expanded: !r.expanded } : r)));
   }
 
+  // Lượt FAILED không cần giữ lại làm rác danh sách (kể cả trong "Lịch sử
+  // đánh giá" nạp lại từ initialRuns) — báo lỗi chi tiết qua toast rồi tự
+  // xóa khỏi DB + khỏi state, còn lại đã có logActivity trong route DELETE
+  // ghi lại để tra cứu sau nếu cần.
+  const cleanedFailedIds = useRef<Set<number>>(new Set());
+  useEffect(() => {
+    const failed = runs.filter((r) => r.status === "FAILED" && !cleanedFailedIds.current.has(r.comparisonId));
+    if (!failed.length) return;
+    (async () => {
+      for (const r of failed) {
+        cleanedFailedIds.current.add(r.comparisonId);
+        toast.error(`❌ So sánh AI lỗi (${r.presetName}): ${friendlyGeminiError(r.errorMessage)}`);
+        await fetch(`/api/compare/${r.comparisonId}`, { method: "DELETE" }).catch(() => {});
+      }
+      setRuns((prev) => prev.filter((r) => !failed.some((f) => f.comparisonId === r.comparisonId)));
+    })();
+  }, [runs]);
+
   function toggleSelected(comparisonId: number) {
     setSelectedForSynthesis((prev) => {
       const next = new Set(prev);
@@ -153,7 +235,7 @@ export default function CompareTable({
     const res = await fetch("/api/compare", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ productIds: products.map((p) => p.id), presetId, comparePurpose }),
+      body: JSON.stringify({ productIds: products.map((p) => p.id), presetId, comparePurpose, sessionId }),
     });
     setGenerating(false);
     if (res.ok) {
@@ -183,7 +265,7 @@ export default function CompareTable({
     const res = await fetch("/api/compare/synthesize", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ productIds: products.map((p) => p.id), sourceComparisonIds: sourceIds }),
+      body: JSON.stringify({ productIds: products.map((p) => p.id), sourceComparisonIds: sourceIds, sessionId }),
     });
     setSynthesizing(false);
     if (res.ok) {
@@ -310,13 +392,13 @@ export default function CompareTable({
 
         {runs.length > 0 && (
           <div className="space-y-3 pt-2">
-            {runs.map((run) => (
+            {runs.map((run, runIndex) => (
               <div
                 key={run.comparisonId}
-                className={`rounded-lg border p-3 ${
+                className={`rounded-lg border-2 p-3 ${
                   run.isSynthesis
                     ? "border-l-4 border-purple-400 dark:border-purple-500 bg-purple-50/40 dark:bg-purple-950/20"
-                    : "border-slate-200 dark:border-slate-800"
+                    : `${RUN_HEADER_TINTS[runIndex % RUN_HEADER_TINTS.length]}`
                 }`}
               >
                 <div className="flex items-center gap-2">
@@ -326,19 +408,19 @@ export default function CompareTable({
                       checked={selectedForSynthesis.has(run.comparisonId)}
                       onChange={() => toggleSelected(run.comparisonId)}
                       title="Chọn để đưa vào Tổng hợp hội đồng"
-                      className="w-4 h-4 shrink-0"
+                      className="w-5 h-5 shrink-0"
                     />
                   )}
                   <button
                     onClick={() => toggleExpanded(run.comparisonId)}
-                    className="flex-1 flex items-center gap-2 text-left font-medium text-sm"
+                    className="flex-1 flex items-center gap-2 text-left font-bold text-base"
                   >
-                    <span>{run.isSynthesis ? "🧑‍⚖️" : "🧠"}</span>
+                    <span className="text-xl">{run.isSynthesis ? "🧑‍⚖️" : "🧠"}</span>
                     <span>{run.presetName}</span>
-                    <span className="text-xs font-normal text-slate-400">
+                    <span className="text-xs font-normal text-slate-500 dark:text-slate-400">
                       {run.status === "PENDING" ? "⏳ đang chạy..." : run.status === "FAILED" ? "❌ thất bại" : "✅"}
                     </span>
-                    <span className="ml-auto text-xs text-slate-400">{run.expanded ? "▲" : "▼"}</span>
+                    <span className="ml-auto text-sm text-slate-400">{run.expanded ? "▲" : "▼"}</span>
                   </button>
                 </div>
 
@@ -347,16 +429,22 @@ export default function CompareTable({
                     ⏳ Đang chờ Gemini xử lý... có thể mất tới vài chục giây.
                   </p>
                 )}
-                {run.status === "FAILED" && <p className="text-xs text-red-500 mt-2">{run.errorMessage}</p>}
+                {run.status === "FAILED" && (
+                  <p className="text-xs text-red-500 mt-2">{friendlyGeminiError(run.errorMessage)}</p>
+                )}
                 {run.status === "DONE" && run.expanded && (
-                  <div className="prose prose-sm dark:prose-invert max-w-none pt-2 mt-2 border-t border-slate-200 dark:border-slate-800">
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm, remarkBreaks, remarkMath]}
-                      rehypePlugins={[rehypeRaw, rehypeKatex]}
-                      components={MARKDOWN_COMPONENTS}
-                    >
-                      {run.resultMarkdown.replace(/\\n/g, "\n")}
-                    </ReactMarkdown>
+                  <div className="prose prose-sm dark:prose-invert max-w-none pt-2 mt-2 border-t border-slate-200 dark:border-slate-800 space-y-2">
+                    {splitMarkdownIntoSections(run.resultMarkdown.replace(/\\n/g, "\n")).map((section, i) => (
+                      <div key={i} className={`rounded-lg px-3 py-2 ${SECTION_TINTS[i % SECTION_TINTS.length]}`}>
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm, remarkBreaks, remarkMath]}
+                          rehypePlugins={[rehypeRaw, rehypeKatex]}
+                          components={MARKDOWN_COMPONENTS}
+                        >
+                          {section}
+                        </ReactMarkdown>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>

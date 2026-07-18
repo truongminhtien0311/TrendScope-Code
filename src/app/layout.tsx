@@ -7,6 +7,12 @@ import Sidebar from "@/components/Sidebar";
 import UpdateNotifier from "@/components/UpdateNotifier";
 import ConfirmDialogProvider from "@/components/ConfirmDialogProvider";
 import { getCurrentUser } from "@/lib/auth";
+import { ensureExchangeRateSchedulerStarted } from "@/lib/exchange-rate";
+
+// Khởi động job nền tự động cập nhật tỷ giá CNY→VNĐ (nếu đã bật trong
+// Cài đặt) — an toàn gọi nhiều lần, chỉ thực sự tạo interval 1 lần duy
+// nhất cho cả tiến trình Node (xem ensureExchangeRateSchedulerStarted).
+ensureExchangeRateSchedulerStarted();
 
 const geistSans = Geist({
   variable: "--font-geist-sans",

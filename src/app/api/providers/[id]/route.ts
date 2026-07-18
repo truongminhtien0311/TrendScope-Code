@@ -14,6 +14,9 @@ const schema = z.object({
   // mật (vd Google Drive: clientId + clientSecret + refreshToken sau khi
   // kết nối OAuth), thay vì chỉ có apiKey/baseUrl.
   configJson: z.string().nullable().optional(),
+  // Link tham khảo tới trang đăng ký/quản lý của nhà cung cấp — chỉ để
+  // tiện bấm vào sau này, không dùng để gọi API (xem prisma/schema.prisma).
+  referenceUrl: z.string().nullable().optional(),
 });
 
 export async function PATCH(

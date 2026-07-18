@@ -192,6 +192,7 @@ async function main() {
     kind: string;
     name: string;
     enabled: boolean;
+    referenceUrl?: string;
   }>;
   for (const p of providers) {
     const existing = await prisma.apiProvider.findFirst({

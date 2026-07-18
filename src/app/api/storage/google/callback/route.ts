@@ -33,8 +33,13 @@ export async function GET(request: NextRequest) {
     config = {};
   }
 
-  const clientId = process.env.GOOGLE_CLIENT_ID !== "xxx" ? process.env.GOOGLE_CLIENT_ID : null || config.clientId;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET !== "xxx" ? process.env.GOOGLE_CLIENT_SECRET : null || config.clientSecret;
+  let envClientId = process.env.GOOGLE_CLIENT_ID;
+  if (envClientId === "xxx") envClientId = undefined;
+  let envClientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  if (envClientSecret === "xxx") envClientSecret = undefined;
+
+  const clientId = envClientId || config.clientId;
+  const clientSecret = envClientSecret || config.clientSecret;
 
   if (!clientId || !clientSecret) {
     redirectUrl.searchParams.set("google_error", "Chưa cấu hình Google Client ID/Secret");
@@ -54,7 +59,7 @@ export async function GET(request: NextRequest) {
       getRedirectUri()
     );
     const profile = await fetchGoogleProfile(accessToken);
-    
+
     if (!profile) {
       redirectUrl.searchParams.set("google_error", "Không lấy được thông tin từ Google");
       return NextResponse.redirect(redirectUrl);
@@ -108,6 +113,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.redirect(redirectUrl);
   } catch (err) {
+    console.error("[google/callback] lỗi:", err);
     redirectUrl.searchParams.set("google_error", String(err));
     return NextResponse.redirect(redirectUrl);
   }

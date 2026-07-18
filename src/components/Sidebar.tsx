@@ -139,6 +139,7 @@ const navGroups = [
       { href: "/",        label: "Dashboard",              Icon: IconGrid },
       { href: "/reports", label: "Báo cáo sản phẩm mới",  Icon: IconReport },
       { href: "/compare", label: "So sánh sản phẩm",      Icon: IconCompare },
+      { href: "/compare/history", label: "Lịch sử đánh giá", Icon: IconCompare },
     ],
   },
   {
@@ -166,7 +167,10 @@ export default function Sidebar({ userEmail }: { userEmail?: string | null }) {
   const pathname = usePathname();
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
-  const [appVersion, setAppVersion] = useState<string | null>(null);
+  // Mặc định lấy từ package.json (luôn có sẵn, kể cả chạy bằng trình
+  // duyệt thường qua `npm run dev`) — bản đóng gói Electron sẽ ghi đè lại
+  // ngay bên dưới nếu window.electronAPI tồn tại (xem electron/preload.js).
+  const [appVersion, setAppVersion] = useState<string | null>(process.env.NEXT_PUBLIC_APP_VERSION ?? null);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- đồng bộ từ localStorage, không có trên server nên không thể tính lúc render
@@ -192,8 +196,16 @@ export default function Sidebar({ userEmail }: { userEmail?: string | null }) {
     router.refresh();
   }
 
+  // Chọn mục có href khớp DÀI NHẤT với đường dẫn hiện tại, để tránh 2 mục
+  // cùng sáng khi 1 href là tiền tố của href kia (vd "/compare" và
+  // "/compare/history" — đứng ở "/compare/history" chỉ mục đó được sáng).
+  const allHrefs = navGroups.flatMap((g) => g.items.map((i) => i.href));
+  const bestMatch = allHrefs
+    .filter((href) => (href === "/" ? pathname === "/" : pathname.startsWith(href)))
+    .sort((a, b) => b.length - a.length)[0];
+
   function isActive(href: string) {
-    return href === "/" ? pathname === "/" : pathname.startsWith(href);
+    return href === bestMatch;
   }
 
   return (

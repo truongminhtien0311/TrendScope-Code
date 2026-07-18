@@ -67,3 +67,29 @@ export async function PATCH(
   );
   return NextResponse.json(updated);
 }
+
+// Xóa 1 bản phân tích — chỉ cho xóa bản FAILED (bản lỗi chỉ để tham khảo
+// nhanh, không ai cần giữ lại làm rác danh sách). Bản DONE/PENDING không
+// xóa qua đây để tránh mất dữ liệu quý hoặc xóa nhầm bản đang chạy.
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string; analysisId: string }> }
+) {
+  const { id, analysisId } = await params;
+  const existing = await prisma.productAiAnalysis.findUnique({ where: { id: Number(analysisId) } });
+  if (!existing || existing.productId !== Number(id)) {
+    return NextResponse.json({ error: "Không tìm thấy bản phân tích" }, { status: 404 });
+  }
+  if (existing.status !== "FAILED") {
+    return NextResponse.json({ error: "Chỉ xóa được bản bị lỗi." }, { status: 400 });
+  }
+
+  await prisma.productAiAnalysis.delete({ where: { id: existing.id } });
+  await logActivity(
+    "product.ai_analyze_delete_failed",
+    `Xóa bản phân tích AI lỗi #${existing.id} của sản phẩm #${id}`,
+    undefined,
+    Number(id)
+  );
+  return NextResponse.json({ ok: true });
+}

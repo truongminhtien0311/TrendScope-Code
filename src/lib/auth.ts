@@ -1,14 +1,8 @@
 // ============================================================
-// ĐĂNG NHẬP + SESSION (Chặng 6) — nhiều tài khoản riêng biệt (không
-// phải 1 mật khẩu dùng chung), dùng iron-session (cookie mã hóa, không
-// cần bảng session riêng trong DB) + bcryptjs (băm mật khẩu).
-//
-// LẦN ĐĂNG NHẬP ĐẦU TIÊN CỦA 1 TÀI KHOẢN (passwordHash còn trống — vd
-// tài khoản admin seed sẵn, hoặc tài khoản admin vừa thêm cho đồng
-// nghiệp): mật khẩu gõ vào lần đầu sẽ được LƯU LUÔN làm mật khẩu chính
-// thức (xem route /api/auth/login) — tránh phải hardcode/commit sẵn 1
-// mật khẩu mặc định nào vào seed.ts (rủi ro rò rỉ vì seed.ts nằm trong
-// git).
+// ĐĂNG NHẬP + SESSION — nhiều tài khoản riêng biệt, đăng nhập bằng
+// Google OAuth (xem src/app/api/auth/google/). Session vẫn dùng
+// iron-session (cookie mã hóa, không cần bảng session riêng trong DB)
+// để giữ trạng thái đăng nhập sau khi Google xác thực xong.
 //
 // File này dùng next/headers + Prisma nên CHỈ chạy được trong Node
 // runtime (API routes, Server Components) — middleware.ts (chạy Edge)
@@ -17,7 +11,6 @@
 import { cookies } from "next/headers";
 import { getIronSession, type IronSession } from "iron-session";
 import { NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { sessionOptions, type SessionData } from "@/lib/session-config";
 

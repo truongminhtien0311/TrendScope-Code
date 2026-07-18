@@ -5,11 +5,11 @@
 // chạy khi người dùng chọn mục đích so sánh + bấm nút (xem CompareTable.tsx).
 // ============================================================
 import { prisma } from "@/lib/db";
-import { getCnyVndRate } from "@/lib/currency";
-import { DEFAULT_COMPARE_PRESETS, type PromptPreset } from "@/lib/llm";
-import CompareTable, { type CompareProductData } from "@/components/CompareTable";
+import { getCnyVndRate, cnyToVnd, formatVnd } from "@/lib/currency";
 import ProductGrid from "@/components/ProductGrid";
 import FilterBar from "@/components/FilterBar";
+import CreateSessionButton from "@/components/CreateSessionButton";
+import SmartImage from "@/components/SmartImage";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +24,7 @@ export default async function ComparePage({
     .map(Number)
     .filter((n) => Number.isFinite(n));
 
-  const [products, rate, presetsSetting] = await Promise.all([
+  const [products, rate] = await Promise.all([
     prisma.product.findMany({
       where: { id: { in: idList } },
       include: {
@@ -32,18 +32,7 @@ export default async function ComparePage({
       },
     }),
     getCnyVndRate(),
-    prisma.setting.findUnique({ where: { key: "compare_prompt_presets" } }),
   ]);
-
-  let presets: PromptPreset[] = DEFAULT_COMPARE_PRESETS;
-  if (presetsSetting?.value) {
-    try {
-      const parsed = JSON.parse(presetsSetting.value);
-      if (Array.isArray(parsed) && parsed.length > 0) presets = parsed;
-    } catch {
-      // JSON hỏng thì dùng bộ preset mặc định
-    }
-  }
 
   const byId = new Map(products.map((p) => [p.id, p]));
   const ordered = idList.map((id) => byId.get(id)).filter((p): p is NonNullable<typeof p> => !!p);
@@ -120,35 +109,45 @@ export default async function ComparePage({
     );
   }
 
-  const data: CompareProductData[] = ordered.map((p) => ({
-    id: p.id,
-    name: p.name,
-    listings: p.listings.map((l) => ({
-      sourceType: l.sourceType,
-      platform: l.platform,
-      titleOriginal: l.titleOriginal,
-      soldTotal: l.soldTotal,
-      variants: l.variants.map((v) => ({ priceCny: v.priceCny })),
-      images: l.images.map((img) => ({ url: img.url, kind: img.kind })),
-    })),
-  }));
-
   return (
-    <div className="space-y-6 max-w-6xl">
+    <div className="space-y-6 max-w-4xl">
       <div>
         <h1
           className="text-2xl font-bold"
           style={{ fontFamily: "'Space Grotesk', sans-serif", background: "linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}
         >
-          ⚖️ So sánh {ordered.length} sản phẩm
+          ⚖️ Xác nhận {ordered.length} sản phẩm để so sánh
         </h1>
         <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
-          Bảng bên dưới dùng dữ liệu cào gốc — chọn mục đích so sánh rồi bấm &quot;Phân tích AI&quot; để xem góc
-          nhìn sâu hơn.
+          Bấm &quot;Tạo phiên đánh giá&quot; để lưu lại bộ sản phẩm này — toàn bộ lượt so sánh AI và điểm đa trục sẽ
+          gắn vào phiên, mở lại xem tiếp được sau (xem &quot;Lịch sử đánh giá&quot; ở sidebar).
         </p>
       </div>
 
-      <CompareTable products={data} rate={rate} presets={presets} />
+      <ul className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+        {ordered.map((p) => {
+          const img = p.listings.flatMap((l) => l.images).find((i) => i.kind === "MAIN") ??
+            p.listings.flatMap((l) => l.images)[0];
+          const prices = p.listings.flatMap((l) => l.variants.map((v) => v.priceCny));
+          return (
+            <li key={p.id} className="rounded-xl border border-slate-200 dark:border-slate-800 p-3 space-y-2">
+              {img ? (
+                <SmartImage src={img.url} alt={p.name} className="w-full aspect-square rounded-lg object-cover" />
+              ) : (
+                <div className="w-full aspect-square rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-2xl">
+                  📦
+                </div>
+              )}
+              <p className="text-sm font-medium line-clamp-2">{p.name || "(Chưa đặt tên)"}</p>
+              {prices.length > 0 && (
+                <p className="text-xs text-slate-500 dark:text-slate-400">{formatVnd(cnyToVnd(Math.min(...prices), rate))}</p>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+
+      <CreateSessionButton productIds={ordered.map((p) => p.id)} />
     </div>
   );
 }

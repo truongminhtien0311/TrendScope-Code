@@ -83,10 +83,15 @@ async function fetchItemDetail(itemId: string, apiKey: string): Promise<OtapiIte
   return data.Result.Item;
 }
 
-// Đánh giá người mua — CHƯA KIỂM CHỨNG được cấu trúc JSON thật vì sản
-// phẩm test lúc viết code không có review nào (Content: [] rỗng).
-// Nếu sau này thấy review không hiện ra, cần cào thử 1 sản phẩm có review
-// thật để xem đúng tên field rồi sửa lại hàm này.
+// Đánh giá người mua — ĐÃ KIỂM CHỨNG cấu trúc JSON thật (cào thử sản
+// phẩm giày 660702060155 có 10 review thật, 2026-07-17). Field đúng là
+// "Text" (bản tiếng Việt do API tự dịch qua language=vi) và
+// "OriginalText" (bản gốc tiếng Trung) — KHÔNG PHẢI "Content"/
+// "OriginalContent" như đoán ban đầu. Không có field rating (sao 1-5)
+// nào cho từng review — "creditLevel"/"userStar" trong FeaturedValues là
+// chỉ số uy tín TÀI KHOẢN NGƯỜI MUA (3-10, không phải thang 1-5), phần
+// lớn review test được đều là "hệ thống tự khen mặc định" do người mua
+// không tự đánh giá kịp thời hạn — KHÔNG dùng nhầm field này làm rating.
 async function fetchReviews(
   itemId: string,
   apiKey: string
@@ -96,13 +101,15 @@ async function fetchReviews(
     { headers: { "x-rapidapi-host": HOST, "x-rapidapi-key": apiKey } }
   );
   if (!res.ok) return [];
-  const data = (await res.json()) as { Result?: { Content?: OtapiReviewGuess[] } };
+  const data = (await res.json()) as { Result?: { Content?: OtapiReview[] } };
   const list = data.Result?.Content ?? [];
   return list
     .map((r) => ({
-      contentOriginal: r.OriginalContent ?? r.Content ?? r.Text ?? "",
-      contentVi: r.Content ?? r.Text,
-      rating: r.Rating ?? r.Rate ?? r.Score,
+      contentOriginal: r.OriginalText ?? "",
+      contentVi: r.Text,
+      // Otapi không trả rating theo review — để trống thay vì gán nhầm
+      // 1 chỉ số khác (xem giải thích ở trên), tránh hiện số sao sai.
+      rating: undefined,
     }))
     .filter((r) => r.contentOriginal);
 }
@@ -188,11 +195,7 @@ interface OtapiItem {
   ConfiguredItems?: OtapiConfiguredItem[];
   Pictures?: OtapiPicture[];
 }
-interface OtapiReviewGuess {
-  Content?: string;
-  OriginalContent?: string;
-  Text?: string;
-  Rating?: number;
-  Rate?: number;
-  Score?: number;
+interface OtapiReview {
+  Text?: string; // bản tiếng Việt (API tự dịch qua language=vi)
+  OriginalText?: string; // bản gốc tiếng Trung
 }
