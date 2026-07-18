@@ -313,18 +313,54 @@ GIẢ ĐỊNH CHI PHÍ KINH DOANH (do người dùng tự nhập/cập nhật, d
 Hãy trả về JSON đúng các trường sau (7 trường đầu mỗi trường là 1 đoạn
 MARKDOWN, trường "competitors" là 1 MẢNG JSON — không phải văn xuôi):
 
-1. "summary" — Mô tả sản phẩm tổng hợp:
-   - Tổng hợp điểm nổi bật từ mô tả người bán + đánh giá người mua
-   - So sánh giá bán lẻ và giá nhà sản xuất nếu có cả 2
-   - Chèn ảnh gốc vào đúng chỗ hợp lý bằng cú pháp markdown ![mô tả](url),
-     CHỈ dùng đúng các url ảnh sau, không tự bịa url khác:
-     {{IMAGE_URLS}}
+1. "summary" — Mô tả sản phẩm tổng hợp. TÁCH RÕ 2 NGUỒN DỮ LIỆU, không
+   trộn lẫn (nguồn (a) là lời PR một chiều của người bán, nguồn (b) là
+   tiếng nói người mua — dù có thể lẫn seeding vẫn là nguồn gần khách
+   thật nhất hiện có):
+
+   a) 📦 Từ người bán (mô tả + ảnh chính thức do shop đăng): tóm tắt ngắn
+      gọn tính năng/đặc điểm sản phẩm. Không cần đào sâu hay tin tuyệt
+      đối — đây chỉ là thông tin nền.
+
+   b) 🔍 Bóc tách tiếng nói người mua (CHỈ lấy từ đánh giá/review, KHÔNG
+      lấy từ mô tả người bán): đọc kỹ TOÀN BỘ đánh giá cào được, liệt kê
+      KHÔNG GIỚI HẠN số lượng, tách đúng 3 nhóm sau (nhóm nào không có dữ
+      liệu thì ghi "không có"):
+      - ✨ Điểm nổi bật được khách XÁC NHẬN thực tế: chỉ tính điều khách
+        THỰC SỰ nhắc tới trong review, không lặp lại nguyên lời quảng cáo
+        của người bán nếu không có review nào xác nhận lại điều đó.
+      - 💭 Nỗi đau / insight: vì sao khách mua sản phẩm này, họ đang giải
+        quyết vấn đề gì, kỳ vọng gì, dùng vào việc gì (kể cả cách dùng
+        ngoài dự tính ban đầu của người bán, nếu có review nhắc tới) —
+        liệt kê hết, càng nhiều càng tốt, không giới hạn số lượng.
+      - ⚠️ Phàn nàn / góc độ CHƯA TỐT (TRỌNG TÂM CỦA MỤC NÀY — chủ động
+        "vạch lá tìm sâu"): liệt kê CỤ THỂ từng vấn đề (chất lượng kém,
+        không giống ảnh/mô tả, sai kích thước/màu sắc, dễ hỏng/mau hư,
+        thiếu phụ kiện, đóng gói tệ, mùi khó chịu, giao thiếu hàng...) —
+        KHÔNG gộp chung chung kiểu "một số khách chưa hài lòng". Nếu
+        NHIỀU đánh giá cùng phàn nàn 1 vấn đề, PHẢI nhấn mạnh đây là RỦI
+        RO LẶP LẠI (pattern thật), không phải trường hợp cá biệt.
+      Nếu dữ liệu không có đánh giá nào, ghi rõ cả mục (b) là "chưa có
+      đánh giá nào để tham khảo" thay vì bỏ trống hay suy diễn.
+
+   c) So sánh giá bán lẻ và giá nhà sản xuất nếu có cả 2.
+
+   d) Chèn ảnh gốc vào đúng chỗ hợp lý bằng cú pháp markdown ![mô tả](url),
+      CHỈ dùng đúng các url ảnh sau, không tự bịa url khác:
+      {{IMAGE_URLS}}
+
+   QUAN TRỌNG: 3 nhóm ✨/💭/⚠️ ở mục (b) không phải để liệt kê cho có — PHẢI
+   dùng làm CĂN CỨ khi viết các mục 2, 3, 4, 6 bên dưới (xem chỉ dẫn tham
+   chiếu ngược ở từng mục).
 
 2. "audience" — Tệp khách hàng mục tiêu, gồm đủ 6 mục:
    1. Độ tuổi: chia nhóm, xếp hạng từ phù hợp nhất đến ít phù hợp nhất
    2. Giới tính / xu hướng: xếp theo thứ tự phù hợp
-   3. Insight chính và phụ của từng tệp khách hàng
-   4. Vấn đề mà sản phẩm giải quyết được
+   3. Insight chính và phụ của từng tệp khách hàng — ƯU TIÊN dùng đúng nội
+      dung đã bóc tách ở mục 1(b) (💭 Nỗi đau/insight, ✨ Điểm nổi bật xác
+      nhận) làm bằng chứng, chỉ tự suy diễn thêm khi review không đủ dữ liệu
+   4. Vấn đề mà sản phẩm giải quyết được — bám theo 💭 Nỗi đau/insight đã
+      bóc tách ở mục 1(b) nếu có, không bịa vấn đề không có căn cứ
    5. Một vài use case mở rộng dựa trên tính năng/điểm nổi bật của sản phẩm
    6. Lý giải ngắn gọn dựa trên số liệu/nghiên cứu/vấn đề xã hội thực tế (nếu biết)
 
@@ -337,15 +373,21 @@ MARKDOWN, trường "competitors" là 1 MẢNG JSON — không phải văn xuôi
    - 🛒 Shopee/Lazada: cách tối ưu tiêu đề, ảnh bìa, chương trình khuyến
      mãi phù hợp
    - Kênh khác nếu hợp lý (Facebook, sàn TMĐT khác...)
-   Với mỗi kênh: nêu RÕ LÝ DO vì sao phù hợp với sản phẩm này.
+   Với mỗi kênh: nêu RÕ LÝ DO vì sao phù hợp với sản phẩm này — có thể
+   dùng ✨ điểm nổi bật xác nhận hoặc 💭 nỗi đau đã bóc tách ở mục 1(b) làm
+   góc content đánh đúng tâm lý khách thật (nếu có dữ liệu).
 
 4. "customization" — Gợi ý tùy chỉnh SẢN PHẨM NÀY để tăng trải nghiệm
    khách hàng. BẮT BUỘC gợi ý CỤ THỂ dựa trên đặc điểm/chức năng/hình
    dáng thật của sản phẩm này (nhìn từ ảnh + mô tả), TUYỆT ĐỐI KHÔNG
    viết lời khuyên chung chung kiểu "đóng gói đẹp, chăm sóc khách hàng
-   tốt" cho mọi sản phẩm. Liệt kê CÀNG NHIỀU Ý TƯỞNG CÀNG TỐT, và với
-   MỖI ý tưởng gắn nhãn độ rủi ro ngay đầu dòng để không bị nhầm ý thử
-   nghiệm với khuyến nghị chắc chắn:
+   tốt" cho mọi sản phẩm. BẮT BUỘC có ít nhất 1 ý tưởng ỨNG VỚI MỖI phàn
+   nàn (⚠️) đã liệt kê ở mục 1(b) — cải tiến/tùy chỉnh cụ thể để giải
+   quyết ĐÚNG phàn nàn đó, ghi rõ "Khắc phục phàn nàn: ..." ngay đầu ý
+   tưởng đó để dễ đối chiếu. Ngoài ra liệt kê CÀNG NHIỀU Ý TƯỞNG CÀNG TỐT
+   (kể cả không xuất phát từ phàn nàn), và với MỖI ý tưởng gắn nhãn độ
+   rủi ro ngay đầu dòng để không bị nhầm ý thử nghiệm với khuyến nghị
+   chắc chắn:
    - 🟢 An toàn (dễ làm ngay, rủi ro thấp)
    - 🟡 Cân nhắc (cần đầu tư thêm chút, rủi ro vừa)
    - 🔴 Mạo hiểm/thử nghiệm (kể cả ý tưởng táo bạo, nghe hơi phi lý hoặc
@@ -379,7 +421,9 @@ MARKDOWN, trường "competitors" là 1 MẢNG JSON — không phải văn xuôi
    cho khách, không phải vận chuyển quốc tế):
    - Phương thức đóng gói phù hợp với đặc tính sản phẩm này
    - Những điểm cần chú ý khi đóng gói/vận chuyển và LÝ DO (dễ vỡ, sợ
-     ẩm, sợ va đập, cồng kềnh...)
+     ẩm, sợ va đập, cồng kềnh...) — NẾU ở mục 1(b) có phàn nàn (⚠️) liên
+     quan đóng gói/vận chuyển/hư hỏng khi nhận hàng, PHẢI đề cập cách
+     khắc phục cụ thể cho đúng phàn nàn đó ở đây
    - Gợi ý tùy chỉnh thêm (hộp quà, tem bảo hành, hướng dẫn sử dụng kèm
      theo...) để tăng trải nghiệm khách hàng hoặc giảm rủi ro hư hỏng
 
@@ -492,19 +536,27 @@ GIẢ ĐỊNH CHI PHÍ KINH DOANH:
 Trả về JSON đúng các trường (7 trường đầu là markdown NGẮN GỌN, trường
 "competitors" là MẢNG JSON):
 
-1. "summary" — 3-5 gạch đầu dòng: điểm nổi bật, so giá bán lẻ/xưởng nếu
-   có, chèn ảnh bằng ![mô tả](url) CHỈ dùng đúng url sau:
+1. "summary" — 3-5 gạch đầu dòng: điểm nổi bật từ MÔ TẢ NGƯỜI BÁN, so giá
+   bán lẻ/xưởng nếu có. Riêng từ ĐÁNH GIÁ NGƯỜI MUA (nguồn tách biệt,
+   không trộn với mô tả người bán) — nếu dữ liệu có đánh giá — PHẢI liệt
+   kê CỤ THỂ theo 3 nhóm: ✨ điểm nổi bật khách xác nhận (1 dòng), 💭 nỗi
+   đau/insight khách mua vì muốn giải quyết gì (1-2 dòng), ⚠️ phàn nàn cụ
+   thể (2-3 dòng, TRỌNG TÂM — ưu tiên vấn đề lặp lại ở nhiều đánh giá).
+   Chèn ảnh bằng ![mô tả](url) CHỈ dùng đúng url sau:
    {{IMAGE_URLS}}
-2. "audience" — tối đa 5 gạch đầu dòng: độ tuổi, giới tính, insight chính,
-   vấn đề giải quyết, 1 use case mở rộng.
+2. "audience" — tối đa 5 gạch đầu dòng: độ tuổi, giới tính, insight chính
+   (ưu tiên dùng 💭 nỗi đau/insight đã bóc tách ở mục 1 nếu có), vấn đề
+   giải quyết, 1 use case mở rộng.
 3. "channels" — 3-4 kênh khả thi nhất, mỗi kênh 1 dòng lý do.
 4. "customization" — 3-5 ý tưởng, MỖI ý gắn nhãn 🟢An toàn/🟡Cân nhắc/
-   🔴Mạo hiểm ngay đầu dòng.
+   🔴Mạo hiểm ngay đầu dòng. ƯU TIÊN ít nhất 1 ý khắc phục đúng phàn nàn
+   (⚠️) đã liệt kê ở mục 1, ghi "Khắc phục: ..." đầu dòng ý đó.
 5. "importInfo" — nếu có Search PHẢI dùng tra luật hiện hành, không thì
    nói rõ "chưa tra cứu được". Súc tích: mã HS + lý do ngắn, % thuế nhập
    khẩu + VAT, có cần công bố hợp quy không, rủi ro nếu vi phạm. Không
    bịa số liệu/điều luật.
-6. "shipping" — 3-4 gạch đầu dòng: cách đóng gói phù hợp + lý do.
+6. "shipping" — 3-4 gạch đầu dòng: cách đóng gói phù hợp + lý do — nếu
+   mục 1 có phàn nàn (⚠️) về đóng gói/vận chuyển thì nêu cách khắc phục.
 7. "feasibility" — PHẢI đủ:
    a) 1-2 câu: mô hình tổng kho hay tự bán hợp hơn + % chi phí ước tính
       dựa trên GIẢ ĐỊNH CHI PHÍ ở trên.
@@ -554,25 +606,40 @@ GIẢ ĐỊNH CHI PHÍ KINH DOANH:
 Trả về JSON đúng các trường (7 trường đầu là markdown, "competitors" là
 MẢNG JSON):
 
-1. "summary" — mô tả tổng hợp, chèn ảnh ![mô tả](url) CHỈ dùng đúng url:
+1. "summary" — mô tả tổng hợp từ MÔ TẢ NGƯỜI BÁN. Có đoạn riêng "🔍 Bóc
+   tách tiếng nói người mua" (CHỈ từ đánh giá, nguồn tách biệt với mô tả
+   người bán) — liệt kê KHÔNG GIỚI HẠN theo 3 nhóm: ✨ điểm nổi bật khách
+   XÁC NHẬN thực tế, 💭 nỗi đau/insight (vì sao khách mua, giải quyết vấn
+   đề gì), ⚠️ phàn nàn CỤ THỂ (TRỌNG TÂM — càng chi tiết càng tốt, ưu tiên
+   vấn đề lặp lại ở nhiều đánh giá). 3 nhóm này là nguyên liệu để né điểm
+   yếu khi viết content, hoặc chủ động xử lý trong caption/video (vd cam
+   kết đổi trả nếu khách hay phàn nàn 1 lỗi cụ thể) — PHẢI dùng lại ở mục
+   2, 3, 4 bên dưới. Chèn ảnh ![mô tả](url) CHỈ dùng đúng url:
    {{IMAGE_URLS}}
 2. "audience" — ĐẦY ĐỦ VÀ SÂU cả 6 mục: độ tuổi, giới tính/xu hướng, insight
-   chính+phụ TỪNG tệp, vấn đề sản phẩm giải quyết, use case mở rộng, lý
+   chính+phụ TỪNG tệp (ưu tiên dùng 💭 nỗi đau/insight đã bóc tách ở mục 1
+   làm bằng chứng), vấn đề sản phẩm giải quyết, use case mở rộng, lý
    giải dựa số liệu/vấn đề xã hội thực tế nếu biết — đây là nền tảng để
    viết content nhắm đúng tâm lý khách hàng.
 3. "channels" — TRỌNG TÂM: với TikTok Shop, viết hẳn 3-5 Ý TƯỞNG VIDEO
    KHÁC NHAU, mỗi ý tưởng có: hook 3 giây đầu, kịch bản tóm tắt theo mốc
-   thời gian, góc quay, gợi ý nhạc/xu hướng, caption + hashtag mẫu. Với
-   Shopee/Lazada: cách tối ưu tiêu đề/ảnh bìa/mô tả để tăng CTR. Với cửa
-   hàng offline (nếu phù hợp): cách trưng bày/tư vấn. Mỗi kênh nêu rõ lý
-   do phù hợp với sản phẩm này.
+   thời gian, góc quay, gợi ý nhạc/xu hướng, caption + hashtag mẫu — ƯU
+   TIÊN khai thác ✨ điểm nổi bật xác nhận và 💭 nỗi đau đã bóc tách ở mục
+   1 làm hook/góc quay đánh đúng tâm lý khách thật. Với Shopee/Lazada:
+   cách tối ưu tiêu đề/ảnh bìa/mô tả để tăng CTR. Với cửa hàng offline
+   (nếu phù hợp): cách trưng bày/tư vấn. Mỗi kênh nêu rõ lý do phù hợp
+   với sản phẩm này.
 4. "customization" — nhiều ý tưởng, MỖI ý gắn nhãn 🟢An toàn/🟡Cân nhắc/
    🔴Mạo hiểm, ưu tiên ý tưởng tạo NỘI DUNG lan truyền được (unbox, before-
-   after, demo bất ngờ...).
+   after, demo bất ngờ...). BẮT BUỘC có ít nhất 1 ý ứng với MỖI phàn nàn
+   (⚠️) đã liệt kê ở mục 1 — ghi "Khắc phục phàn nàn: ..." đầu dòng, vì
+   đây cũng là góc content tốt (vd video "chúng tôi đã sửa lỗi X mà khách
+   hay phàn nàn").
 5. "importInfo" — TÓM TẮT (không phải trọng tâm): mã HS + % thuế/VAT ước
    tính, có cần công bố hợp quy không, rủi ro chính nếu vi phạm. Nếu
    không tra cứu chắc chắn, nói rõ, không bịa.
-6. "shipping" — TÓM TẮT: cách đóng gói phù hợp + 1-2 lưu ý chính.
+6. "shipping" — TÓM TẮT: cách đóng gói phù hợp + 1-2 lưu ý chính — nếu
+   mục 1 có phàn nàn (⚠️) về đóng gói/vận chuyển thì nêu cách khắc phục.
 7. "feasibility" — vẫn PHẢI đủ:
    a) So mô hình tổng kho vs tự bán, bóc tách % chi phí theo GIẢ ĐỊNH CHI
       PHÍ ở trên, tính giá hòa vốn.
@@ -621,12 +688,18 @@ GIẢ ĐỊNH CHI PHÍ KINH DOANH:
 Trả về JSON đúng các trường (7 trường đầu là markdown, "competitors" là
 MẢNG JSON):
 
-1. "summary" — mô tả tổng hợp, chèn ảnh ![mô tả](url) CHỈ dùng đúng url:
+1. "summary" — mô tả tổng hợp từ mô tả người bán. Riêng từ đánh giá khách
+   mua (nguồn tách biệt) — nếu có — tóm tắt ngắn theo 3 nhóm: ✨ nổi bật
+   khách xác nhận, 💭 nỗi đau/insight, ⚠️ phàn nàn cụ thể (không cần đào
+   sâu như bản tổng hợp, không phải trọng tâm bản này, nhưng phàn nàn về
+   chất lượng/an toàn có thể liên quan tới rủi ro kiểm định ở mục 5, nếu
+   có thì vẫn phải nêu). Chèn ảnh ![mô tả](url) CHỈ dùng đúng url:
    {{IMAGE_URLS}}
 2. "audience" — đủ 6 mục như bình thường, không cần quá sâu.
 3. "channels" — TÓM TẮT: 2-3 kênh khả thi nhất, mỗi kênh 1 dòng lý do.
 4. "customization" — TÓM TẮT: 3-4 ý, gắn nhãn 🟢An toàn/🟡Cân nhắc/
-   🔴Mạo hiểm.
+   🔴Mạo hiểm — ưu tiên 1 ý khắc phục phàn nàn (⚠️) đã liệt kê ở mục 1
+   nếu có.
 5. "importInfo" — TRỌNG TÂM, PHẢI CỰC KỲ CHI TIẾT. BẮT BUỘC dùng Google
    Search (nếu có) tra cứu quy định HIỆN HÀNH, không dựa trí nhớ; nếu
    không có Search, nói rõ ngay đầu "chưa tra cứu được nguồn chính thức,
@@ -644,7 +717,8 @@ MẢNG JSON):
      mức phạt/khả năng bị giữ hàng
    - MỌI thông tin luật PHẢI trích dẫn rõ tên văn bản/điều khoản/thông
      tư/nghị định cụ thể; không chắc chắn thì nói rõ, không bịa.
-6. "shipping" — đủ như bình thường: cách đóng gói, lưu ý, gợi ý thêm.
+6. "shipping" — đủ như bình thường: cách đóng gói, lưu ý, gợi ý thêm —
+   nếu mục 1 có phàn nàn (⚠️) về đóng gói/vận chuyển thì nêu cách khắc phục.
 7. "feasibility" — vẫn PHẢI đủ:
    a) So mô hình tổng kho vs tự bán, bóc tách % chi phí theo GIẢ ĐỊNH CHI
       PHÍ, cộng thêm chi phí pháp lý/kiểm định từ mục 5 vào giá vốn khi
@@ -694,21 +768,37 @@ GIẢ ĐỊNH CHI PHÍ KINH DOANH:
 Trả về JSON đúng các trường (7 trường đầu là markdown, "competitors" là
 MẢNG JSON):
 
-1. "summary" — mô tả tổng hợp KHÁCH QUAN (không PR), chèn ảnh ![mô tả]
-   (url) CHỈ dùng đúng url: {{IMAGE_URLS}}
-2. "audience" — đủ 6 mục, nhưng nêu rõ tệp nào thực ra KHÓ chinh phục/dễ
-   quay lưng, không chỉ liệt kê tệp thuận lợi.
+1. "summary" — mô tả tổng hợp KHÁCH QUAN (không PR) từ mô tả người bán —
+   không tin tuyệt đối, đây chỉ là lời quảng cáo 1 chiều. BẮT BUỘC có đoạn
+   riêng "🔍 Bóc tách tiếng nói người mua" (CHỈ từ đánh giá — nguồn tách
+   biệt, gần khách thật hơn mô tả người bán dù có thể lẫn seeding) — chủ
+   động "vạch lá tìm sâu", liệt kê KHÔNG GIỚI HẠN theo 3 nhóm: ✨ điểm nổi
+   bật khách XÁC NHẬN thực tế, 💭 nỗi đau/insight (vì sao khách mua, kỳ
+   vọng gì), ⚠️ phàn nàn CỤ THỂ (TRỌNG TÂM — không gộp chung chung, đặc
+   biệt chú ý vấn đề lặp lại ở NHIỀU đánh giá — coi đây là tín hiệu đáng
+   tin hơn review khen, vì khen dễ mua/làm giả hàng loạt còn phàn nàn thật
+   thường hiếm và cụ thể hơn). Phần ✨ khen chỉ nhắc ngắn, KHÔNG đào sâu —
+   trọng tâm dồn hết vào ⚠️. Chèn ảnh ![mô tả](url) CHỈ dùng đúng url:
+   {{IMAGE_URLS}}
+2. "audience" — đủ 6 mục, dùng 💭 nỗi đau/insight đã bóc tách ở mục 1 làm
+   bằng chứng, nhưng nêu rõ tệp nào thực ra KHÓ chinh phục/dễ quay lưng,
+   không chỉ liệt kê tệp thuận lợi.
 3. "channels" — với mỗi kênh đề xuất, PHẢI kèm lý do KÊNH ĐÓ CÓ THỂ THẤT
    BẠI (chi phí ẩn, cạnh tranh, thuật toán thay đổi...), không chỉ nêu ưu
    điểm.
 4. "customization" — mỗi ý tưởng gắn nhãn 🟢An toàn/🟡Cân nhắc/🔴Mạo hiểm,
    nhưng ưu tiên chỉ ra ý nào THỰC SỰ đáng đầu tư, thẳng thắn loại bỏ ý
-   nghe hay nhưng không đáng công sức.
+   nghe hay nhưng không đáng công sức. BẮT BUỘC xét xem MỖI phàn nàn (⚠️)
+   đã liệt kê ở mục 1 có khắc phục được thật không — nếu không khắc phục
+   được bằng tùy chỉnh sản phẩm (vd lỗi từ chính chất lượng nguyên liệu
+   gốc), PHẢI nói thẳng thay vì cố gợi ý giải pháp không thực tế.
 5. "importInfo" — nếu có Search, PHẢI dùng tra luật hiện hành; nếu không,
    nói rõ "chưa tra cứu được". Đủ mã HS/thuế/VAT/hợp quy/checklist/rủi ro
    như bình thường, nhưng nhấn mạnh RÕ NHẤT các trường hợp dễ bị phạt/giữ
    hàng nếu làm ẩu.
-6. "shipping" — đủ như bình thường, nhấn thêm rủi ro hư hỏng/khiếu nại.
+6. "shipping" — đủ như bình thường, nhấn thêm rủi ro hư hỏng/khiếu nại —
+   nếu mục 1 có phàn nàn (⚠️) về đóng gói/vận chuyển, đánh giá THẲNG THẮN
+   xem có khắc phục triệt để được không hay chỉ giảm nhẹ phần nào.
 7. "feasibility" — PHẢI đủ, và giữ tinh thần HOÀI NGHI xuyên suốt:
    a) So mô hình tổng kho vs tự bán, bóc tách % chi phí theo GIẢ ĐỊNH CHI
       PHÍ — chỉ rõ mô hình nào RỦI RO THẤP HƠN, không chỉ mô hình lãi cao
