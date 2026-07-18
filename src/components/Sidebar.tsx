@@ -6,7 +6,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import ThemeToggle from "./ThemeToggle";
 
 // ─── SVG Icons (inline, no dependency needed) ──────────────────────────────
 function IconGrid() {
@@ -235,7 +234,13 @@ export default function Sidebar({ userEmail }: { userEmail?: string | null }) {
       className={`sidebar-glass shrink-0 flex flex-col transition-all duration-300 ${
         collapsed ? "w-[64px]" : "w-[220px]"
       }`}
-      style={{ minHeight: "100vh" }}
+      // Cố định theo viewport (không bị kéo trôi xuống theo chiều cao
+      // thật của trang) — trước đây dùng minHeight:100vh bên trong 1 flex
+      // row cùng <main>, nên khi trang dài hơn màn hình, sidebar bị kéo
+      // dãn ra theo, đẩy phần footer (email/đăng xuất) trôi tít xuống
+      // dưới, phải cuộn hết trang mới thấy. sticky+height:100vh giữ nó
+      // luôn đúng 1 màn hình, độc lập với độ dài nội dung main.
+      style={{ position: "sticky", top: 0, height: "100vh" }}
     >
       {/* ── Header / Logo ─────────────────────────────────────── */}
       <div
@@ -368,8 +373,8 @@ export default function Sidebar({ userEmail }: { userEmail?: string | null }) {
           </button>
         )}
 
-        {/* Theme toggle */}
-        <ThemeToggle compact={collapsed} />
+        {/* Dark/Light mode: đã chuyển vào Cài đặt > Giao diện — sidebar dễ bị
+            trôi dài theo trang, nút gạt ở đó ổn định hơn cho người dùng. */}
 
         {/* Expand button khi collapsed (ở bottom) */}
         {collapsed && (

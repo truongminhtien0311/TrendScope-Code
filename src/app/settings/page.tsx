@@ -28,6 +28,7 @@ import SecurityPanel from "@/components/SecurityPanel";
 import DeviceLabelForm from "@/components/DeviceLabelForm";
 import SettingsDriveSyncPanel from "@/components/SettingsDriveSyncPanel";
 import CopyApiConfigButton from "@/components/CopyApiConfigButton";
+import ThemeToggle from "@/components/ThemeToggle";
 import SettingsTabs from "@/components/SettingsTabs";
 import ExchangeRateAutoPanel from "@/components/ExchangeRateAutoPanel";
 import { getCurrentUser } from "@/lib/auth";
@@ -174,9 +175,12 @@ export default async function SettingsPage() {
           <>
             {/* ---- Giao diện ---- */}
             <Section title="🎨 Giao diện">
-              <p className="text-sm text-slate-600 dark:text-slate-300">
-                Dark/Light mode: dùng nút gạt ở góc dưới sidebar.
+              <p className="text-sm text-slate-600 dark:text-slate-300 mb-3">
+                Dark/Light mode — chuyển vào đây thay vì để ở sidebar (bị trôi dài theo trang dài).
               </p>
+              <div className="max-w-xs">
+                <ThemeToggle />
+              </div>
             </Section>
 
             {/* ---- Tỷ giá ---- */}

@@ -157,6 +157,16 @@ async function createWindow() {
     height: 800,
     title: windowTitle,
     autoHideMenuBar: true,
+    // Thanh tiêu đề mặc định của Windows (trắng, nút vuông cùi) không hợp
+    // vibe dark/tech của app — dùng "hidden" + tự tô màu overlay (nút
+    // đóng/thu nhỏ vẫn là nút thật của Windows, chỉ đổi màu nền/icon cho
+    // khớp màu navy của sidebar, xem src/app/globals.css --bg-sidebar).
+    titleBarStyle: "hidden",
+    titleBarOverlay: {
+      color: "#101c2c",
+      symbolColor: "#e2e8f0",
+      height: 36,
+    },
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
     },
