@@ -1,8 +1,8 @@
 "use client";
 
 // Khung phân tích AI — MỖI LẦN BẤM "Tạo bằng AI" TẠO 1 BẢN MỚI (không ghi
-// đè bản cũ), giữ tối đa 10 bản/sản phẩm để so sánh nhiều góc nhìn (xem
-// evictOldAnalyses trong src/app/api/products/[id]/analyze/route.ts).
+// đè bản cũ, không giới hạn số lượng) để so sánh nhiều góc nhìn — người
+// dùng tự xóa tay bản không cần giữ nữa (nút 🗑️ ở mỗi bản DONE).
 // Route trả response NGAY (không đợi Gemini xong) rồi xử lý nền — panel
 // này disable nút + hiện đồng hồ đếm giờ THẬT (tính từ startedAt trong
 // DB, không phải localStorage) khi có bản đang "PENDING", và poll 1
@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { notifyDone } from "@/lib/notify";
 import { friendlyGeminiError, type PromptPreset } from "@/lib/llm";
 import SmartImage from "@/components/SmartImage";
+import { useConfirm } from "@/components/ConfirmDialogProvider";
 
 export interface ProductAiAnalysisData {
   id: number;
@@ -160,7 +161,9 @@ export default function AiAnalysisPanel({
   hasFactoryPrice: boolean;
 }) {
   const router = useRouter();
+  const confirmDialog = useConfirm();
   const [generating, setGenerating] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [editingId, setEditingId] = useState<number | null>(null);
   const [drafts, setDrafts] = useState<ContentFields | null>(null);
@@ -291,6 +294,23 @@ export default function AiAnalysisPanel({
     }
   }
 
+  async function deleteAnalysis(a: ProductAiAnalysisData) {
+    const ok = await confirmDialog(
+      `Xóa bản phân tích AI này (${formatVersionLabel(a)})? Không thể hoàn tác.`,
+      { danger: true }
+    );
+    if (!ok) return;
+    setDeletingId(a.id);
+    const res = await fetch(`/api/products/${productId}/ai-analyses/${a.id}`, { method: "DELETE" });
+    setDeletingId(null);
+    if (res.ok) {
+      router.refresh();
+    } else {
+      const data = await res.json().catch(() => null);
+      toast.error(data?.error ?? "Xóa thất bại, thử lại nhé.");
+    }
+  }
+
   const textareaClass =
     "w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm font-mono";
 
@@ -299,7 +319,9 @@ export default function AiAnalysisPanel({
   return (
     <section className="rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 space-y-4">
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <h2 className="font-semibold">🧠 Phân tích AI toàn diện</h2>
+        <h2 className="font-semibold">
+          🧠 Phân tích AI toàn diện{analyses.length > 0 && ` (${analyses.length} bản)`}
+        </h2>
         <div className="flex gap-2 shrink-0 items-center flex-wrap">
           <select
             value={chosenPresetId}
@@ -355,7 +377,7 @@ export default function AiAnalysisPanel({
           Chưa tạo. Bấm &quot;✨AI Phân tích🔍&quot; — gộp toàn bộ dữ liệu của tất cả link bên
           dưới (tên, ảnh, mô tả, đánh giá) vào 1 request duy nhất, sinh đủ 7 mục: mô tả,
           tệp khách hàng, kênh bán hàng, tùy chỉnh, nhập khẩu, vận chuyển, đánh giá khả thi.
-          Giữ tối đa 10 bản gần nhất để so sánh nhiều góc nhìn.
+          Có thể tạo nhiều bản để so sánh nhiều góc nhìn khác nhau.
         </p>
       )}
 
@@ -389,6 +411,16 @@ export default function AiAnalysisPanel({
                       className="text-xs rounded-lg border border-slate-300 dark:border-slate-700 px-2.5 py-1 hover:bg-white dark:hover:bg-slate-800 shrink-0"
                     >
                       ✏️ Sửa
+                    </button>
+                  )}
+                  {!isEditing && a.status === "DONE" && (
+                    <button
+                      onClick={() => deleteAnalysis(a)}
+                      disabled={deletingId === a.id}
+                      title="Xóa bản phân tích này"
+                      className="text-xs rounded-lg border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 px-2.5 py-1 hover:bg-red-100 dark:hover:bg-red-900/40 disabled:opacity-50 shrink-0"
+                    >
+                      {deletingId === a.id ? "Đang xóa..." : "🗑️"}
                     </button>
                   )}
                   <button
@@ -477,8 +509,8 @@ export default function AiAnalysisPanel({
       )}
 
       <p className="text-xs text-slate-400">
-        💡 <strong>Cảnh báo:</strong> AI có thể bị lừa bởi review ảo. Các số liệu thuế/cước phí mang tính tham khảo, vui lòng đối chiếu luật hiện hành. 
-        Dùng Google Gemini (cần nhập API key trong Cài đặt). Giữ tối đa 10 bản/sản phẩm.
+        💡 <strong>Cảnh báo:</strong> AI có thể bị lừa bởi review ảo. Các số liệu thuế/cước phí mang tính tham khảo, vui lòng đối chiếu luật hiện hành.
+        Dùng Google Gemini (cần nhập API key trong Cài đặt). Không giới hạn số bản — tự xóa tay bản không cần giữ.
       </p>
 
       {/* MODAL PREVIEW PROMPT */}

@@ -68,7 +68,7 @@ export default function EditProductForm({ product, allTags, allCategories, isAdm
   async function remove() {
     if (
       !(await confirmDialog(
-        `Xóa sản phẩm "${product.name}"?\nToàn bộ link, ảnh, đánh giá đi kèm sẽ bị xóa theo. Không hoàn tác được.`,
+        `Xóa sản phẩm "${product.name}"?\nToàn bộ link, ảnh, đánh giá đi kèm sẽ bị xóa theo — kể cả file ảnh thật đã lưu trên máy/Drive (nếu không nơi khác còn dùng chung). Không hoàn tác được.`,
         { danger: true }
       ))
     )
@@ -97,6 +97,7 @@ export default function EditProductForm({ product, allTags, allCategories, isAdm
         {isAdmin && (
           <button
             onClick={remove}
+            title="Xóa hẳn sản phẩm này + toàn bộ link/ảnh/đánh giá/phân tích AI đi kèm. Không hoàn tác được."
             className="rounded-lg border border-red-300 dark:border-red-900 text-red-600 dark:text-red-400 px-3 py-1.5 text-sm hover:bg-red-50 dark:hover:bg-red-950"
           >
             🗑️ Xóa

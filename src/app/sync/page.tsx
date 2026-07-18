@@ -2,6 +2,7 @@
 // Drive để gửi cho người khác, hoặc dán link Drive để nhập dữ liệu
 // người khác gửi về (chỉ cộng thêm, không đè dữ liệu đã có).
 import SyncPanel from "@/components/SyncPanel";
+import SyncStatusPanel from "@/components/SyncStatusPanel";
 
 export default function SyncPage() {
   return (
@@ -14,6 +15,7 @@ export default function SyncPage() {
           mới mới được thêm vào.
         </p>
       </div>
+      <SyncStatusPanel />
       <SyncPanel />
     </div>
   );

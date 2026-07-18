@@ -2,7 +2,9 @@
 
 // Xuất dữ liệu lên Google Drive (chia sẻ cho người khác gộp vào) và
 // Đồng bộ (dán link Drive người khác gửi để nhập vào máy này).
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useConfirm } from "@/components/ConfirmDialogProvider";
+import type { SyncStatus } from "@/lib/storage/sync-status";
 
 export default function SyncPanel() {
   return (
@@ -14,12 +16,47 @@ export default function SyncPanel() {
 }
 
 function ExportBlock() {
+  const confirmDialog = useConfirm();
   const [exporting, setExporting] = useState(false);
+  const [sweeping, setSweeping] = useState(false);
+  const [pending, setPending] = useState<number | null>(null);
   const [result, setResult] = useState<{ url: string; productCount: number; localImageWarningCount: number } | null>(
     null
   );
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    checkPending();
+  }, []);
+
+  async function checkPending(): Promise<number> {
+    const res = await fetch("/api/sync/status").catch(() => null);
+    if (!res?.ok) return 0;
+    const data: SyncStatus = await res.json();
+    const count = data.pendingListingImages + data.pendingReviewImages;
+    setPending(count);
+    return count;
+  }
+
+  async function forceSweepNow() {
+    setSweeping(true);
+    await fetch("/api/sync/force-sweep", { method: "POST" }).catch(() => {});
+    await checkPending();
+    setSweeping(false);
+  }
+
+  async function requestExport() {
+    const count = await checkPending();
+    if (count > 0) {
+      const ok = await confirmDialog(
+        `Còn ${count} ảnh chưa đồng bộ lên Google Drive — máy nhận sẽ thấy ảnh lỗi cho những sản phẩm này. Bấm "⚡ Đồng bộ ngay" bên dưới để dọn sạch trước, hoặc vẫn tiếp tục xuất luôn?`,
+        { title: "Còn ảnh chưa đồng bộ", danger: true, confirmLabel: "Xuất dù còn thiếu ảnh", cancelLabel: "Để sau" }
+      );
+      if (!ok) return;
+    }
+    await doExport();
+  }
 
   async function doExport() {
     setExporting(true);
@@ -48,14 +85,27 @@ function ExportBlock() {
       <p className="text-sm text-slate-500 dark:text-slate-400">
         Xuất toàn bộ sản phẩm trên máy này lên Google Drive của bạn, lấy link gửi cho người
         cần gộp dữ liệu (qua Zalo/email...). Cần đã kết nối Google Drive ở Cài đặt &gt; Lưu trữ.
+        Ảnh mới cào xong có thể chưa kịp đồng bộ lên Drive (chạy ngầm mỗi 5 phút) — app sẽ báo
+        trước nếu vậy.
       </p>
-      <button
-        onClick={doExport}
-        disabled={exporting}
-        className="rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-4 py-2 text-sm font-medium"
-      >
-        {exporting ? "Đang xuất..." : "📤 Xuất dữ liệu"}
-      </button>
+      <div className="flex items-center gap-2 flex-wrap">
+        <button
+          onClick={requestExport}
+          disabled={exporting}
+          className="rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-4 py-2 text-sm font-medium"
+        >
+          {exporting ? "Đang xuất..." : "📤 Xuất dữ liệu"}
+        </button>
+        {!!pending && (
+          <button
+            onClick={forceSweepNow}
+            disabled={sweeping}
+            className="rounded-lg border border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-400 px-3 py-2 text-sm hover:bg-amber-50 dark:hover:bg-amber-950/30 disabled:opacity-50"
+          >
+            {sweeping ? "Đang đồng bộ..." : `⚡ Đồng bộ ngay (còn ${pending})`}
+          </button>
+        )}
+      </div>
       {error && <p className="text-sm text-red-500">{error}</p>}
       {result && (
         <div className="space-y-2 rounded-lg border border-slate-200 dark:border-slate-800 p-3">
@@ -91,7 +141,9 @@ function ExportBlock() {
 function ImportBlock() {
   const [link, setLink] = useState("");
   const [syncing, setSyncing] = useState(false);
-  const [result, setResult] = useState<{ newProducts: number; newListings: number } | null>(null);
+  const [result, setResult] = useState<{ newProducts: number; newListings: number; newAnalyses: number } | null>(
+    null
+  );
   const [error, setError] = useState("");
 
   async function doImport(e: React.FormEvent) {
@@ -140,7 +192,8 @@ function ImportBlock() {
       {error && <p className="text-sm text-red-500">{error}</p>}
       {result && (
         <p className="text-sm text-emerald-600 dark:text-emerald-400">
-          ✅ Đã thêm {result.newProducts} sản phẩm mới, {result.newListings} link mới.
+          ✅ Đã thêm {result.newProducts} sản phẩm mới, {result.newListings} link mới,{" "}
+          {result.newAnalyses} bản phân tích AI mới.
         </p>
       )}
     </section>

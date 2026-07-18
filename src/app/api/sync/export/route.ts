@@ -32,7 +32,12 @@ export async function POST() {
     await makePublic(fileId, accessToken);
 
     const url = `https://drive.google.com/file/d/${fileId}/view`;
-    await logActivity("sync.export", `Xuất ${payload.products.length} sản phẩm lên Drive: ${fileName}`, currentUser.id);
+    const fromLabel = payload.exportedFrom ? ` từ "${payload.exportedFrom}"` : "";
+    await logActivity(
+      "sync.export",
+      `Xuất ${payload.products.length} sản phẩm lên Drive${fromLabel}: ${fileName}`,
+      currentUser.id
+    );
 
     return NextResponse.json({ url, productCount: payload.products.length, localImageWarningCount });
   } catch (err) {

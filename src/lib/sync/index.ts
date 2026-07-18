@@ -35,6 +35,10 @@ export interface SyncListing {
 }
 
 export interface SyncAiAnalysis {
+  // Khóa so trùng tự nhiên giữa các máy khi đồng bộ đi đồng bộ lại nhiều
+  // lần — đủ tin cậy vì đây là thao tác bấm tay, khó trùng khớp mili-giây
+  // giữa 2 máy khác nhau (xem importSyncPayload).
+  startedAt: string;
   presetName: string | null;
   aiSummary: string | null;
   aiAudience: string | null;
@@ -52,12 +56,19 @@ export interface SyncProduct {
   categories: string[];
   tags: string[];
   listings: SyncListing[];
-  aiAnalysis: SyncAiAnalysis | null;
+  // TOÀN BỘ bản phân tích DONE (không chỉ bản mới nhất) — để không lãng
+  // phí lịch sử AI của sản phẩm khi đồng bộ, kể cả khi sản phẩm đó đã tồn
+  // tại sẵn ở máy nhận (xem importSyncPayload).
+  aiAnalyses: SyncAiAnalysis[];
 }
 
 export interface SyncPayload {
   syncVersion: 1;
   exportedAt: string;
+  // Tên máy đã đặt (Cài đặt > Tên máy này) lúc xuất — chỉ để hiển thị/tham
+  // khảo (Log hoạt động biết dữ liệu đến từ máy nào), KHÔNG dùng để chống
+  // trùng sản phẩm (vẫn dựa vào Product.uuid).
+  exportedFrom?: string;
   products: SyncProduct[];
 }
 
@@ -68,6 +79,7 @@ function isLocalImageUrl(url: string): boolean {
 }
 
 export async function buildSyncPayload(): Promise<{ payload: SyncPayload; localImageWarningCount: number }> {
+  const deviceLabelSetting = await prisma.setting.findUnique({ where: { key: "device_label" } });
   const products = await prisma.product.findMany({
     include: {
       categories: true,
@@ -79,7 +91,7 @@ export async function buildSyncPayload(): Promise<{ payload: SyncPayload; localI
           reviews: { include: { images: { orderBy: { sortOrder: "asc" } } } },
         },
       },
-      aiAnalyses: { where: { status: "DONE" }, orderBy: { startedAt: "desc" }, take: 1 },
+      aiAnalyses: { where: { status: "DONE" }, orderBy: { startedAt: "desc" } },
     },
     orderBy: { createdAt: "asc" },
   });
@@ -124,22 +136,26 @@ export async function buildSyncPayload(): Promise<{ payload: SyncPayload; localI
         }),
       })),
     })),
-    aiAnalysis: p.aiAnalyses[0]
-      ? {
-          presetName: p.aiAnalyses[0].presetName,
-          aiSummary: p.aiAnalyses[0].aiSummary,
-          aiAudience: p.aiAnalyses[0].aiAudience,
-          aiChannels: p.aiAnalyses[0].aiChannels,
-          aiCustomization: p.aiAnalyses[0].aiCustomization,
-          aiImportInfo: p.aiAnalyses[0].aiImportInfo,
-          aiShipping: p.aiAnalyses[0].aiShipping,
-          aiFeasibility: p.aiAnalyses[0].aiFeasibility,
-        }
-      : null,
+    aiAnalyses: p.aiAnalyses.map((a) => ({
+      startedAt: a.startedAt.toISOString(),
+      presetName: a.presetName,
+      aiSummary: a.aiSummary,
+      aiAudience: a.aiAudience,
+      aiChannels: a.aiChannels,
+      aiCustomization: a.aiCustomization,
+      aiImportInfo: a.aiImportInfo,
+      aiShipping: a.aiShipping,
+      aiFeasibility: a.aiFeasibility,
+    })),
   }));
 
   return {
-    payload: { syncVersion: 1, exportedAt: new Date().toISOString(), products: syncProducts },
+    payload: {
+      syncVersion: 1,
+      exportedAt: new Date().toISOString(),
+      exportedFrom: deviceLabelSetting?.value || undefined,
+      products: syncProducts,
+    },
     localImageWarningCount,
   };
 }
@@ -163,15 +179,18 @@ export function extractDriveFileId(shareLink: string): string | null {
 export interface ImportResult {
   newProducts: number;
   newListings: number;
+  newAnalyses: number;
 }
 
 // Gộp dữ liệu từ file đồng bộ vào database hiện tại — CHỈ CỘNG THÊM,
-// KHÔNG BAO GIỜ sửa/đè dữ liệu đã có (kể cả product đã tồn tại, chỉ xét
-// thêm listing/category/tag MỚI, không đụng vào aiAnalysis cũ/mới để
-// tránh mập mờ về phiên bản phân tích nào là "đúng").
+// KHÔNG BAO GIỜ sửa/đè dữ liệu đã có. Với product đã tồn tại: cộng thêm
+// category/tag/listing MỚI, VÀ cộng thêm bản phân tích AI nào máy này
+// chưa có (so trùng theo startedAt — xem SyncAiAnalysis) — không bỏ phí
+// lịch sử AI chỉ vì sản phẩm đã tồn tại sẵn.
 export async function importSyncPayload(payload: SyncPayload): Promise<ImportResult> {
   let newProducts = 0;
   let newListings = 0;
+  let newAnalyses = 0;
 
   for (const sp of payload.products) {
     const existing = await prisma.product.findUnique({
@@ -217,13 +236,21 @@ export async function importSyncPayload(payload: SyncPayload): Promise<ImportRes
               },
             })),
           },
-          aiAnalyses: sp.aiAnalysis
-            ? { create: [{ status: "DONE", finishedAt: new Date(), ...sp.aiAnalysis }] }
+          aiAnalyses: sp.aiAnalyses.length
+            ? {
+                create: sp.aiAnalyses.map((a) => ({
+                  status: "DONE",
+                  finishedAt: new Date(a.startedAt),
+                  ...a,
+                  startedAt: new Date(a.startedAt),
+                })),
+              }
             : undefined,
         },
       });
       newProducts += 1;
       newListings += sp.listings.length;
+      newAnalyses += sp.aiAnalyses.length;
       continue;
     }
 
@@ -275,7 +302,31 @@ export async function importSyncPayload(payload: SyncPayload): Promise<ImportRes
       });
       newListings += 1;
     }
+
+    // Cộng thêm bản phân tích AI nào máy này CHƯA CÓ — so trùng chính xác
+    // theo startedAt (mili-giây), tránh tạo trùng lặp khi đồng bộ đi đồng
+    // bộ lại nhiều lần cùng 1 file.
+    if (sp.aiAnalyses.length) {
+      const existingAnalyses = await prisma.productAiAnalysis.findMany({
+        where: { productId: existing.id, status: "DONE" },
+        select: { startedAt: true },
+      });
+      const existingStartedAt = new Set(existingAnalyses.map((a) => a.startedAt.toISOString()));
+      const missing = sp.aiAnalyses.filter((a) => !existingStartedAt.has(a.startedAt));
+      for (const a of missing) {
+        await prisma.productAiAnalysis.create({
+          data: {
+            productId: existing.id,
+            status: "DONE",
+            finishedAt: new Date(a.startedAt),
+            ...a,
+            startedAt: new Date(a.startedAt),
+          },
+        });
+      }
+      newAnalyses += missing.length;
+    }
   }
 
-  return { newProducts, newListings };
+  return { newProducts, newListings, newAnalyses };
 }

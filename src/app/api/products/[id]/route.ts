@@ -4,6 +4,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { logActivity } from "@/lib/log";
 import { requireAdmin } from "@/lib/auth";
+import { deleteOrphanedLocalFiles } from "@/lib/storage/cleanup";
 
 export async function GET(
   _request: NextRequest,
@@ -69,7 +70,24 @@ export async function DELETE(
   if (forbidden) return forbidden;
 
   const { id } = await params;
+  const listings = await prisma.listing.findMany({
+    where: { productId: Number(id) },
+    select: {
+      images: { select: { localPath: true } },
+      reviews: { select: { images: { select: { localPath: true } } } },
+    },
+  });
+
   const product = await prisma.product.delete({ where: { id: Number(id) } });
+
+  // Dọn file ảnh local không còn ai tham chiếu — SAU KHI đã xóa xong dòng DB.
+  await deleteOrphanedLocalFiles(
+    listings.flatMap((l) => [
+      ...l.images.map((img) => img.localPath),
+      ...l.reviews.flatMap((r) => r.images.map((img) => img.localPath)),
+    ])
+  );
+
   await logActivity("product.delete", `Xóa sản phẩm "${product.name}" (#${product.id})`);
   return NextResponse.json({ ok: true });
 }

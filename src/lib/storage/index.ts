@@ -141,6 +141,11 @@ let isSweeping = false;
 const SWEEP_BATCH_SIZE = 10; // mỗi bảng (ListingImage/ReviewImage) tối đa từng này ảnh/lượt
 const SWEEP_CONCURRENCY = 3; // upload Drive song song tối đa từng này ảnh 1 lúc
 
+// Điều kiện "ảnh đã lưu local nhưng CHƯA lên Drive" — dùng chung giữa sweep
+// và src/lib/storage/sync-status.ts (đếm hiển thị cho người dùng), để 2 nơi
+// không bao giờ lệch định nghĩa "đang chờ".
+export const PENDING_IMAGE_WHERE = { url: { startsWith: "/uploads/" }, localPath: { not: null } } as const;
+
 // Quét ảnh đã lưu local (url còn "/uploads/...") nhưng CHƯA lên Drive, tải
 // lên ở nền rồi ghi đè url thành link Drive thật — xem trigger định kỳ ở
 // src/instrumentation.ts. Tự query lại DB mỗi lần chạy (không giữ hàng đợi
@@ -150,17 +155,25 @@ export async function runDriveSyncSweep(): Promise<void> {
   if (isSweeping) return;
   isSweeping = true;
   try {
+    // Ghi lại "lần kiểm tra gần nhất" LUÔN, kể cả khi Drive tắt — để khung
+    // trạng thái hiển thị trung thực là app có thực sự vừa quét hay không,
+    // không chỉ trung thực khi Drive đang bật.
+    await prisma.setting.upsert({
+      where: { key: "drive_sync_last_run_at" },
+      create: { key: "drive_sync_last_run_at", value: new Date().toISOString() },
+      update: { value: new Date().toISOString() },
+    });
+
     const driveEnabled = await prisma.apiProvider.findFirst({
       where: { kind: "STORAGE", name: "Google Drive", enabled: true },
     });
     if (!driveEnabled) return; // Drive chưa bật -> local-only vẫn hợp lệ, không làm gì cả
 
     const { googleDriveProvider } = await import("./providers/google-drive");
-    const pendingWhere = { url: { startsWith: "/uploads/" }, localPath: { not: null } } as const;
 
     const [pendingListingImages, pendingReviewImages] = await Promise.all([
-      prisma.listingImage.findMany({ where: pendingWhere, take: SWEEP_BATCH_SIZE, orderBy: { id: "asc" } }),
-      prisma.reviewImage.findMany({ where: pendingWhere, take: SWEEP_BATCH_SIZE, orderBy: { id: "asc" } }),
+      prisma.listingImage.findMany({ where: PENDING_IMAGE_WHERE, take: SWEEP_BATCH_SIZE, orderBy: { id: "asc" } }),
+      prisma.reviewImage.findMany({ where: PENDING_IMAGE_WHERE, take: SWEEP_BATCH_SIZE, orderBy: { id: "asc" } }),
     ]);
 
     await runInChunks(pendingListingImages, SWEEP_CONCURRENCY, (row) =>

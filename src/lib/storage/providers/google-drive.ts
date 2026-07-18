@@ -198,7 +198,7 @@ async function createFolder(name: string, parentId: string | undefined, accessTo
   return data.id;
 }
 
-async function ensureRootFolder(providerId: number, config: GoogleDriveConfig, accessToken: string): Promise<string> {
+export async function ensureRootFolder(providerId: number, config: GoogleDriveConfig, accessToken: string): Promise<string> {
   if (config.rootFolderId) return config.rootFolderId;
   let rootFolderId = (await findFolder(ROOT_FOLDER_NAME, undefined, accessToken)) ?? undefined;
   if (!rootFolderId) rootFolderId = await createFolder(ROOT_FOLDER_NAME, undefined, accessToken);

@@ -4,8 +4,10 @@
 // -> lưu đủ 7 mục AI (mô tả, tệp khách hàng, kênh bán, tùy chỉnh sản
 // phẩm, nhập khẩu, vận chuyển, đánh giá khả thi kinh doanh).
 //
-// MỖI LẦN BẤM TẠO MỘT DÒNG ProductAiAnalysis MỚI (không ghi đè dòng cũ)
-// để giữ lịch sử so sánh được, tối đa 10 dòng/sản phẩm (xem evictOldAnalyses).
+// MỖI LẦN BẤM TẠO MỘT DÒNG ProductAiAnalysis MỚI (không ghi đè dòng cũ) để
+// giữ lịch sử so sánh được — KHÔNG giới hạn số lượng (đã bỏ cơ chế tự xóa
+// bản cũ trước đây, tránh mất dữ liệu người dùng không muốn mất). Người
+// dùng tự xóa tay bản không cần nữa qua AiAnalysisPanel.tsx.
 //
 // TRẢ RESPONSE NGAY (không đợi Gemini) — chỉ tạo dòng "PENDING" rồi trả
 // về {analysisId}, việc gọi Gemini (có thể mất vài chục giây) chạy NỀN
@@ -32,10 +34,6 @@ import {
   type AiAnalysisResult,
   type CategoryMarkupRatio,
 } from "@/lib/llm";
-
-// Giới hạn số bản lưu tối đa cho mỗi sản phẩm — bản cũ nhất tự bị dọn khi
-// vượt quá, KHÔNG BAO GIỜ xóa bản đang "PENDING" (đang chạy dở).
-const MAX_ANALYSES_PER_PRODUCT = 10;
 
 export async function POST(
   request: NextRequest,
@@ -262,8 +260,6 @@ async function runAnalysisInBackground(
       },
     });
 
-    await evictOldAnalyses(product.id);
-
     await logActivity(
       "product.ai_analyze",
       `Tạo phân tích AI mới (#${analysisId}) + bản dịch tên/mô tả/SKU cho sản phẩm #${product.id} bằng Gemini (preset "${activePreset.name}")`
@@ -277,26 +273,4 @@ async function runAnalysisInBackground(
       })
       .catch(() => {});
   }
-}
-
-// Giữ tối đa MAX_ANALYSES_PER_PRODUCT bản/sản phẩm — chạy SAU KHI 1 bản
-// vừa chuyển DONE, xóa (các) bản CŨ NHẤT vượt quá, KHÔNG BAO GIỜ đụng
-// tới bản đang "PENDING" (dù có bị treo do server khởi động lại giữa
-// chừng — nó chỉ không được TÍNH vào giới hạn 10, không bị xóa).
-async function evictOldAnalyses(productId: number) {
-  const all = await prisma.productAiAnalysis.findMany({
-    where: { productId },
-    orderBy: { startedAt: "asc" },
-    select: { id: true, status: true },
-  });
-  if (all.length <= MAX_ANALYSES_PER_PRODUCT) return;
-
-  const evictable = all.filter((a) => a.status !== "PENDING");
-  const toDeleteCount = all.length - MAX_ANALYSES_PER_PRODUCT;
-  const toDelete = evictable.slice(0, toDeleteCount);
-  if (toDelete.length === 0) return;
-
-  await prisma.productAiAnalysis.deleteMany({
-    where: { id: { in: toDelete.map((a) => a.id) } },
-  });
 }

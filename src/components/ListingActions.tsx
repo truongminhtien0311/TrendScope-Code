@@ -29,9 +29,10 @@ export default function ListingActions({ listingId }: { listingId: number }) {
 
   async function remove() {
     if (
-      !(await confirmDialog("Xóa link này?\nPhân loại, ảnh, đánh giá của link sẽ bị xóa theo.", {
-        danger: true,
-      }))
+      !(await confirmDialog(
+        "Xóa link này?\nPhân loại, ảnh, đánh giá của link sẽ bị xóa theo — kể cả file ảnh thật đã lưu trên máy/Drive (nếu không nơi khác còn dùng chung). Không hoàn tác được.",
+        { danger: true }
+      ))
     )
       return;
     setDeleting(true);
@@ -49,12 +50,18 @@ export default function ListingActions({ listingId }: { listingId: number }) {
 
   return (
     <div className="flex flex-col items-end gap-1">
-      <button onClick={rescrape} disabled={rescraping || deleting} className={btnClass}>
+      <button
+        onClick={rescrape}
+        disabled={rescraping || deleting}
+        title="Cào lại tên/giá/ảnh/đánh giá mới nhất từ link gốc — giá đã sửa tay được giữ nguyên, nhưng ảnh/đánh giá cũ không còn trên sàn sẽ bị thay hết, không hoàn tác được. Có thể thất bại nếu mạng lỗi/nguồn chặn."
+        className={btnClass}
+      >
         {rescraping ? "Đang cào lại..." : "🔄 Cào lại"}
       </button>
       <button
         onClick={remove}
         disabled={rescraping || deleting}
+        title="Xóa hẳn link này + toàn bộ phân loại/ảnh/đánh giá đi kèm, kể cả file ảnh thật. Không hoàn tác được."
         className={`${btnClass} text-red-500 border-red-200 dark:border-red-900 hover:bg-red-50 dark:hover:bg-red-950`}
       >
         {deleting ? "Đang xóa..." : "🗑️ Xóa link"}

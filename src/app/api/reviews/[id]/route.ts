@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { logActivity } from "@/lib/log";
+import { deleteOrphanedLocalFiles } from "@/lib/storage/cleanup";
 
 const schema = z.object({
   contentVi: z.string().min(1).optional(),
@@ -29,7 +30,12 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const review = await prisma.review.findUnique({
+    where: { id: Number(id) },
+    select: { images: { select: { localPath: true } } },
+  });
   await prisma.review.delete({ where: { id: Number(id) } });
+  await deleteOrphanedLocalFiles(review?.images.map((img) => img.localPath) ?? []);
   await logActivity("review.delete", `Xóa đánh giá #${id}`);
   return NextResponse.json({ ok: true });
 }

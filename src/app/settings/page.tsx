@@ -25,6 +25,8 @@ import TaobaoLoginPanel from "@/components/TaobaoLoginPanel";
 import GoogleDriveConnectPanel from "@/components/GoogleDriveConnectPanel";
 import BackupPanel from "@/components/BackupPanel";
 import SecurityPanel from "@/components/SecurityPanel";
+import DeviceLabelForm from "@/components/DeviceLabelForm";
+import SettingsDriveSyncPanel from "@/components/SettingsDriveSyncPanel";
 import CopyApiConfigButton from "@/components/CopyApiConfigButton";
 import SettingsTabs from "@/components/SettingsTabs";
 import ExchangeRateAutoPanel from "@/components/ExchangeRateAutoPanel";
@@ -59,6 +61,7 @@ export default async function SettingsPage() {
     allCategories,
     exchangeRateAutoEnabledSetting,
     exchangeRateUpdatedAtSetting,
+    deviceLabelSetting,
   ] = await Promise.all([
     prisma.apiProvider.findMany({ orderBy: [{ kind: "asc" }, { id: "asc" }] }),
     getCnyVndRate(),
@@ -74,6 +77,7 @@ export default async function SettingsPage() {
     prisma.category.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
     prisma.setting.findUnique({ where: { key: SETTING_KEY_AUTO_ENABLED } }),
     prisma.setting.findUnique({ where: { key: SETTING_KEY_UPDATED_AT } }),
+    prisma.setting.findUnique({ where: { key: "device_label" } }),
   ]);
 
   const exchangeRateProvider = providers.find(
@@ -253,6 +257,11 @@ export default async function SettingsPage() {
               </p>
             </Section>
 
+            {/* ---- Đồng bộ Cài đặt/API key qua Drive (chỉ khi dùng chung 1 tài khoản) ---- */}
+            <Section title="🔁 Đồng bộ Cài đặt giữa các máy (cùng 1 tài khoản Drive)">
+              <SettingsDriveSyncPanel />
+            </Section>
+
             {/* ---- Đăng nhập Taobao (giải mã link rút gọn từ mobile) ---- */}
             <Section title="🔑 Đăng nhập Taobao (giải mã link rút gọn từ mobile)">
               <p className="text-sm text-slate-500 dark:text-slate-400 mb-3">
@@ -340,18 +349,28 @@ export default async function SettingsPage() {
           </>
         }
         security={
-          <Section title="🔐 Bảo mật">
-            {currentUser && (
-              <SecurityPanel
-                isAdmin={currentUser.role === "admin"}
-                isOwner={currentUser.isOwner}
-                currentUserId={currentUser.id}
-              />
-            )}
-            <p className="text-xs text-slate-400 mt-3">
-              💡 Muốn dùng chung dữ liệu với máy khác? Xem mục &quot;🔄 Đồng bộ dữ liệu&quot; ở sidebar.
-            </p>
-          </Section>
+          <>
+            <Section title="🔐 Bảo mật">
+              {currentUser && (
+                <SecurityPanel
+                  isAdmin={currentUser.role === "admin"}
+                  isOwner={currentUser.isOwner}
+                  currentUserId={currentUser.id}
+                />
+              )}
+              <p className="text-xs text-slate-400 mt-3">
+                💡 Muốn dùng chung dữ liệu với máy khác? Xem mục &quot;🔄 Đồng bộ dữ liệu&quot; ở sidebar.
+              </p>
+            </Section>
+            <Section title="🏷️ Tên máy này">
+              <p className="text-sm text-slate-500 dark:text-slate-400 mb-3">
+                Đặt tên để nhận ra máy này (vd &quot;PC nhà&quot;, &quot;PC công ty&quot;) khi dùng nhiều
+                máy — chỉ hiển thị trong Log hoạt động và file đồng bộ, KHÔNG dùng để chống trùng
+                sản phẩm.
+              </p>
+              <DeviceLabelForm currentLabel={deviceLabelSetting?.value ?? ""} isAdmin={isAdmin} />
+            </Section>
+          </>
         }
         backup={
           <Section title="☁️ Sao lưu dữ liệu">

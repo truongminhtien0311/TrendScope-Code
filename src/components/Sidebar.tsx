@@ -171,6 +171,28 @@ export default function Sidebar({ userEmail }: { userEmail?: string | null }) {
   // duyệt thường qua `npm run dev`) — bản đóng gói Electron sẽ ghi đè lại
   // ngay bên dưới nếu window.electronAPI tồn tại (xem electron/preload.js).
   const [appVersion, setAppVersion] = useState<string | null>(process.env.NEXT_PUBLIC_APP_VERSION ?? null);
+  // Số ảnh chưa đồng bộ Drive — badge nhỏ cạnh mục "Đồng bộ dữ liệu", để
+  // trạng thái luôn hiện sẵn (không "chôn" trong 1 trang riêng phải tự vào
+  // xem mới biết). Poll giãn (30s) vì đây chỉ là chỉ báo phụ, trang
+  // /sync đã có SyncStatusPanel poll sát hơn khi thực sự đang theo dõi.
+  const [pendingSyncCount, setPendingSyncCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function poll() {
+      const res = await fetch("/api/sync/status").catch(() => null);
+      if (!cancelled && res?.ok) {
+        const data = await res.json();
+        setPendingSyncCount(data.pendingListingImages + data.pendingReviewImages);
+      }
+    }
+    poll();
+    const timer = setInterval(poll, 30000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, []);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- đồng bộ từ localStorage, không có trên server nên không thể tính lúc render
@@ -285,6 +307,14 @@ export default function Sidebar({ userEmail }: { userEmail?: string | null }) {
                   </span>
                   {!collapsed && (
                     <span className="truncate flex-1">{label}</span>
+                  )}
+                  {!collapsed && href === "/sync" && !!pendingSyncCount && (
+                    <span
+                      title="Số ảnh chưa đồng bộ lên Google Drive"
+                      className="shrink-0 rounded-full bg-amber-500 text-white text-[10px] leading-none px-1.5 py-1"
+                    >
+                      {pendingSyncCount}
+                    </span>
                   )}
                   {!collapsed && active && <span className="pulse-dot" />}
                 </Link>

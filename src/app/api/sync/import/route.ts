@@ -46,9 +46,10 @@ export async function POST(request: NextRequest) {
   }
 
   const result = await importSyncPayload(payload);
+  const fromLabel = payload.exportedFrom ? ` từ "${payload.exportedFrom}"` : "";
   await logActivity(
     "sync.import",
-    `Đồng bộ: thêm ${result.newProducts} sản phẩm mới, ${result.newListings} link mới`,
+    `Đồng bộ${fromLabel}: thêm ${result.newProducts} sản phẩm mới, ${result.newListings} link mới, ${result.newAnalyses} bản phân tích AI mới`,
     currentUser.id
   );
   return NextResponse.json(result);

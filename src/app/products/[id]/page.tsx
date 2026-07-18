@@ -111,7 +111,7 @@ export default async function ProductDetailPage({
   );
 
   return (
-    <div className="space-y-8 max-w-5xl">
+    <div className="space-y-8 w-full">
       {backTo && (
         <Link
           href={backTo}

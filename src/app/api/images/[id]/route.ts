@@ -1,10 +1,9 @@
 // API: PATCH (đổi kind) / DELETE cho 1 ảnh cụ thể
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { unlink } from "fs/promises";
-import path from "path";
 import { prisma } from "@/lib/db";
 import { logActivity } from "@/lib/log";
+import { deleteOrphanedLocalFiles } from "@/lib/storage/cleanup";
 
 const schema = z.object({ kind: z.enum(["MAIN", "GALLERY", "DESCRIPTION"]) });
 
@@ -33,12 +32,11 @@ export async function DELETE(
   const { id } = await params;
   const image = await prisma.listingImage.delete({ where: { id: Number(id) } });
 
-  // Ảnh tải lên local (/uploads/...) thì xóa luôn file thật, tránh rác
-  // trên đĩa. Ảnh từ CDN sàn TQ (url đầy đủ https://...) thì bỏ qua.
-  if (image.url.startsWith("/uploads/")) {
-    const filePath = path.join(process.cwd(), "public", image.url);
-    await unlink(filePath).catch(() => {}); // file có thể đã mất, không sao
-  }
+  // Dọn file local nếu không còn dòng ListingImage/ReviewImage nào khác
+  // tham chiếu — dùng localPath (không phải url), vì ảnh đã đồng bộ Drive
+  // vẫn còn giữ bản local làm dự phòng (localPath khác null dù url đã là
+  // link Drive) — xem src/lib/storage/index.ts.
+  await deleteOrphanedLocalFiles([image.localPath]);
 
   await logActivity("image.delete", `Xóa ảnh #${id}`);
   return NextResponse.json({ ok: true });

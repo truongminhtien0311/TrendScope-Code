@@ -89,9 +89,10 @@ model Product {
 
 // ------------------------------------------------------------
 // LỊCH SỬ PHÂN TÍCH AI — mỗi lần bấm "Tạo bằng AI" tạo 1 dòng MỚI
-// (không ghi đè dòng cũ) để giữ lại nhiều góc nhìn so sánh được, tối đa
-// 10 dòng/sản phẩm (dòng cũ nhất tự bị xóa khi vượt quá, xem logic dọn
-// dẹp trong src/app/api/products/[id]/analyze/route.ts). Route tạo dòng
+// (không ghi đè dòng cũ, không giới hạn số lượng) để giữ lại nhiều góc
+// nhìn so sánh được — người dùng tự xóa tay dòng không cần giữ (xem
+// DELETE trong src/app/api/products/[id]/ai-analyses/[analysisId]/route.ts).
+// Route tạo dòng
 // "PENDING" rồi trả response NGAY (không đợi Gemini) để hiển thị đồng hồ
 // đếm giờ thật (dựa vào startedAt) sống sót qua việc bấm rời trang/F5 lại
 // trang — xử lý Gemini chạy nền, xong thì cập nhật dòng này thành DONE/FAILED.

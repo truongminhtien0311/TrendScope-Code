@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { logActivity } from "@/lib/log";
+import { deleteOrphanedLocalFiles } from "@/lib/storage/cleanup";
 
 const patchSchema = z.object({
   titleOriginal: z.string().nullable().optional(),
@@ -50,13 +51,23 @@ export async function DELETE(
   const { id } = await params;
   const listing = await prisma.listing.findUnique({
     where: { id: Number(id) },
-    include: { product: { select: { id: true, mainImageListingId: true } } },
+    include: {
+      product: { select: { id: true, mainImageListingId: true } },
+      images: { select: { localPath: true } },
+      reviews: { include: { images: { select: { localPath: true } } } },
+    },
   });
   if (!listing) {
     return NextResponse.json({ error: "Không tìm thấy link" }, { status: 404 });
   }
 
   await prisma.listing.delete({ where: { id: listing.id } });
+
+  // Dọn file ảnh local không còn ai tham chiếu — SAU KHI đã xóa xong dòng DB.
+  await deleteOrphanedLocalFiles([
+    ...listing.images.map((img) => img.localPath),
+    ...listing.reviews.flatMap((r) => r.images.map((img) => img.localPath)),
+  ]);
 
   if (listing.product.mainImageListingId === listing.id) {
     await prisma.product.update({
