@@ -144,7 +144,7 @@ function startDevServer() {
 }
 
 async function createWindow() {
-  const windowTitle = `Product Scrap ${app.getVersion()}`;
+  const windowTitle = `TrendScope ${app.getVersion()}`;
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,

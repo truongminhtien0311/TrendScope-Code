@@ -17,8 +17,8 @@
     "seed": "tsx prisma/seed.ts"
   },
   "build": {
-    "appId": "com.productscrap.app",
-    "productName": "Product Scrap",
+    "appId": "com.trendscope.app",
+    "productName": "TrendScope",
     "icon": "build/icon.png",
     "files": [
       "electron/**/*",
@@ -52,7 +52,7 @@
     ],
     "win": {
       "target": "nsis",
-      "artifactName": "Product-Scrap-Setup-${version}.${ext}"
+      "artifactName": "TrendScope-Setup-${version}.${ext}"
     },
     "nsis": {
       "createDesktopShortcut": true,

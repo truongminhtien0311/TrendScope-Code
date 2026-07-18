@@ -159,8 +159,8 @@ export async function getAccessToken(): Promise<{
   
   const envClientId = process.env.GOOGLE_CLIENT_ID;
   const envClientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  const clientId = envClientId !== "xxx" ? envClientId : null || dbClientId;
-  const clientSecret = envClientSecret !== "xxx" ? envClientSecret : null || dbClientSecret;
+  const clientId = envClientId && envClientId !== "xxx" ? envClientId : dbClientId;
+  const clientSecret = envClientSecret && envClientSecret !== "xxx" ? envClientSecret : dbClientSecret;
 
   if (!result || !refreshToken) {
     throw new Error("Chưa kết nối Google Drive — vào Cài đặt > Lưu trữ để kết nối trước.");

@@ -40,7 +40,7 @@ export default function SetupForm() {
       className="w-full max-w-sm rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 space-y-4"
     >
       <div>
-        <h1 className="font-bold text-lg">🛒 Product Scrap</h1>
+        <h1 className="font-bold text-lg">🛒 TrendScope</h1>
         <p className="text-sm text-slate-500 dark:text-slate-400">
           Chào mừng! Đây là lần đầu mở app trên máy này — tạo tài khoản Chủ tài khoản của bạn.
         </p>
