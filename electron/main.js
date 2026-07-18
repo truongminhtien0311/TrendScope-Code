@@ -106,6 +106,12 @@ function startPackagedServer() {
   const dataDir = app.getPath("userData");
   fs.mkdirSync(dataDir, { recursive: true });
   const databaseUrl = `file:${path.join(dataDir, "dev.db")}`;
+  // Ảnh local (xem src/lib/storage/index.ts, src/lib/paths.ts) đặt CẠNH
+  // database trong thư mục dữ liệu riêng của user — KHÔNG đặt trong
+  // "standalone/public/uploads" (bên trong resourcesPath, thư mục cài đặt
+  // app), vì bản cập nhật/cài lại sau này sẽ ghi đè thư mục đó, xóa mất
+  // ảnh đã cào. userData thì không bị đụng tới khi cập nhật/cài lại.
+  const uploadsDir = path.join(dataDir, "uploads");
 
   runMigrations(resourcesPath, databaseUrl);
   seedProviders(resourcesPath, databaseUrl);
@@ -116,6 +122,7 @@ function startPackagedServer() {
       ...process.env,
       ...NODE_ENV_OVERRIDE,
       DATABASE_URL: databaseUrl,
+      UPLOADS_DIR: uploadsDir,
       // Chuỗi cố định — đủ an toàn cho app desktop cá nhân (không phải
       // server công khai nhiều người dùng chung như trước lúc còn VPS).
       SESSION_SECRET: "a1f9c3e7b5d2846f0e9c1a7b3d5f8021e4c6a9b2d7f0138c5e9a2b4d6f8013a7",

@@ -23,6 +23,7 @@ import { mkdir, writeFile, stat, readFile } from "fs/promises";
 import path from "path";
 import sharp from "sharp";
 import { prisma } from "@/lib/db";
+import { resolveUploadsDir } from "@/lib/paths";
 
 // Chỉ còn Google Drive (hoặc provider cloud tương lai) dùng interface này —
 // local giờ LUÔN chạy trực tiếp qua saveLocalImage/saveLocalBuffer bên
@@ -33,7 +34,7 @@ export interface StorageProvider {
   saveBuffer: (buffer: Buffer, fileName: string, mimeType: string) => Promise<string>;
 }
 
-const UPLOADS_DIR = path.join(process.cwd(), "public", "uploads");
+const UPLOADS_DIR = resolveUploadsDir();
 const DEFAULT_MAX_DIMENSION = 1600; // px — ảnh sản phẩm chính, xem đủ nét
 // Ảnh đánh giá khách mua: số lượng có thể nhiều hơn ảnh sản phẩm chính rất
 // nhiều (10-100 lần) — resize nhỏ hơn để đỡ tốn dung lượng local + Drive,

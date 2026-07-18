@@ -9,6 +9,9 @@
 import { NextResponse } from "next/server";
 import { readFile } from "fs/promises";
 import path from "path";
+import { resolveUploadsDir } from "@/lib/paths";
+
+const UPLOADS_DIR = resolveUploadsDir();
 
 const CONTENT_TYPES: Record<string, string> = {
   ".jpg": "image/jpeg",
@@ -34,7 +37,7 @@ export async function GET(
   }
 
   try {
-    const buffer = await readFile(path.join(process.cwd(), "public", "uploads", filename));
+    const buffer = await readFile(path.join(UPLOADS_DIR, filename));
     return new NextResponse(new Uint8Array(buffer), {
       headers: {
         "Content-Type": contentType,

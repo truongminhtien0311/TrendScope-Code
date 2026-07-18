@@ -17,7 +17,6 @@
 // gọi REST API Drive lần thứ 2.
 // ============================================================
 import fs from "node:fs/promises";
-import path from "node:path";
 import zlib from "node:zlib";
 import {
   getAccessToken,
@@ -26,15 +25,10 @@ import {
   listFilesInFolder,
   deleteFile,
 } from "@/lib/storage/providers/google-drive";
+import { resolveDatabaseFilePath } from "@/lib/paths";
 
 const BACKUPS_FOLDER_NAME = "backups";
 const MAX_BACKUPS_KEPT = 10;
-
-function dbFilePath(): string {
-  // Khớp DATABASE_URL="file:./dev.db" trong .env (luôn tương đối so
-  // với thư mục prisma/) — xem prisma/schema.prisma.
-  return path.join(process.cwd(), "prisma", "dev.db");
-}
 
 function backupFileName(): string {
   // Thay ":" bằng "-" vì 1 số hệ thống file/URL không thích ký tự ":"
@@ -52,7 +46,7 @@ export interface BackupInfo {
 // Tạo 1 bản sao lưu mới, upload lên Drive, rồi xóa bớt bản cũ nếu vượt
 // quá MAX_BACKUPS_KEPT.
 export async function createBackup(): Promise<BackupInfo> {
-  const dbBuffer = await fs.readFile(dbFilePath());
+  const dbBuffer = await fs.readFile(resolveDatabaseFilePath());
   const gzipped = zlib.gzipSync(dbBuffer);
 
   const { accessToken, providerId, config } = await getAccessToken();
