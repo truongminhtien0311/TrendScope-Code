@@ -51,7 +51,11 @@ export async function POST(
     where: { id: Number(id) },
     include: {
       listings: {
-        include: { variants: true, images: true, reviews: { include: { images: true } } },
+        include: {
+          variants: true,
+          images: { orderBy: { sortOrder: "asc" } },
+          reviews: { include: { images: { orderBy: { sortOrder: "asc" } } } },
+        },
       },
       categories: { select: { name: true } },
     },

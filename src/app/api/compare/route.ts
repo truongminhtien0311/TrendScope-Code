@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
   const products = await prisma.product.findMany({
     where: { id: { in: productIds } },
     include: {
-      listings: { include: { variants: true, images: true, reviews: true } },
+      listings: { include: { variants: true, images: { orderBy: { sortOrder: "asc" } }, reviews: true } },
       categories: { select: { name: true } },
     },
   });

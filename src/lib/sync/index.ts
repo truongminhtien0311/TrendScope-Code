@@ -72,7 +72,13 @@ export async function buildSyncPayload(): Promise<{ payload: SyncPayload; localI
     include: {
       categories: true,
       tags: true,
-      listings: { include: { variants: true, images: true, reviews: { include: { images: true } } } },
+      listings: {
+        include: {
+          variants: true,
+          images: { orderBy: { sortOrder: "asc" } },
+          reviews: { include: { images: { orderBy: { sortOrder: "asc" } } } },
+        },
+      },
       aiAnalyses: { where: { status: "DONE" }, orderBy: { startedAt: "desc" }, take: 1 },
     },
     orderBy: { createdAt: "asc" },

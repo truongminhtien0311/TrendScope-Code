@@ -15,7 +15,7 @@ export async function GET(
     include: {
       categories: true,
       tags: true,
-      listings: { include: { variants: true, images: true, reviews: true } },
+      listings: { include: { variants: true, images: { orderBy: { sortOrder: "asc" } }, reviews: true } },
     },
   });
   if (!product) {
