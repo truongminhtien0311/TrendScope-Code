@@ -60,43 +60,49 @@
 }
 
 .dark {
-  /* --- Dark Mode: Deep Space --- */
-  --bg-base:       #03060f;
-  --bg-surface:    #080f1f;
-  --bg-card:       #0d1628;
-  --bg-sidebar:    #060c1a;
-  --bg-sidebar-hover: rgba(99,179,237,0.08);
-  --bg-sidebar-active: rgba(0,212,255,0.12);
-  --bg-overlay:    rgba(0,0,0,0.75);
+  /* --- Dark Mode: "Dark tech tối giản" kiểu Linear/Vercel/GitHub — bề
+     mặt phẳng gần đen trung tính (không ám xanh navy đậm như trước), viền
+     mảnh gần như vô hình, KHÔNG dùng hiệu ứng phát sáng (glow) tràn lan —
+     accent cyan chỉ xuất hiện điểm xỉa (nút chính, trạng thái active),
+     không phải trang trí nền. */
+  --bg-base:       #0a0a0d;
+  --bg-surface:    #101014;
+  --bg-card:       #131318;
+  --bg-sidebar:    #08090c;
+  --bg-sidebar-hover: rgba(255,255,255,0.06);
+  --bg-sidebar-active: rgba(0,212,255,0.10);
+  --bg-overlay:    rgba(0,0,0,0.7);
 
-  --border-subtle: rgba(99,179,237,0.10);
-  --border-accent: rgba(99,179,237,0.32);
-  --border-sidebar: rgba(99,179,237,0.08);
+  --border-subtle: rgba(255,255,255,0.08);
+  --border-accent: rgba(0,212,255,0.35);
+  --border-sidebar: rgba(255,255,255,0.06);
 
-  --accent-primary:   #00d4ff;    /* electric cyan */
-  --accent-secondary: #a78bfa;    /* soft violet */
+  --accent-primary:   #00d4ff;    /* electric cyan — dùng điểm xỉa, không trang trí nền */
+  --accent-secondary: #7c9cff;    /* xanh indigo nhạt — bớt tím so với trước */
   --accent-success:   #34d399;    /* neon green */
   --accent-danger:    #f87171;    /* soft red */
   --accent-warning:   #fbbf24;    /* amber */
   --accent-cyan:      #22d3ee;    /* bright cyan */
 
-  --text-primary:  #e2f0ff;
-  --text-secondary:#94b8d4;
-  --text-muted:    #4d6b8a;
-  --text-sidebar:  #a5c8e8;
-  --text-sidebar-muted: rgba(165,200,232,0.4);
+  --text-primary:  #f1f5f9;
+  --text-secondary:#9ca3af;
+  --text-muted:    #5f6672;
+  --text-sidebar:  #b0b8c4;
+  --text-sidebar-muted: rgba(176,184,196,0.45);
   --text-on-accent:#03060f;
 
-  --glow-primary:  rgba(0,212,255,0.28);
-  --glow-danger:   rgba(248,113,113,0.35);
-  --glow-success:  rgba(52,211,153,0.28);
-  --glow-cyan:     rgba(34,211,238,0.28);
+  --glow-primary:  rgba(0,212,255,0.18);
+  --glow-danger:   rgba(248,113,113,0.22);
+  --glow-success:  rgba(52,211,153,0.18);
+  --glow-cyan:     rgba(34,211,238,0.18);
 
-  --shadow-card:   0 1px 3px rgba(0,0,0,0.4), 0 0 0 1px var(--border-subtle);
-  --shadow-card-hover: 0 0 0 1px var(--border-accent), 0 0 30px rgba(0,212,255,0.12);
+  /* Bóng đổ PHẲNG, tối giản — không còn glow lan tỏa nhiều lớp như trước,
+     chỉ 1 viền mảnh + 1 lớp bóng rất nhẹ để tạo độ sâu tối thiểu. */
+  --shadow-card:   0 1px 2px rgba(0,0,0,0.5), 0 0 0 1px var(--border-subtle);
+  --shadow-card-hover: 0 0 0 1px var(--border-accent), 0 4px 16px rgba(0,0,0,0.4);
   --shadow-btn:    0 0 0 0 transparent;
-  --shadow-btn-hover: 0 0 22px var(--glow-primary);
-  --shadow-dialog: 0 0 0 1px var(--border-accent), 0 0 60px rgba(0,212,255,0.1), 0 16px 64px rgba(0,0,0,0.6);
+  --shadow-btn-hover: 0 2px 8px rgba(0,0,0,0.4);
+  --shadow-dialog: 0 0 0 1px var(--border-accent), 0 16px 48px rgba(0,0,0,0.7);
 
   --background: var(--bg-base);
   --foreground: var(--text-primary);
@@ -135,13 +141,11 @@ body {
 }
 
 .dark body {
-  /* Dark mode: deep space nebula + faint dot grid */
+  /* Dark tech tối giản — bỏ hiệu ứng "tinh vân" nhiều lớp + lưới chấm
+     trước đây (quá rực rỡ kiểu cyberpunk), chỉ còn 1 quầng sáng rất nhẹ
+     góc trên để bề mặt không bị phẳng lì tuyệt đối, giống Linear/Vercel. */
   background-image:
-    radial-gradient(ellipse at 10% 20%, rgba(0,212,255,0.07) 0%, transparent 45%),
-    radial-gradient(ellipse at 90% 10%, rgba(124,58,237,0.09) 0%, transparent 45%),
-    radial-gradient(ellipse at 50% 90%, rgba(0,100,200,0.06) 0%, transparent 50%),
-    radial-gradient(ellipse at 70% 50%, rgba(0,212,255,0.04) 0%, transparent 40%),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3Ccircle cx='20' cy='20' r='0.8' fill='rgba(99%2C179%2C237%2C0.08)'/%3E%3C/svg%3E");
+    radial-gradient(ellipse at 15% 0%, rgba(0,212,255,0.04) 0%, transparent 40%);
 }
 
 /* ─────────────────────────────────────────────────────────
@@ -309,12 +313,8 @@ body {
   border-color: var(--border-accent);
 }
 
-/* Dark mode glass effect */
-.dark .card-glass {
-  background: rgba(13,22,40,0.85);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-}
+/* Dark tech tối giản: bề mặt phẳng, không dùng hiệu ứng kính mờ
+   (glassmorphism) — var(--bg-card) đã đủ tương phản với nền. */
 
 /* === INPUTS === */
 .input-cyber {
@@ -337,9 +337,6 @@ body {
   box-shadow: 0 0 0 3px rgba(var(--glow-primary), 0.12), 0 0 14px var(--glow-primary);
 }
 
-.dark .input-cyber {
-  background: rgba(6,12,26,0.8);
-}
 
 /* === BADGES === */
 .badge-cyber {
@@ -374,9 +371,7 @@ body {
 }
 
 .dark .dialog-glass {
-  background: rgba(8,15,31,0.92);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: var(--bg-surface);
 }
 
 .dialog-overlay {
@@ -594,10 +589,8 @@ body {
 }
 
 .dark .filter-panel {
-  background: rgba(8,15,31,0.85);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-color: var(--border-accent);
+  background: var(--bg-surface);
+  border-color: var(--border-subtle);
 }
 
 /* === SELECT CYBER === */
@@ -625,9 +618,6 @@ body {
   box-shadow: 0 0 0 3px var(--glow-primary);
 }
 
-.dark .select-cyber {
-  background-color: rgba(6,12,26,0.8);
-}
 
 /* === STAR PARTICLES (login page CSS) === */
 .star-field {
@@ -689,14 +679,3 @@ body {
   background-clip: text;
 }
 
-.card-glass {
-  background: var(--bg-card);
-  border: 1px solid var(--border-primary);
-  border-radius: 1rem;
-  box-shadow: var(--shadow-card);
-  transition: all 0.2s ease-in-out;
-}
-.card-glass:hover {
-  box-shadow: var(--shadow-hover);
-  border-color: var(--border-hover);
-}
