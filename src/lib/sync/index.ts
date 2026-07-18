@@ -25,7 +25,13 @@ export interface SyncListing {
   lastScrapedAt: string | null;
   variants: { nameOriginal: string; nameVi: string | null; priceCny: number; priceEdited: boolean }[];
   images: { url: string; kind: string; sortOrder: number }[];
-  reviews: { contentOriginal: string; contentVi: string | null; rating: number | null; reviewedAt: string | null }[];
+  reviews: {
+    contentOriginal: string;
+    contentVi: string | null;
+    rating: number | null;
+    reviewedAt: string | null;
+    images: { url: string; sortOrder: number }[];
+  }[];
 }
 
 export interface SyncAiAnalysis {
@@ -66,7 +72,7 @@ export async function buildSyncPayload(): Promise<{ payload: SyncPayload; localI
     include: {
       categories: true,
       tags: true,
-      listings: { include: { variants: true, images: true, reviews: true } },
+      listings: { include: { variants: true, images: true, reviews: { include: { images: true } } } },
       aiAnalyses: { where: { status: "DONE" }, orderBy: { startedAt: "desc" }, take: 1 },
     },
     orderBy: { createdAt: "asc" },
@@ -106,6 +112,10 @@ export async function buildSyncPayload(): Promise<{ payload: SyncPayload; localI
         contentVi: r.contentVi,
         rating: r.rating,
         reviewedAt: r.reviewedAt ? r.reviewedAt.toISOString() : null,
+        images: r.images.map((img) => {
+          if (isLocalImageUrl(img.url)) localImageWarningCount += 1;
+          return { url: img.url, sortOrder: img.sortOrder };
+        }),
       })),
     })),
     aiAnalysis: p.aiAnalyses[0]
@@ -192,8 +202,11 @@ export async function importSyncPayload(payload: SyncPayload): Promise<ImportRes
               images: { create: l.images },
               reviews: {
                 create: l.reviews.map((r) => ({
-                  ...r,
+                  contentOriginal: r.contentOriginal,
+                  contentVi: r.contentVi,
+                  rating: r.rating,
                   reviewedAt: r.reviewedAt ? new Date(r.reviewedAt) : null,
+                  images: { create: r.images },
                 })),
               },
             })),
@@ -244,7 +257,13 @@ export async function importSyncPayload(payload: SyncPayload): Promise<ImportRes
           variants: { create: l.variants },
           images: { create: l.images },
           reviews: {
-            create: l.reviews.map((r) => ({ ...r, reviewedAt: r.reviewedAt ? new Date(r.reviewedAt) : null })),
+            create: l.reviews.map((r) => ({
+              contentOriginal: r.contentOriginal,
+              contentVi: r.contentVi,
+              rating: r.rating,
+              reviewedAt: r.reviewedAt ? new Date(r.reviewedAt) : null,
+              images: { create: r.images },
+            })),
           },
         },
       });

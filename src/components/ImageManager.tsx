@@ -79,12 +79,12 @@ function ImageZone({
         const data = await uploadRes.json().catch(() => null);
         throw new Error(data?.error ?? "Tải ảnh lên thất bại");
       }
-      const { url } = await uploadRes.json();
+      const { url, localPath } = await uploadRes.json();
 
       const attachRes = await fetch(`/api/listings/${listingId}/images`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url, kind }),
+        body: JSON.stringify({ url, localPath, kind }),
       });
       if (!attachRes.ok) throw new Error("Lưu ảnh thất bại");
 

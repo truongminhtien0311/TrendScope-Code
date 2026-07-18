@@ -29,6 +29,10 @@ export interface ScrapedReview {
   contentVi?: string;
   rating?: number;
   reviewedAt?: Date;
+  // Ảnh THẬT khách mua đính kèm — khác ảnh chính thức của shop
+  // (ScrapedImage/ListingImage), dùng làm nguồn đối chiếu cho AI (xem
+  // src/lib/llm/index.ts). Không lấy video.
+  imageUrls?: string[];
 }
 
 // Toàn bộ dữ liệu cào được từ 1 link sản phẩm

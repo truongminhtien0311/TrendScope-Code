@@ -35,9 +35,8 @@
 // logic gọi REST API Drive ở 2 nơi.
 // ============================================================
 import crypto from "node:crypto";
-import sharp from "sharp";
 import { prisma } from "@/lib/db";
-import type { StorageProvider } from "../index";
+import { resizeIfNeeded, type StorageProvider } from "../index";
 
 export const GOOGLE_SCOPE = "openid email profile https://www.googleapis.com/auth/drive.file";
 export const GOOGLE_REDIRECT_PATH = "/api/storage/google/callback";
@@ -237,14 +236,6 @@ export async function ensureNamedFolder(
   return folderId;
 }
 
-// Tên file trên Drive = hash URL gốc -> dùng để dò trùng (dedupe),
-// tránh tải/upload lại ảnh đã có sẵn khi cào lại nhiều lần.
-function hashedFileName(originalUrl: string, mimeType: string): string {
-  const hash = crypto.createHash("sha256").update(originalUrl).digest("hex");
-  const ext = mimeType.split("/")[1]?.replace("jpeg", "jpg") || "jpg";
-  return `${hash}.${ext}`;
-}
-
 export async function findExistingFile(name: string, folderId: string, accessToken: string): Promise<string | null> {
   const q = `name='${name}' and '${folderId}' in parents and trashed=false`;
   const res = await fetch(
@@ -340,48 +331,16 @@ function toViewableUrl(fileId: string): string {
   return `https://drive.google.com/thumbnail?id=${fileId}&sz=w1000`;
 }
 
-// Thu nhỏ ảnh quá khổ để giảm dung lượng — giữ nguyên nếu đã đủ nhỏ.
-async function resizeIfNeeded(buffer: Buffer): Promise<Buffer> {
-  const meta = await sharp(buffer).metadata();
-  if ((meta.width ?? 0) <= MAX_IMAGE_DIMENSION && (meta.height ?? 0) <= MAX_IMAGE_DIMENSION) {
-    return buffer;
-  }
-  return sharp(buffer)
-    .resize({ width: MAX_IMAGE_DIMENSION, height: MAX_IMAGE_DIMENSION, fit: "inside", withoutEnlargement: true })
-    .toBuffer();
-}
-
 export const googleDriveProvider: StorageProvider = {
   id: "google-drive",
   name: "Google Drive",
 
-  async saveImage(url: string): Promise<string> {
-    const { accessToken, providerId, config } = await getAccessToken();
-    const imagesFolderId = await ensureImagesFolder(providerId, config, accessToken);
-
-    const imageRes = await fetch(url);
-    if (!imageRes.ok) throw new Error(`Không tải được ảnh gốc: HTTP ${imageRes.status}`);
-    const mimeType = imageRes.headers.get("content-type") ?? "image/jpeg";
-    const fileName = hashedFileName(url, mimeType);
-
-    // Dedupe: đã có file cùng tên (cùng URL gốc) trong folder rồi thì
-    // dùng lại luôn, không tải/upload lại.
-    const existingId = await findExistingFile(fileName, imagesFolderId, accessToken);
-    if (existingId) {
-      return toViewableUrl(existingId);
-    }
-
-    const rawBuffer = Buffer.from(await imageRes.arrayBuffer());
-    const buffer = await resizeIfNeeded(rawBuffer);
-    const fileId = await uploadBuffer(buffer, fileName, mimeType, imagesFolderId, accessToken);
-    await makePublic(fileId, accessToken);
-
-    return toViewableUrl(fileId);
-  },
-
-  // Ảnh tải tay/dán clipboard (đã có sẵn buffer, không phải fetch từ URL
-  // nguồn) — dùng cho POST /api/uploads. Dedupe theo hash NỘI DUNG buffer
-  // (không có URL gốc để hash như saveImage()).
+  // Nguồn duy nhất gọi vào đây giờ là runDriveSyncSweep() (xem
+  // src/lib/storage/index.ts) — đọc buffer ảnh đã lưu local (đã resize
+  // đúng maxDimension theo loại ảnh lúc lưu local rồi) rồi upload lên
+  // đây, KHÔNG fetch lại từ URL gốc trên sàn lần 2 (link TQ có thể đã bị
+  // chặn/hết hạn). resizeIfNeeded() ở đây chỉ là lưới an toàn thứ 2, thực
+  // tế thường no-op vì buffer đầu vào đã đủ nhỏ từ trước.
   async saveBuffer(rawBuffer: Buffer, _fileName: string, mimeType: string): Promise<string> {
     const { accessToken, providerId, config } = await getAccessToken();
     const imagesFolderId = await ensureImagesFolder(providerId, config, accessToken);
@@ -395,7 +354,7 @@ export const googleDriveProvider: StorageProvider = {
       return toViewableUrl(existingId);
     }
 
-    const buffer = await resizeIfNeeded(rawBuffer);
+    const buffer = await resizeIfNeeded(rawBuffer, MAX_IMAGE_DIMENSION);
     const fileId = await uploadBuffer(buffer, driveFileName, mimeType, imagesFolderId, accessToken);
     await makePublic(fileId, accessToken);
 

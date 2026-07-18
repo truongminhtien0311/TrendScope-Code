@@ -8,6 +8,11 @@ import { logActivity } from "@/lib/log";
 
 const schema = z.object({
   url: z.string().min(1),
+  // Tên file dưới public/uploads/ nếu ảnh vừa lưu local (xem POST
+  // /api/uploads) — cho phép runDriveSyncSweep() tìm thấy để đồng bộ Drive
+  // ở nền sau này. Dán thẳng URL ảnh có sẵn (không qua /api/uploads) thì
+  // để trống, không sao — ảnh đó không có bản local để đồng bộ.
+  localPath: z.string().optional(),
   kind: z.enum(["MAIN", "GALLERY", "DESCRIPTION"]),
 });
 
@@ -27,7 +32,13 @@ export async function POST(
   });
 
   const image = await prisma.listingImage.create({
-    data: { listingId: Number(id), url: parsed.data.url, kind: parsed.data.kind, sortOrder },
+    data: {
+      listingId: Number(id),
+      url: parsed.data.url,
+      localPath: parsed.data.localPath,
+      kind: parsed.data.kind,
+      sortOrder,
+    },
   });
 
   await logActivity("image.add", `Thêm ảnh (${parsed.data.kind}) cho link #${id}`);

@@ -237,7 +237,7 @@ export default async function SettingsPage() {
             {/* ---- Lưu trữ ---- */}
             <Section title="💾 Lưu trữ">
               <p className="text-sm text-slate-600 dark:text-slate-300 mb-3">
-                <strong>Local:</strong> database SQLite + ảnh lưu trên máy này (mặc định).
+                <strong>Local:</strong> database SQLite + ảnh LUÔN lưu sẵn trên máy này (không tắt được).
               </p>
               <Suspense>
                 <GoogleDriveConnectPanel
@@ -248,7 +248,8 @@ export default async function SettingsPage() {
                 />
               </Suspense>
               <p className="text-xs text-slate-400 mt-2">
-                Bật provider &quot;Google Drive&quot; ở mục API phía trên để dùng làm nơi lưu ảnh.
+                Bật provider &quot;Google Drive&quot; ở mục API phía trên để app tự sao lưu ảnh lên Drive
+                ở nền (không chặn lúc cào) — ảnh vẫn luôn có sẵn bản trên máy này dù Drive có bật hay không.
               </p>
             </Section>
 

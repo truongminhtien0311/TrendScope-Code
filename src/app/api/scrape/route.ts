@@ -8,7 +8,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { logActivity } from "@/lib/log";
 import { detectPlatform, getScraperFor, platformToSourceType } from "@/lib/scrapers";
-import { saveScrapedImages } from "@/lib/storage";
+import { REVIEW_IMAGE_MAX_DIMENSION, saveScrapedImages } from "@/lib/storage";
 
 const schema = z.object({
   productId: z.number(),
@@ -52,9 +52,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Cào dữ liệu thất bại: " + String(err) }, { status: 502 });
   }
 
-  // 4. Lưu ảnh qua storage đang bật (Google Drive...) nếu có — ảnh nào
+  // 4. Lưu ảnh — LUÔN lưu local trước (nhanh, có bản dự phòng), Google
+  // Drive (nếu bật) đồng bộ ngầm sau đó (xem runDriveSyncSweep). Ảnh nào
   // lỗi thì tự giữ nguyên link gốc, không chặn cả listing.
   const savedImages = await saveScrapedImages(scraped.images);
+
+  // Ảnh đánh giá: gộp tất cả review lại lưu 1 lượt (resize nhỏ hơn ảnh sản
+  // phẩm chính — xem REVIEW_IMAGE_MAX_DIMENSION), giữ lại reviewIdx để gắn
+  // đúng ảnh vào đúng review lúc tạo record bên dưới.
+  const reviewImageInputs = scraped.reviews.flatMap((r, reviewIdx) =>
+    (r.imageUrls ?? []).map((url, sortOrder) => ({ url, reviewIdx, sortOrder }))
+  );
+  const savedReviewImages = await saveScrapedImages(reviewImageInputs, {
+    maxDimension: REVIEW_IMAGE_MAX_DIMENSION,
+  });
 
   // 5. Lưu vào database (listing + phân loại + ảnh + đánh giá cùng lúc)
   const listing = await prisma.listing.create({
@@ -82,16 +93,22 @@ export async function POST(request: NextRequest) {
       images: {
         create: savedImages.map((img, i) => ({
           url: img.url,
+          localPath: img.localPath,
           kind: img.kind,
           sortOrder: img.sortOrder ?? i,
         })),
       },
       reviews: {
-        create: scraped.reviews.map((r) => ({
+        create: scraped.reviews.map((r, reviewIdx) => ({
           contentOriginal: r.contentOriginal,
           contentVi: r.contentVi,
           rating: r.rating,
           reviewedAt: r.reviewedAt,
+          images: {
+            create: savedReviewImages
+              .filter((img) => img.reviewIdx === reviewIdx)
+              .map((img) => ({ url: img.url, localPath: img.localPath, sortOrder: img.sortOrder })),
+          },
         })),
       },
     },

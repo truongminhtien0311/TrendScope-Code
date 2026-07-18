@@ -175,6 +175,21 @@ model Review {
   contentVi       String? // bản dịch tiếng Việt
   rating          Int? // 1-5 sao nếu có
   reviewedAt      DateTime?
+  images          ReviewImage[]
+}
+
+// Ảnh THẬT kèm theo đánh giá của khách mua (khác ảnh chính thức của shop
+// trong ListingImage) — dùng làm nguồn đối chiếu cho AI (xem
+// src/lib/llm/index.ts). Cùng vòng đời lưu trữ local -> Drive như
+// ListingImage (xem src/lib/storage/index.ts), nên cần url/localPath
+// riêng thay vì gộp chung 1 cột JSON.
+model ReviewImage {
+  id        Int     @id @default(autoincrement())
+  review    Review  @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  reviewId  Int
+  url       String // /uploads/... rồi thành link Drive, giống ListingImage.url
+  localPath String?
+  sortOrder Int     @default(0)
 }
 
 // ------------------------------------------------------------

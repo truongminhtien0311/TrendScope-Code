@@ -48,10 +48,11 @@ export default function UpdateNotifier() {
   }, []);
 
   useEffect(() => {
-    if (state?.status !== "downloaded") {
-      setCountdown(null);
-      return;
-    }
+    // Không cần reset countdown về null khi rời trạng thái "downloaded" —
+    // JSX chỉ đọc countdown lúc status === "downloaded" nên giá trị cũ còn
+    // sót lại không hiển thị ra đâu cả.
+    if (state?.status !== "downloaded") return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- khởi tạo số đếm ngược khi vừa chuyển sang "downloaded", không phải vòng lặp render
     setCountdown(AUTO_INSTALL_COUNTDOWN_S);
     const timer = setInterval(() => {
       setCountdown((c) => {

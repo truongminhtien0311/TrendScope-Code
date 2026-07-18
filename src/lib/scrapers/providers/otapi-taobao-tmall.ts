@@ -83,6 +83,13 @@ async function fetchItemDetail(itemId: string, apiKey: string): Promise<OtapiIte
   return data.Result.Item;
 }
 
+// Số ảnh THẬT kèm theo đánh giá lấy về — giới hạn để không phình dung
+// lượng lưu trữ (mỗi ảnh đều được tải + lưu local/Drive như ảnh sản phẩm,
+// xem src/app/api/scrape/route.ts) và không lấn ngân sách ảnh gửi AI (ảnh
+// chính thức của shop luôn được ưu tiên trước, xem src/lib/llm/index.ts).
+const MAX_IMAGES_PER_REVIEW = 8;
+const MAX_REVIEW_IMAGES_PER_LISTING = 30;
+
 // Đánh giá người mua — ĐÃ KIỂM CHỨNG cấu trúc JSON thật (cào thử sản
 // phẩm giày 660702060155 có 10 review thật, 2026-07-17). Field đúng là
 // "Text" (bản tiếng Việt do API tự dịch qua language=vi) và
@@ -92,10 +99,14 @@ async function fetchItemDetail(itemId: string, apiKey: string): Promise<OtapiIte
 // chỉ số uy tín TÀI KHOẢN NGƯỜI MUA (3-10, không phải thang 1-5), phần
 // lớn review test được đều là "hệ thống tự khen mặc định" do người mua
 // không tự đánh giá kịp thời hạn — KHÔNG dùng nhầm field này làm rating.
+// Ảnh đính kèm (nếu có) lấy từ "ImageUrls" (ảnh gốc kích thước đầy đủ,
+// không dùng "ImagePreviewUrls" — để bước resize lúc lưu tự quyết định
+// kích thước cuối, không phụ thuộc thumbnail có sẵn của Otapi). Video
+// ("Videos") cố tình KHÔNG lấy — quá nặng so với lợi ích.
 async function fetchReviews(
   itemId: string,
   apiKey: string
-): Promise<{ contentOriginal: string; contentVi?: string; rating?: number }[]> {
+): Promise<{ contentOriginal: string; contentVi?: string; rating?: number; imageUrls?: string[] }[]> {
   const res = await fetch(
     `https://${HOST}/SearchItemReviews?language=vi&ItemId=${itemId}&framePosition=0&frameSize=50`,
     { headers: { "x-rapidapi-host": HOST, "x-rapidapi-key": apiKey } }
@@ -103,14 +114,23 @@ async function fetchReviews(
   if (!res.ok) return [];
   const data = (await res.json()) as { Result?: { Content?: OtapiReview[] } };
   const list = data.Result?.Content ?? [];
+
+  let totalImages = 0;
   return list
-    .map((r) => ({
-      contentOriginal: r.OriginalText ?? "",
-      contentVi: r.Text,
-      // Otapi không trả rating theo review — để trống thay vì gán nhầm
-      // 1 chỉ số khác (xem giải thích ở trên), tránh hiện số sao sai.
-      rating: undefined,
-    }))
+    .map((r) => {
+      const remaining = MAX_REVIEW_IMAGES_PER_LISTING - totalImages;
+      const imageUrls =
+        remaining > 0 ? (r.ImageUrls ?? []).slice(0, Math.min(MAX_IMAGES_PER_REVIEW, remaining)) : [];
+      totalImages += imageUrls.length;
+      return {
+        contentOriginal: r.OriginalText ?? "",
+        contentVi: r.Text,
+        // Otapi không trả rating theo review — để trống thay vì gán nhầm
+        // 1 chỉ số khác (xem giải thích ở trên), tránh hiện số sao sai.
+        rating: undefined,
+        imageUrls: imageUrls.length > 0 ? imageUrls : undefined,
+      };
+    })
     .filter((r) => r.contentOriginal);
 }
 
@@ -198,4 +218,5 @@ interface OtapiItem {
 interface OtapiReview {
   Text?: string; // bản tiếng Việt (API tự dịch qua language=vi)
   OriginalText?: string; // bản gốc tiếng Trung
+  ImageUrls?: string[]; // ảnh THẬT khách mua đính kèm (kích thước đầy đủ)
 }

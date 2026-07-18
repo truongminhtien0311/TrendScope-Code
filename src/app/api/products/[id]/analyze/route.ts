@@ -51,7 +51,7 @@ export async function POST(
     where: { id: Number(id) },
     include: {
       listings: {
-        include: { variants: true, images: true, reviews: true },
+        include: { variants: true, images: true, reviews: { include: { images: true } } },
       },
       categories: { select: { name: true } },
     },
@@ -92,6 +92,7 @@ export async function POST(
         descriptionOriginal: l.descriptionOriginal ?? undefined,
         descriptionText: l.descriptionVi ?? l.descriptionOriginal ?? undefined,
         imageUrls: l.images.map((img) => img.url),
+        reviewImageUrls: l.reviews.flatMap((r) => r.images.map((img) => img.url)),
         reviews: l.reviews.map((r) => r.contentVi ?? r.contentOriginal),
         priceRangeCny: prices.length ? { min: Math.min(...prices), max: Math.max(...prices) } : undefined,
         variants: l.variants.map((v) => ({ id: v.id, nameOriginal: v.nameOriginal, nameVi: v.nameVi ?? undefined })),

@@ -14,7 +14,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { logActivity } from "@/lib/log";
 import { detectPlatform, getScraperFor } from "@/lib/scrapers";
-import { saveScrapedImages } from "@/lib/storage";
+import { REVIEW_IMAGE_MAX_DIMENSION, saveScrapedImages } from "@/lib/storage";
 
 export async function POST(
   _request: NextRequest,
@@ -50,9 +50,15 @@ export async function POST(
     return NextResponse.json({ error: "Cào dữ liệu thất bại: " + String(err) }, { status: 502 });
   }
 
-  // Lưu ảnh qua storage đang bật (Google Drive...) nếu có — ảnh nào lỗi
-  // thì tự giữ nguyên link gốc, không chặn cả lần cào lại.
+  // Lưu ảnh — LUÔN lưu local trước, Google Drive (nếu bật) đồng bộ ngầm
+  // sau đó. Ảnh nào lỗi thì tự giữ nguyên link gốc, không chặn cả lần cào lại.
   const savedImages = await saveScrapedImages(scraped.images);
+  const reviewImageInputs = scraped.reviews.flatMap((r, reviewIdx) =>
+    (r.imageUrls ?? []).map((url, sortOrder) => ({ url, reviewIdx, sortOrder }))
+  );
+  const savedReviewImages = await saveScrapedImages(reviewImageInputs, {
+    maxDimension: REVIEW_IMAGE_MAX_DIMENSION,
+  });
 
   // Đối chiếu phân loại cũ/mới theo tên gốc tiếng Trung
   const oldByName = new Map(listing.variants.map((v) => [v.nameOriginal, v]));
@@ -110,20 +116,31 @@ export async function POST(
       data: savedImages.map((img, i) => ({
         listingId: listing.id,
         url: img.url,
+        localPath: img.localPath,
         kind: img.kind,
         sortOrder: img.sortOrder ?? i,
       })),
     });
+    // Dùng create() từng dòng thay vì createMany() — cần lồng luôn ảnh
+    // đánh giá (images: { create: [...] }) vào mỗi review, createMany()
+    // không hỗ trợ tạo quan hệ lồng nhau.
     await tx.review.deleteMany({ where: { listingId: listing.id } });
-    await tx.review.createMany({
-      data: scraped.reviews.map((r) => ({
-        listingId: listing.id,
-        contentOriginal: r.contentOriginal,
-        contentVi: r.contentVi,
-        rating: r.rating,
-        reviewedAt: r.reviewedAt,
-      })),
-    });
+    for (const [reviewIdx, r] of scraped.reviews.entries()) {
+      await tx.review.create({
+        data: {
+          listingId: listing.id,
+          contentOriginal: r.contentOriginal,
+          contentVi: r.contentVi,
+          rating: r.rating,
+          reviewedAt: r.reviewedAt,
+          images: {
+            create: savedReviewImages
+              .filter((img) => img.reviewIdx === reviewIdx)
+              .map((img) => ({ url: img.url, localPath: img.localPath, sortOrder: img.sortOrder })),
+          },
+        },
+      });
+    }
   });
 
   await logActivity(
