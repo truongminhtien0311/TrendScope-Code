@@ -5,12 +5,17 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useConfirm } from "@/components/ConfirmDialogProvider";
+import SmartImage from "@/components/SmartImage";
 
 export interface ReviewData {
   id: number;
   contentOriginal: string;
   contentVi: string | null;
   rating: number | null;
+  // Ảnh THẬT khách mua đính kèm — tự động cào về (xem
+  // src/lib/scrapers/providers/otapi-taobao-tmall.ts), chỉ hiển thị
+  // read-only ở đây, không thêm/xóa tay.
+  images: { id: number; url: string }[];
 }
 
 export default function ReviewManager({
@@ -159,22 +164,36 @@ function ReviewRow({ review: r, listingId: _listingId }: { review: ReviewData; l
   }
 
   return (
-    <li className="text-sm flex items-start gap-2 group">
-      {r.rating && <span className="shrink-0">{"⭐".repeat(r.rating)}</span>}
-      <span className="flex-1">
-        {r.contentVi ?? r.contentOriginal}
-        {r.contentVi && r.contentVi !== r.contentOriginal && (
-          <span className="text-xs text-slate-500 dark:text-slate-400 ml-2">{r.contentOriginal}</span>
-        )}
-      </span>
-      <span className="opacity-0 group-hover:opacity-100 transition shrink-0 whitespace-nowrap">
-        <button onClick={() => setEditing(true)} className="text-xs text-slate-500 dark:text-slate-400 hover:text-blue-500 mr-1.5">
-          ✏️
-        </button>
-        <button onClick={remove} className="text-xs text-slate-500 dark:text-slate-400 hover:text-red-500">
-          🗑️
-        </button>
-      </span>
+    <li className="text-sm group">
+      <div className="flex items-start gap-2">
+        {r.rating && <span className="shrink-0">{"⭐".repeat(r.rating)}</span>}
+        <span className="flex-1">
+          {r.contentVi ?? r.contentOriginal}
+          {r.contentVi && r.contentVi !== r.contentOriginal && (
+            <span className="text-xs text-slate-500 dark:text-slate-400 ml-2">{r.contentOriginal}</span>
+          )}
+        </span>
+        <span className="opacity-0 group-hover:opacity-100 transition shrink-0 whitespace-nowrap">
+          <button onClick={() => setEditing(true)} className="text-xs text-slate-500 dark:text-slate-400 hover:text-blue-500 mr-1.5">
+            ✏️
+          </button>
+          <button onClick={remove} className="text-xs text-slate-500 dark:text-slate-400 hover:text-red-500">
+            🗑️
+          </button>
+        </span>
+      </div>
+      {r.images.length > 0 && (
+        <div className="flex gap-1 mt-1 overflow-x-auto no-scrollbar">
+          {r.images.map((img) => (
+            <SmartImage
+              key={img.id}
+              src={img.url}
+              alt=""
+              className="w-12 h-12 shrink-0 rounded object-cover border border-slate-200 dark:border-slate-800"
+            />
+          ))}
+        </div>
+      )}
     </li>
   );
 }

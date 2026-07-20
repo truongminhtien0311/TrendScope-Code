@@ -73,8 +73,17 @@ export default async function RootLayout({
               <Sidebar userEmail={user.email} />
               <main
                 className="flex-1 p-6 lg:p-8 overflow-x-hidden"
-                style={{ background: "var(--bg-base)" }}
+                style={{ background: "var(--bg-base)", position: "relative" }}
               >
+                {/* Dải trống phía trên nội dung (nằm gọn trong vùng padding
+                    p-6/p-8, không đè lên nội dung thật) — khai báo
+                    "-webkit-app-region: drag" để kéo di chuyển được cửa sổ
+                    Electron từ phần bên phải sidebar. Trình duyệt thường bỏ
+                    qua thuộc tính này, không ảnh hưởng gì. */}
+                <div
+                  aria-hidden
+                  style={{ position: "absolute", top: 0, left: 0, right: 0, height: 24, ...({ WebkitAppRegion: "drag" } as React.CSSProperties) }}
+                />
                 {children}
               </main>
             </div>

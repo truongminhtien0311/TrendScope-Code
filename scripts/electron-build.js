@@ -22,6 +22,12 @@ console.log(`Đóng gói phiên bản ${pkg.version} -> ${outDir}`);
 // thấy được (kể cả @prisma/client).
 const standaloneModules = path.join(__dirname, "..", ".next", "standalone", "node_modules");
 const runtimeModules = path.join(__dirname, "..", "build", "prisma-runtime", "node_modules");
+// Xoá sạch trước khi copy — không thì rác từ các lần build trước (đặc biệt
+// file .tmp* lúc Prisma tải engine bị khoá không rename/xoá được trên
+// Windows) cứ cộng dồn mãi, từng khiến build/prisma-runtime nặng gần 1GB
+// (hơn chục bản trùng của cùng 1 file query engine ~20MB) và bộ cài .exe
+// bị phình to không cần thiết.
+fs.rmSync(runtimeModules, { recursive: true, force: true });
 fs.cpSync(standaloneModules, runtimeModules, { recursive: true });
 
 // Next tự "trace" (dò xem file nào thật sự cần) để quyết định copy gì vào

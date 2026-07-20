@@ -101,10 +101,41 @@ function seedProviders(resourcesPath, databaseUrl) {
   }
 }
 
+// app.getPath("userData") đặt tên thư mục theo field "name" trong
+// package.json — đợt đổi tên app từ "product-scrap" sang "trendscope"
+// (rebrand Product Scrap -> TrendScope) khiến Electron tự chuyển sang
+// MỘT thư mục dữ liệu khác hẳn, dữ liệu cũ (dev.db + uploads/) vẫn còn
+// nguyên trên máy nhưng app mới không biết tới, mở lên tưởng mất sạch.
+// Chỉ chạy MỘT LẦN DUY NHẤT: bản mới chưa có dev.db (lần đầu chạy) mà
+// tìm thấy dev.db ở thư mục tên cũ thì copy nguyên vẹn sang — lần sau
+// dev.db đã tồn tại nên tự bỏ qua, không cần file đánh dấu riêng (đúng
+// kiểu "kiểm tra trước khi làm" như runMigrations/seedProviders bên dưới).
+function migrateLegacyUserData(dataDir) {
+  const legacyDir = path.join(path.dirname(dataDir), "product-scrap");
+  const newDbPath = path.join(dataDir, "dev.db");
+  const legacyDbPath = path.join(legacyDir, "dev.db");
+  if (fs.existsSync(newDbPath) || !fs.existsSync(legacyDbPath)) return;
+
+  console.log(`Tìm thấy dữ liệu bản cũ ở ${legacyDir} — đang khôi phục sang ${dataDir}...`);
+  // Copy cả -wal/-shm (nếu có) để không mất transaction SQLite chưa
+  // checkpoint — thiếu 1 trong 2 vẫn an toàn vì SQLite tự bỏ qua nếu
+  // không tồn tại.
+  for (const suffix of ["", "-wal", "-shm"]) {
+    const from = legacyDbPath + suffix;
+    if (fs.existsSync(from)) fs.copyFileSync(from, newDbPath + suffix);
+  }
+  const legacyUploads = path.join(legacyDir, "uploads");
+  if (fs.existsSync(legacyUploads)) {
+    fs.cpSync(legacyUploads, path.join(dataDir, "uploads"), { recursive: true });
+  }
+  console.log("Khôi phục dữ liệu bản cũ xong.");
+}
+
 function startPackagedServer() {
   const resourcesPath = process.resourcesPath;
   const dataDir = app.getPath("userData");
   fs.mkdirSync(dataDir, { recursive: true });
+  migrateLegacyUserData(dataDir);
   const databaseUrl = `file:${path.join(dataDir, "dev.db")}`;
   // Ảnh local (xem src/lib/storage/index.ts, src/lib/paths.ts) đặt CẠNH
   // database trong thư mục dữ liệu riêng của user — KHÔNG đặt trong
@@ -257,7 +288,19 @@ function setupAutoUpdate() {
     sendUpdateStatus({ status: "downloading", percent: Math.round(progress.percent) })
   );
   autoUpdater.on("update-downloaded", (info) => sendUpdateStatus({ status: "downloaded", version: info.version }));
-  autoUpdater.on("error", (err) => sendUpdateStatus({ status: "error", message: String(err) }));
+  // String(err) của electron-updater có thể dump nguyên headers HTTP +
+  // danh sách domain whitelist (hàng nghìn ký tự) — không hiện thẳng lên
+  // toast cho người dùng, chỉ log đủ ra console để tự debug khi cần. Rơi
+  // vào đúng lỗi "chưa có release nào trên GitHub" rất phổ biến lúc mới
+  // phát hành (không phải lỗi máy người dùng) nên dịch riêng cho dễ hiểu.
+  autoUpdater.on("error", (err) => {
+    console.error("Lỗi kiểm tra/tải bản cập nhật:", err);
+    const raw = (err && err.message) || String(err);
+    const message = raw.includes("ensure a production release exists")
+      ? "Chưa có bản cập nhật nào được phát hành trên GitHub."
+      : raw.split("\n")[0].slice(0, 200);
+    sendUpdateStatus({ status: "error", message });
+  });
 
   autoUpdater.checkForUpdates().catch(() => {});
   setInterval(() => autoUpdater.checkForUpdates().catch(() => {}), CHECK_UPDATE_INTERVAL_MS);

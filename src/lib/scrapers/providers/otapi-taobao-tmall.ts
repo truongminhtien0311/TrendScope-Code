@@ -83,12 +83,17 @@ async function fetchItemDetail(itemId: string, apiKey: string): Promise<OtapiIte
   return data.Result.Item;
 }
 
-// Số ảnh THẬT kèm theo đánh giá lấy về — giới hạn để không phình dung
-// lượng lưu trữ (mỗi ảnh đều được tải + lưu local/Drive như ảnh sản phẩm,
-// xem src/app/api/scrape/route.ts) và không lấn ngân sách ảnh gửi AI (ảnh
-// chính thức của shop luôn được ưu tiên trước, xem src/lib/llm/index.ts).
-const MAX_IMAGES_PER_REVIEW = 8;
-const MAX_REVIEW_IMAGES_PER_LISTING = 30;
+// KHÔNG giới hạn số review/ảnh lấy về nữa (yêu cầu người dùng — chấp nhận
+// đánh đổi tốn quota RapidAPI + dung lượng lưu trữ hơn để có đầy đủ dữ
+// liệu đối chiếu). Ngân sách ảnh gửi AI vẫn được kiểm soát riêng ở
+// src/lib/llm/index.ts (MAX_IMAGE_COUNT/MAX_TOTAL_IMAGE_BYTES, ưu tiên ảnh
+// chính thức trước) nên gỡ cap ở đây không làm tăng chi phí AI mỗi lượt
+// phân tích, chỉ tăng dữ liệu lưu trữ local/Drive.
+const REVIEW_PAGE_SIZE = 50; // kích thước 1 trang phân trang SearchItemReviews
+// Chặn kỹ thuật thuần tuý chống vòng lặp vô hạn nếu API lỗi trả lặp mãi
+// cùng 1 trang — KHÔNG phải giới hạn nghiệp vụ (200 trang ~ 10.000 review,
+// thực tế không sản phẩm nào chạm tới).
+const MAX_REVIEW_PAGES = 200;
 
 // Đánh giá người mua — ĐÃ KIỂM CHỨNG cấu trúc JSON thật (cào thử sản
 // phẩm giày 660702060155 có 10 review thật, 2026-07-17). Field đúng là
@@ -103,25 +108,36 @@ const MAX_REVIEW_IMAGES_PER_LISTING = 30;
 // không dùng "ImagePreviewUrls" — để bước resize lúc lưu tự quyết định
 // kích thước cuối, không phụ thuộc thumbnail có sẵn của Otapi). Video
 // ("Videos") cố tình KHÔNG lấy — quá nặng so với lợi ích.
+//
+// "framePosition"/"frameSize" là tham số PHÂN TRANG thật của OTAPI (không
+// phải cap tuỳ ý) — để lấy HẾT review phải gọi lặp lại tăng dần
+// framePosition cho tới khi trang trả về rỗng hoặc ít hơn frameSize (hết
+// dữ liệu), KHÔNG thể lấy hết chỉ bằng cách tăng frameSize 1 lần gọi.
+// LƯU Ý QUOTA: mỗi trang tốn 1 request RapidAPI riêng — sản phẩm nhiều
+// review sẽ tốn nhiều request hơn hẳn so với trước (từng chỉ 1 request/sản
+// phẩm), dễ chạm giới hạn gói Basic miễn phí (xem comment đầu file) nhanh
+// hơn nếu cào nhiều sản phẩm có nhiều review trong ngày.
 async function fetchReviews(
   itemId: string,
   apiKey: string
 ): Promise<{ contentOriginal: string; contentVi?: string; rating?: number; imageUrls?: string[] }[]> {
-  const res = await fetch(
-    `https://${HOST}/SearchItemReviews?language=vi&ItemId=${itemId}&framePosition=0&frameSize=50`,
-    { headers: { "x-rapidapi-host": HOST, "x-rapidapi-key": apiKey } }
-  );
-  if (!res.ok) return [];
-  const data = (await res.json()) as { Result?: { Content?: OtapiReview[] } };
-  const list = data.Result?.Content ?? [];
+  const all: OtapiReview[] = [];
+  for (let page = 0; page < MAX_REVIEW_PAGES; page++) {
+    const framePosition = page * REVIEW_PAGE_SIZE;
+    const res = await fetch(
+      `https://${HOST}/SearchItemReviews?language=vi&ItemId=${itemId}&framePosition=${framePosition}&frameSize=${REVIEW_PAGE_SIZE}`,
+      { headers: { "x-rapidapi-host": HOST, "x-rapidapi-key": apiKey } }
+    );
+    if (!res.ok) break;
+    const data = (await res.json()) as { Result?: { Content?: OtapiReview[] } };
+    const list = data.Result?.Content ?? [];
+    all.push(...list);
+    if (list.length < REVIEW_PAGE_SIZE) break; // hết dữ liệu
+  }
 
-  let totalImages = 0;
-  return list
+  return all
     .map((r) => {
-      const remaining = MAX_REVIEW_IMAGES_PER_LISTING - totalImages;
-      const imageUrls =
-        remaining > 0 ? (r.ImageUrls ?? []).slice(0, Math.min(MAX_IMAGES_PER_REVIEW, remaining)) : [];
-      totalImages += imageUrls.length;
+      const imageUrls = r.ImageUrls ?? [];
       return {
         contentOriginal: r.OriginalText ?? "",
         contentVi: r.Text,
