@@ -63,7 +63,7 @@ export default function CompareHistoryGrid({ sessions }: { sessions: SessionEntr
               </button>
 
               <Link
-                href={`/compare/${s.id}`}
+                href={`/compare/${s.id}?from=${encodeURIComponent("/compare/history")}`}
                 className="block rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 hover:border-blue-400 dark:hover:border-blue-500 transition-colors"
               >
                 <div className="flex items-start justify-between gap-3 pl-6">

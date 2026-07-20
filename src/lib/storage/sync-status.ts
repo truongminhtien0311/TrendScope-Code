@@ -10,7 +10,7 @@
 import { stat } from "node:fs/promises";
 import { prisma } from "@/lib/db";
 import { resolveDatabaseFilePath } from "@/lib/paths";
-import { PENDING_IMAGE_WHERE } from "./index";
+import { PENDING_IMAGE_WHERE, isSweepRunning } from "./index";
 
 export interface SyncStatus {
   pendingListingImages: number;
@@ -21,6 +21,7 @@ export interface SyncStatus {
   driveEnabled: boolean;
   analysisCount: number;
   dbSizeBytes: number | null;
+  syncing: boolean;
 }
 
 export async function getSyncStatus(): Promise<SyncStatus> {
@@ -55,5 +56,6 @@ export async function getSyncStatus(): Promise<SyncStatus> {
     driveEnabled: !!driveProvider,
     analysisCount,
     dbSizeBytes,
+    syncing: isSweepRunning(),
   };
 }

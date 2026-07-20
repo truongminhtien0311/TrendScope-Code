@@ -25,6 +25,10 @@ export default function ProductGrid({
 
 
   const idsParam = selectedIds.join(",");
+  // Nhấn vào thẻ sản phẩm luôn mang theo "từ đâu tới" để trang chi tiết
+  // hiện đúng nút Quay lại — không chỉ lúc vừa thêm mới (xem BackButton.tsx,
+  // src/app/products/[id]/page.tsx).
+  const backHref = mode === "dashboard" ? "/" : "/compare";
 
   return (
     <div className="space-y-3 pb-16">
@@ -45,6 +49,7 @@ export default function ProductGrid({
             key={p.id}
             product={p}
             rate={rate}
+            backHref={backHref}
             selected={selectedIds.includes(p.id)}
             onToggleSelect={toggleSelect}
           />

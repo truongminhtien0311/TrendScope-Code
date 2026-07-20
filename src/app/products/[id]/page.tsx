@@ -9,7 +9,6 @@
 // - Form dán link mới để cào dữ liệu
 // ============================================================
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { getCnyVndRate, cnyToVnd, formatVnd } from "@/lib/currency";
@@ -25,6 +24,7 @@ import ImageManager from "@/components/ImageManager";
 import ReviewManager from "@/components/ReviewManager";
 import ListingActions from "@/components/ListingActions";
 import BadgeOverflowList from "@/components/BadgeOverflowList";
+import BackButton from "@/components/BackButton";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +40,11 @@ export default async function ProductDetailPage({
   // Chỉ nhận đường dẫn nội bộ (bắt đầu bằng "/") — tránh lỡ bị dùng để
   // redirect ra ngoài nếu link này bị chia sẻ/sửa tay.
   const backTo = from && from.startsWith("/") ? from : undefined;
+  const backLabel =
+    backTo === "/reports" ? "Quay lại báo cáo"
+    : backTo === "/" ? "Quay lại Dashboard"
+    : backTo === "/compare" ? "Quay lại chọn sản phẩm"
+    : "Quay lại";
   const [product, rate, allTags, allCategories, currentUser, presetsSetting, activePresetIdSetting] =
     await Promise.all([
       prisma.product.findUnique({
@@ -51,7 +56,7 @@ export default async function ProductDetailPage({
             include: {
               variants: true,
               images: { orderBy: { sortOrder: "asc" } },
-              reviews: true,
+              reviews: { include: { images: { orderBy: { sortOrder: "asc" } } } },
             },
             orderBy: { createdAt: "desc" },
           },
@@ -112,14 +117,7 @@ export default async function ProductDetailPage({
 
   return (
     <div className="space-y-8 w-full">
-      {backTo && (
-        <Link
-          href={backTo}
-          className="inline-flex items-center gap-2 rounded-lg bg-slate-800 dark:bg-slate-100 text-white dark:text-slate-900 px-4 py-2 text-sm font-semibold hover:opacity-90"
-        >
-          ⬅ Quay lại báo cáo
-        </Link>
-      )}
+      {backTo && <BackButton href={backTo} label={backLabel} />}
       {/* ---- Đầu trang: tên, tag, ngành hàng ---- */}
       <div>
         <h1 className="text-2xl font-bold">
@@ -247,7 +245,13 @@ type ListingFull = {
   lastScrapedAt: Date | null;
   variants: VariantData[];
   images: { id: number; url: string; kind: string }[];
-  reviews: { id: number; contentOriginal: string; contentVi: string | null; rating: number | null }[];
+  reviews: {
+    id: number;
+    contentOriginal: string;
+    contentVi: string | null;
+    rating: number | null;
+    images: { id: number; url: string }[];
+  }[];
 };
 
 function ListingGroup({

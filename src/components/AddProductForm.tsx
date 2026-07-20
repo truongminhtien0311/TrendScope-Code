@@ -46,7 +46,7 @@ export default function AddProductForm() {
     setCreating(false);
     if (res.ok) {
       const created = await res.json();
-      router.push(`/products/${created.id}`);
+      router.push(`/products/${created.id}?from=${encodeURIComponent("/")}`);
       router.refresh();
     } else {
       toast.error("Không tạo được sản phẩm, thử lại nhé.");

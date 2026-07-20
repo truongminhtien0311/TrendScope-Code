@@ -37,11 +37,15 @@ function priceRangeText(prices: number[], rate: number): string | null {
 export default function ProductCard({
   product,
   rate,
+  backHref,
   selected,
   onToggleSelect,
 }: {
   product: ProductCardData;
   rate: number;
+  // Đường dẫn nơi đang đứng (Dashboard "/" hoặc chọn so sánh "/compare") —
+  // gắn vào link để trang chi tiết hiện đúng nút Quay lại (xem BackButton.tsx).
+  backHref?: string;
   // onToggleSelect nếu được truyền vào thì thẻ sẽ có ô checkbox góc phải
   selected?: boolean;
   onToggleSelect?: (id: number) => void;
@@ -58,6 +62,10 @@ export default function ProductCard({
   const mainImage = resolveProductImage(product.listings, product.mainImageListingId);
 
   const soldTotal = product.listings.reduce((sum, l) => sum + (l.soldTotal ?? 0), 0);
+
+  const href = backHref
+    ? `/products/${product.id}?from=${encodeURIComponent(backHref)}`
+    : `/products/${product.id}`;
 
   return (
     <div
@@ -91,7 +99,7 @@ export default function ProductCard({
         </button>
       )}
 
-      <Link href={`/products/${product.id}`} className="flex-1 flex flex-col relative z-10">
+      <Link href={href} className="flex-1 flex flex-col relative z-10">
         {/* Image */}
         <div
           className="aspect-square overflow-hidden"

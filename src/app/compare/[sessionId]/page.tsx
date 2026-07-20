@@ -11,15 +11,23 @@ import { DEFAULT_COMPARE_PRESETS, type PromptPreset } from "@/lib/llm";
 import CompareTable, { type CompareProductData } from "@/components/CompareTable";
 import ScorePanel from "@/components/ScorePanel";
 import SessionNameEditor from "@/components/SessionNameEditor";
+import BackButton from "@/components/BackButton";
 
 export const dynamic = "force-dynamic";
 
 export default async function EvaluationSessionPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ sessionId: string }>;
+  searchParams: Promise<{ from?: string }>;
 }) {
   const { sessionId } = await params;
+  const { from } = await searchParams;
+  // Chỉ nhận đường dẫn nội bộ — cùng quy ước với src/app/products/[id]/page.tsx.
+  const backTo = from && from.startsWith("/") ? from : undefined;
+  const backLabel =
+    backTo === "/compare/history" ? "Quay lại lịch sử đánh giá" : backTo === "/compare" ? "Quay lại so sánh" : "Quay lại";
   const session = await prisma.evaluationSession.findUnique({
     where: { id: Number(sessionId) },
     include: {
@@ -88,6 +96,7 @@ export default async function EvaluationSessionPage({
 
   return (
     <div className="space-y-6 w-full">
+      {backTo && <BackButton href={backTo} label={backLabel} />}
       <div>
         <h1
           className="text-2xl font-bold flex items-center gap-2"

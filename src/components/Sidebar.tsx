@@ -3,9 +3,16 @@
 // Thanh điều hướng bên trái: phân nhóm NavGroups để dễ mở rộng module sau.
 // Mỗi nhóm là một object riêng — thêm route mới chỉ cần thêm vào đúng nhóm.
 // Thu gọn được (chỉ còn icon) — trạng thái nhớ qua localStorage.
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import type { SyncStatus } from "@/lib/storage/sync-status";
+import SyncCenterButton from "./SyncCenterButton";
+
+// "-webkit-app-region" không nằm trong type CSSProperties chuẩn (chỉ
+// Electron/Chromium hiểu) — ép kiểu để TypeScript chấp nhận.
+const dragRegionStyle = { WebkitAppRegion: "drag" } as React.CSSProperties;
+const noDragStyle = { WebkitAppRegion: "no-drag" } as React.CSSProperties;
 
 // ─── SVG Icons (inline, no dependency needed) ──────────────────────────────
 function IconGrid() {
@@ -170,28 +177,44 @@ export default function Sidebar({ userEmail }: { userEmail?: string | null }) {
   // duyệt thường qua `npm run dev`) — bản đóng gói Electron sẽ ghi đè lại
   // ngay bên dưới nếu window.electronAPI tồn tại (xem electron/preload.js).
   const [appVersion, setAppVersion] = useState<string | null>(process.env.NEXT_PUBLIC_APP_VERSION ?? null);
-  // Số ảnh chưa đồng bộ Drive — badge nhỏ cạnh mục "Đồng bộ dữ liệu", để
+  // Trạng thái đồng bộ Drive đầy đủ — dùng cho cả badge nhỏ cạnh mục "Đồng
+  // bộ dữ liệu" VÀ nút "Trung tâm đồng bộ" ở header (SyncCenterButton), để
   // trạng thái luôn hiện sẵn (không "chôn" trong 1 trang riêng phải tự vào
   // xem mới biết). Poll giãn (30s) vì đây chỉ là chỉ báo phụ, trang
   // /sync đã có SyncStatusPanel poll sát hơn khi thực sự đang theo dõi.
-  const [pendingSyncCount, setPendingSyncCount] = useState<number | null>(null);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
+
+  const pollSyncStatus = useCallback(async (): Promise<SyncStatus | null> => {
+    const res = await fetch("/api/sync/status").catch(() => null);
+    if (!res?.ok) return null;
+    const data: SyncStatus = await res.json();
+    setSyncStatus(data);
+    return data;
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
-    async function poll() {
-      const res = await fetch("/api/sync/status").catch(() => null);
-      if (!cancelled && res?.ok) {
-        const data = await res.json();
-        setPendingSyncCount(data.pendingListingImages + data.pendingReviewImages);
-      }
+    let timer: ReturnType<typeof setTimeout>;
+    // Hẹn giờ TỰ ĐẶT LẠI theo dữ liệu vừa nhận (không phải state cũ) — poll
+    // sát hơn (5s) lúc đang quét/còn ảnh chờ để icon xoay tròn thấy "sống
+    // động", giãn ra (30s, như cũ) lúc đã yên, đỡ tốn tài nguyên nền vì
+    // Sidebar hiện trên MỌI trang trong app (không riêng trang /sync, nơi
+    // SyncStatusPanel.tsx dùng cadence sát hơn 2.5s vì là màn hình đang theo
+    // dõi chủ động).
+    async function tick() {
+      const data = await pollSyncStatus();
+      if (cancelled) return;
+      const busy = !!data && (data.syncing || data.pendingListingImages + data.pendingReviewImages > 0);
+      timer = setTimeout(tick, busy ? 5000 : 30000);
     }
-    poll();
-    const timer = setInterval(poll, 30000);
+    tick();
     return () => {
       cancelled = true;
-      clearInterval(timer);
+      clearTimeout(timer);
     };
-  }, []);
+  }, [pollSyncStatus]);
+
+  const pendingSyncCount = syncStatus ? syncStatus.pendingListingImages + syncStatus.pendingReviewImages : null;
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- đồng bộ từ localStorage, không có trên server nên không thể tính lúc render
@@ -240,25 +263,40 @@ export default function Sidebar({ userEmail }: { userEmail?: string | null }) {
       // dãn ra theo, đẩy phần footer (email/đăng xuất) trôi tít xuống
       // dưới, phải cuộn hết trang mới thấy. sticky+height:100vh giữ nó
       // luôn đúng 1 màn hình, độc lập với độ dài nội dung main.
-      style={{ position: "sticky", top: 0, height: "100vh" }}
+      //
+      // zIndex: "sticky" tự tạo 1 stacking context riêng cho aside — nếu
+      // không có z-index, <main> (đứng sau trong HTML, cũng position:
+      // relative) sẽ vẽ ĐÈ LÊN toàn bộ aside kể cả popup z-50 bên trong
+      // (vd SyncCenterButton) vì z-50 đó chỉ so được với phần tử khác
+      // TRONG aside, không so được với main ở ngoài. 20 vẫn thấp hơn các
+      // modal khác trong app (z-50 AiAnalysisPanel, z-[60] UpdateNotifier)
+      // nên các modal đó vẫn hiện đè lên sidebar bình thường.
+      style={{ position: "sticky", top: 0, height: "100vh", zIndex: 20 }}
     >
       {/* ── Header / Logo ─────────────────────────────────────── */}
+      {/* Nguyên dải này khai báo "-webkit-app-region: drag" — trong app
+          Electron đóng gói (electron/main.js dùng titleBarStyle:"hidden")
+          cho phép kéo di chuyển cả cửa sổ bằng cách bấm-kéo vùng logo. Ở
+          trình duyệt thường (npm run dev) thuộc tính này bị bỏ qua, không
+          ảnh hưởng gì. 3 phần tử bấm được bên trong (2 nút thu/mở +
+          logo) phải khai báo "no-drag" ngược lại, không thì Electron sẽ
+          coi thao tác bấm chúng là kéo cửa sổ thay vì click. */}
       <div
         className="flex items-center justify-between px-3 py-4"
-        style={{ borderBottom: "1px solid var(--border-sidebar)" }}
+        style={{ borderBottom: "1px solid var(--border-sidebar)", ...dragRegionStyle }}
       >
         {collapsed ? (
           <button
             onClick={toggleCollapsed}
             className="mx-auto flex items-center justify-center rounded-lg p-1.5 transition-all hover:scale-110"
             title="Mở rộng sidebar"
-            style={{ color: "var(--accent-primary)" }}
+            style={{ color: "var(--accent-primary)", ...noDragStyle }}
           >
             <LogoIcon size={26} />
           </button>
         ) : (
           <>
-            <Link href="/" className="flex items-center gap-2.5 min-w-0" title="TrendScope">
+            <Link href="/" className="flex items-center gap-2.5 min-w-0" title="TrendScope" style={noDragStyle}>
               <LogoIcon size={26} />
               <div className="min-w-0">
                 <div className="logo-text truncate">TrendScope</div>
@@ -269,16 +307,19 @@ export default function Sidebar({ userEmail }: { userEmail?: string | null }) {
                 )}
               </div>
             </Link>
-            <button
-              onClick={toggleCollapsed}
-              title="Thu gọn sidebar"
-              className="shrink-0 rounded-lg p-1.5 transition-all"
-              style={{ color: "var(--text-sidebar-muted)" }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "var(--accent-primary)"; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "var(--text-sidebar-muted)"; }}
-            >
-              <IconChevronLeft />
-            </button>
+            <div className="flex items-center gap-0.5 shrink-0">
+              <SyncCenterButton status={syncStatus} onRefresh={pollSyncStatus} />
+              <button
+                onClick={toggleCollapsed}
+                title="Thu gọn sidebar"
+                className="shrink-0 rounded-lg p-1.5 transition-all"
+                style={{ color: "var(--text-sidebar-muted)", ...noDragStyle }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "var(--accent-primary)"; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "var(--text-sidebar-muted)"; }}
+              >
+                <IconChevronLeft />
+              </button>
+            </div>
           </>
         )}
       </div>

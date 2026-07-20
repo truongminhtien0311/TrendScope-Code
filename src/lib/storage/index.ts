@@ -101,6 +101,7 @@ export async function saveLocalBuffer(
   const hash = crypto.createHash("sha256").update(buffer).digest("hex");
   const fileName = `${hash}.${extFromMime(mimeType)}`;
   await writeUploadFile(buffer, fileName);
+  scheduleDebouncedSweep();
   return { url: `/uploads/${fileName}`, localPath: fileName };
 }
 
@@ -115,7 +116,7 @@ export async function saveScrapedImages<T extends { url: string }>(
   opts: { maxDimension?: number } = {}
 ): Promise<(T & { localPath?: string })[]> {
   const maxDimension = opts.maxDimension ?? DEFAULT_MAX_DIMENSION;
-  return Promise.all(
+  const result = await Promise.all(
     images.map(async (img) => {
       try {
         const { url, localPath } = await saveLocalImage(img.url, maxDimension);
@@ -126,6 +127,8 @@ export async function saveScrapedImages<T extends { url: string }>(
       }
     })
   );
+  if (result.length) scheduleDebouncedSweep();
+  return result;
 }
 
 const EXT_TO_MIME: Record<string, string> = {
@@ -140,6 +143,36 @@ const EXT_TO_MIME: Record<string, string> = {
 let isSweeping = false;
 const SWEEP_BATCH_SIZE = 10; // mỗi bảng (ListingImage/ReviewImage) tối đa từng này ảnh/lượt
 const SWEEP_CONCURRENCY = 3; // upload Drive song song tối đa từng này ảnh 1 lúc
+
+// Cho khung trạng thái (src/lib/storage/sync-status.ts) biết đang có lượt
+// quét chạy hay không, để hiện icon xoay tròn thay vì chỉ tĩnh.
+export function isSweepRunning(): boolean {
+  return isSweeping;
+}
+
+// Hẹn giờ lưu trên globalThis (không phải biến thường trong file) — ở môi
+// trường dev, Next.js có thể nạp lại file này giữa chừng (HMR) khi sửa code
+// khác lúc app đang chạy, làm mất dấu vết hẹn giờ cũ nếu chỉ lưu bằng biến
+// thường, gây job "mồ côi" không tự hủy được. globalThis sống sót qua việc
+// nạp lại module đó.
+declare global {
+  var __driveSyncDebounceTimer: ReturnType<typeof setTimeout> | undefined;
+}
+const DEBOUNCE_SWEEP_MS = 30_000; // 30s im ắng thì tự quét, không cần chờ đủ chu kỳ 5 phút
+
+// Gọi mỗi khi có ảnh mới lưu local xong (saveScrapedImages/saveLocalBuffer)
+// — gộp nhiều lượt lưu liên tiếp (cào nhiều ảnh, nhiều sản phẩm liên tục)
+// thành 1 lượt sweep duy nhất sau khi THỰC SỰ ngừng, không bắn quét dồn dập
+// từng ảnh một. Dùng chung isSweeping ở runDriveSyncSweep() nên không có
+// rủi ro chạy chồng lấp với lượt quét định kỳ 5 phút (src/instrumentation.ts)
+// — lượt nào tới sau mà lượt trước còn đang chạy thì tự bỏ qua ngay.
+export function scheduleDebouncedSweep(): void {
+  if (globalThis.__driveSyncDebounceTimer) clearTimeout(globalThis.__driveSyncDebounceTimer);
+  globalThis.__driveSyncDebounceTimer = setTimeout(() => {
+    globalThis.__driveSyncDebounceTimer = undefined;
+    runDriveSyncSweep().catch(() => {});
+  }, DEBOUNCE_SWEEP_MS);
+}
 
 // Điều kiện "ảnh đã lưu local nhưng CHƯA lên Drive" — dùng chung giữa sweep
 // và src/lib/storage/sync-status.ts (đếm hiển thị cho người dùng), để 2 nơi
