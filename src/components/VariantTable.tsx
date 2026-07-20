@@ -150,7 +150,7 @@ function NewVariantRow({ listingId, onDone }: { listingId: number; onDone: () =>
       onDone();
       router.refresh();
     } else {
-      setError("Lưu thất bại, thử lại nhé.");
+      setError("Lưu thất bại, vui lòng thử lại.");
     }
   }
 
@@ -211,7 +211,7 @@ function VariantRow({ variant: v, rate }: { variant: VariantData; rate: number }
       setEditing(false);
       router.refresh();
     } else {
-      toast.error("Lưu thất bại, thử lại nhé.");
+      toast.error("Lưu thất bại, vui lòng thử lại.");
     }
   }
 
@@ -219,7 +219,7 @@ function VariantRow({ variant: v, rate }: { variant: VariantData; rate: number }
     if (!(await confirmDialog(`Xóa phân loại "${v.nameVi ?? v.nameOriginal}"?`, { danger: true }))) return;
     const res = await fetch(`/api/variants/${v.id}`, { method: "DELETE" });
     if (res.ok) router.refresh();
-    else toast.error("Xóa thất bại, thử lại nhé.");
+    else toast.error("Xóa thất bại, vui lòng thử lại.");
   }
 
   if (editing) {

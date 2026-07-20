@@ -142,7 +142,7 @@ export default function GuidePage() {
           <li><strong>Góc nhìn Vận hành (COO):</strong> So sánh độ cồng kềnh, tỷ lệ hỏng vỡ, khả năng scale.</li>
           <li><strong>Góc nhìn Pháp chế/CEO:</strong> Đánh giá rào cản xâm nhập (Moat), nguy cơ kiện cáo bản quyền, tiềm năng xây Brand riêng.</li>
           <li><strong>Chiến lược Phễu:</strong> Phân mảnh sản phẩm nào làm "mồi" câu khách, sản phẩm nào làm "chủ lực" chốt lời.</li>
-          <li><strong>Sàng lọc khắc nghiệt (Battle Royale):</strong> Chế độ "Shark Tank" loại bỏ thẳng tay những sản phẩm rủi ro chí mạng.</li>
+          <li><strong>Sàng lọc loại trừ nghiêm ngặt:</strong> Chỉ giữ lại đúng 1 sản phẩm rủi ro thấp nhất, loại bỏ những sản phẩm có rủi ro nghiêm trọng.</li>
         </ul>
         <p className="mt-3">
           Chọn xong sản phẩm, bấm &lsquo;🚀 Tạo phiên đánh giá&rsquo; để LƯU LẠI thành 1 &lsquo;Phiên
@@ -237,8 +237,8 @@ export default function GuidePage() {
           </li>
           <li>
             <strong>Báo cáo trình bày / PDF</strong> — trang chi tiết ĐẦY ĐỦ (mô tả, ảnh, giá,
-            đánh giá, cả 7 mục AI), chỉ đọc, không có nút sửa/xóa — dùng để trình sếp xem hoặc
-            tải file PDF thật. Chọn nhiều sản phẩm ở Dashboard (&lsquo;☑️ Chọn nhiều&rsquo;) hoặc
+            đánh giá, cả 7 mục AI), chỉ đọc, không có nút sửa/xóa — dùng để báo cáo cho ban lãnh
+            đạo hoặc tải file PDF thật. Chọn nhiều sản phẩm ở Dashboard (&lsquo;☑️ Chọn nhiều&rsquo;) hoặc
             bấm nút báo cáo riêng ngay trên trang 1 sản phẩm.
           </li>
         </ul>

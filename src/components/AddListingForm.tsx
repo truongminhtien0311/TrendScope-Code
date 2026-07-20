@@ -72,9 +72,11 @@ function ModeCard({
   );
 }
 
-// Domain link rút gọn Taobao từ mobile (vd https://e.tb.cn/h.xxxx) —
-// không chứa id sản phẩm, cần giải mã qua phiên đăng nhập Taobao trước.
-const SHORT_LINK_PATTERN = /e\.tb\.cn|m\.tb\.cn/i;
+// Domain link rút gọn Taobao từ mobile (vd https://e.tb.cn/h.xxxx,
+// https://m.tb.cn/..., hoặc dạng trần https://tb.cn/...) — không chứa id
+// sản phẩm, cần giải mã qua phiên đăng nhập Taobao trước. Khớp chung
+// "tb.cn" (không chỉ "e."/"m.") để không bỏ sót các tiền tố khác.
+const SHORT_LINK_PATTERN = /tb\.cn/i;
 
 function AutoForm({ productId }: { productId: number }) {
   const router = useRouter();
@@ -119,6 +121,14 @@ function AutoForm({ productId }: { productId: number }) {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!url.trim()) return;
+    // Link rút gọn CHƯA giải mã thì chặn lại thay vì để API tự báo lỗi
+    // "Không tách được id" (gây hiểu lầm là link sai hẳn) — hướng đúng
+    // người dùng bấm nút "Giải mã link" trước, dễ bị bỏ qua vì nút Thêm
+    // link trước đây không bị khoá khi vẫn còn là link rút gọn.
+    if (SHORT_LINK_PATTERN.test(url)) {
+      setError('Đây vẫn là link rút gọn — bấm "🔓 Giải mã link" trước khi thêm.');
+      return;
+    }
     setLoading(true);
     setError("");
 
@@ -135,7 +145,7 @@ function AutoForm({ productId }: { productId: number }) {
       router.refresh();
     } else {
       const data = await res.json().catch(() => null);
-      setError(data?.error ?? "Cào dữ liệu thất bại, thử lại nhé.");
+      setError(data?.error ?? "Cào dữ liệu thất bại, vui lòng thử lại.");
     }
   }
 
@@ -284,7 +294,7 @@ function ManualForm({ productId }: { productId: number }) {
       router.refresh();
     } else {
       const data = await res.json().catch(() => null);
-      setError(data?.error ?? "Lưu thất bại, thử lại nhé.");
+      setError(data?.error ?? "Lưu thất bại, vui lòng thử lại.");
     }
   }
 

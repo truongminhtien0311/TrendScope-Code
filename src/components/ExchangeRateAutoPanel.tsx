@@ -44,7 +44,7 @@ export default function ExchangeRateAutoPanel({
       router.refresh();
     } else {
       const data = await res.json().catch(() => null);
-      setError(data?.error ?? "Cập nhật thất bại, thử lại nhé.");
+      setError(data?.error ?? "Cập nhật thất bại, vui lòng thử lại.");
     }
   }
 

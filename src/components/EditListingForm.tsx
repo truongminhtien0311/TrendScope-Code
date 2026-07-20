@@ -66,7 +66,7 @@ export default function EditListingForm({ listing }: { listing: EditableListingF
       setOpen(false);
       router.refresh();
     } else {
-      toast.error("Lưu thất bại, thử lại nhé.");
+      toast.error("Lưu thất bại, vui lòng thử lại.");
     }
   }
 

@@ -61,7 +61,7 @@ export default function EditProductForm({ product, allTags, allCategories, isAdm
       setOpen(false);
       router.refresh();
     } else {
-      toast.error("Lưu thất bại, thử lại nhé.");
+      toast.error("Lưu thất bại, vui lòng thử lại.");
     }
   }
 
@@ -78,7 +78,7 @@ export default function EditProductForm({ product, allTags, allCategories, isAdm
       router.push("/");
       router.refresh();
     } else {
-      toast.error("Xóa thất bại, thử lại nhé.");
+      toast.error("Xóa thất bại, vui lòng thử lại.");
     }
   }
 

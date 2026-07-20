@@ -23,7 +23,7 @@ export default function ListingActions({ listingId }: { listingId: number }) {
       router.refresh();
     } else {
       const data = await res.json().catch(() => null);
-      toast.error(data?.error ?? "Cào lại thất bại, thử lại nhé.");
+      toast.error(data?.error ?? "Cào lại thất bại, vui lòng thử lại.");
     }
   }
 
@@ -41,7 +41,7 @@ export default function ListingActions({ listingId }: { listingId: number }) {
     if (res.ok) {
       router.refresh();
     } else {
-      toast.error("Xóa thất bại, thử lại nhé.");
+      toast.error("Xóa thất bại, vui lòng thử lại.");
     }
   }
 

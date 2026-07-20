@@ -314,7 +314,7 @@ export default async function SettingsPage() {
             {/* ---- Prompt Tổng hợp Hội đồng ---- */}
             <Section title="🧑‍⚖️ Prompt Tổng hợp Hội đồng">
               <p className="text-sm text-slate-500 dark:text-slate-400 mb-3">
-                Dùng khi bạn đã chạy nhiều góc nhìn (CFO, COO, Battle Royale...) trên cùng
+                Dùng khi bạn đã chạy nhiều góc nhìn (CFO, COO, Sàng lọc loại trừ...) trên cùng
                 1 bộ sản phẩm ở trang So sánh và muốn AI đối chiếu, phân xử mâu thuẫn rồi
                 tổng hợp thành 1 kết luận cuối — xem nút &quot;🧑‍⚖️ Tổng hợp hội đồng&quot;
                 ở trang So sánh (chỉ hiện khi đã tick chọn ≥2 báo cáo đã xong).

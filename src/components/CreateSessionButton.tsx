@@ -28,7 +28,7 @@ export default function CreateSessionButton({ productIds }: { productIds: number
       router.push(`/compare/${data.sessionId}?from=${encodeURIComponent("/compare")}`);
     } else {
       const data = await res.json().catch(() => null);
-      setError(data?.error ?? "Tạo phiên đánh giá thất bại, thử lại nhé.");
+      setError(data?.error ?? "Tạo phiên đánh giá thất bại, vui lòng thử lại.");
       setCreating(false);
     }
   }

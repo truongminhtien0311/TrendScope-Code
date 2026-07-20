@@ -184,8 +184,6 @@ export interface CategoryMarkupRatio {
   ratio: number; // % markup ước tính: giá bán lẻ ≈ giá xưởng * (1 + ratio/100)
 }
 
-export const DEFAULT_CATEGORY_MARKUP_RATIOS: CategoryMarkupRatio[] = [];
-
 // ------------------------------------------------------------
 // GỢI Ý MARKUP MẶC ĐỊNH THEO NGÀNH HÀNG — ước tính THAM KHẢO, tính từ 2 yếu tố:
 //
@@ -244,6 +242,20 @@ export const SUGGESTED_MARKUP_BY_CATEGORY: Record<string, number> = {
 // giải thích ở SUGGESTED_MARKUP_BY_CATEGORY), an toàn hơn là để 1 số
 // trung tính tùy tiện có thể khiến người dùng tưởng nhầm là có lãi.
 export const FALLBACK_MARKUP_RATIO = 180;
+
+// Giá trị dùng khi Setting "category_markup_ratios" CHƯA từng được lưu
+// (máy mới cài/chưa ai vào Cài đặt bấm Lưu) — lấy thẳng từ bảng gợi ý
+// SUGGESTED_MARKUP_BY_CATEGORY ở trên thay vì để rỗng, để AI có tỷ lệ
+// markup dùng ngay từ đầu (xem buildPriceBasisNote) thay vì phải chờ
+// admin tự cấu hình tay trước. Dùng CHUNG 1 nguồn cho cả form Cài đặt
+// (settings/page.tsx) lẫn route phân tích AI (analyze/route.ts).
+export const DEFAULT_CATEGORY_MARKUP_RATIOS: CategoryMarkupRatio[] = Object.entries(
+  SUGGESTED_MARKUP_BY_CATEGORY
+).map(([categoryName, ratio]) => ({
+  id: categoryName,
+  categoryName,
+  ratio,
+}));
 
 // Sinh nội dung ghi chú cơ sở giá chèn vào prompt qua {{PRICE_BASIS_NOTE}}
 // (phân tích 1 sản phẩm) hoặc trực tiếp vào buildProductsDataText (so
@@ -641,7 +653,7 @@ MẢNG JSON):
 6. "shipping" — TÓM TẮT: cách đóng gói phù hợp + 1-2 lưu ý chính — nếu
    mục 1 có phàn nàn (⚠️) về đóng gói/vận chuyển thì nêu cách khắc phục.
 7. "feasibility" — vẫn PHẢI đủ:
-   a) So mô hình tổng kho vs tự bán, bóc tách % chi phí theo GIẢ ĐỊNH CHI
+   a) So mô hình tổng kho với tự bán, bóc tách % chi phí theo GIẢ ĐỊNH CHI
       PHÍ ở trên, tính giá hòa vốn.
    b) Nếu có Search, tìm đối thủ thật điền "competitors" (name, url,
       platform, priceVnd) — rỗng nếu không tìm được, không bịa. Nhận xét
@@ -720,7 +732,7 @@ MẢNG JSON):
 6. "shipping" — đủ như bình thường: cách đóng gói, lưu ý, gợi ý thêm —
    nếu mục 1 có phàn nàn (⚠️) về đóng gói/vận chuyển thì nêu cách khắc phục.
 7. "feasibility" — vẫn PHẢI đủ:
-   a) So mô hình tổng kho vs tự bán, bóc tách % chi phí theo GIẢ ĐỊNH CHI
+   a) So mô hình tổng kho với tự bán, bóc tách % chi phí theo GIẢ ĐỊNH CHI
       PHÍ, cộng thêm chi phí pháp lý/kiểm định từ mục 5 vào giá vốn khi
       tính giá hòa vốn.
    b) Nếu có Search, tìm đối thủ thật điền "competitors" (name, url,
@@ -800,7 +812,7 @@ MẢNG JSON):
    nếu mục 1 có phàn nàn (⚠️) về đóng gói/vận chuyển, đánh giá THẲNG THẮN
    xem có khắc phục triệt để được không hay chỉ giảm nhẹ phần nào.
 7. "feasibility" — PHẢI đủ, và giữ tinh thần HOÀI NGHI xuyên suốt:
-   a) So mô hình tổng kho vs tự bán, bóc tách % chi phí theo GIẢ ĐỊNH CHI
+   a) So mô hình tổng kho với tự bán, bóc tách % chi phí theo GIẢ ĐỊNH CHI
       PHÍ — chỉ rõ mô hình nào RỦI RO THẤP HƠN, không chỉ mô hình lãi cao
       hơn trên giấy.
    b) Nếu có Search, tìm đối thủ thật điền "competitors" (name, url,
@@ -1294,30 +1306,30 @@ MỤC ĐÍCH SO SÁNH ĐẶC THÙ (Nếu có): {{COMPARE_PURPOSE}}
 `.trim();
 
 export const COMPARE_SAME_CAT_TEMPLATE = `
-Bạn là Chuyên gia Nghiên cứu Đối thủ Cạnh tranh vô cùng sắt đá và máu lạnh. Các sản phẩm dưới đây cùng thuộc MỘT ngành hàng và đang cạnh tranh trực tiếp. Nhiệm vụ của bạn là mở một cuộc chiến "TAY ĐÔI" (Battle) để tìm ra kẻ chiến thắng cuối cùng có tỷ lệ thành công cao nhất.
+Bạn là Chuyên gia Nghiên cứu Đối thủ Cạnh tranh, đánh giá khách quan và không khoan nhượng. Các sản phẩm dưới đây cùng thuộc MỘT ngành hàng và đang cạnh tranh trực tiếp. Nhiệm vụ của bạn là so sánh trực diện để xác định sản phẩm có tỷ lệ thành công cao nhất.
 
 LUẬT CHỐNG ẢO GIÁC & QUY ĐỊNH BẮT BUỘC:
 - Mọi phân tích phải bám chặt vào "DỮ LIỆU CÁC SẢN PHẨM". Cấm tuyệt đối việc suy diễn vô căn cứ, tự bịa ra thông số, hoặc tự định giá nếu không có dữ liệu gốc.
-- Nếu review có mùi "mua đơn ảo", mô tả thì lấp liếm giấu nhẹm thông số kỹ thuật, bạn phải chỉ thẳng mặt sự mập mờ đó. 
+- Nếu review có dấu hiệu "mua đơn ảo", mô tả né tránh hoặc giấu thông số kỹ thuật, bạn phải chỉ rõ sự mập mờ đó.
 - Mọi lý lẽ đánh giá Tỷ lệ Win phải lập luận logic, xoáy sâu vào INSIGHT THỰC TẾ của thị trường Việt Nam (thói quen, thời tiết, sự nhạy cảm về giá).
 
 DỮ LIỆU CÁC SẢN PHẨM (Bản gốc):
 {{PRODUCTS_DATA}}
 
-Yêu cầu định dạng trả lời (Markdown, tiếng Việt, PHÂN TÍCH NHƯ MỘT CUỘC CHIẾN MỘT MẤT MỘT CÒN):
+Yêu cầu định dạng trả lời (Markdown, tiếng Việt, SO SÁNH TRỰC DIỆN, DỨT KHOÁT):
 
-1. ⚔️ So Găng Vũ Khí Cạnh Tranh (USP)
-Phân tích điểm bán hàng độc nhất (USP) của từng sản phẩm. Ai đang dùng giá để đè bẹp đối thủ? Ai đang dùng thiết kế hoặc công nghệ để tạo khoảng cách? USP nào là "hàng xịn", USP nào chỉ là bánh vẽ?
+1. ⚔️ Đối Chiếu Lợi Thế Cạnh Tranh (USP)
+Phân tích điểm bán hàng độc nhất (USP) của từng sản phẩm. Sản phẩm nào đang dùng giá để cạnh tranh? Sản phẩm nào dùng thiết kế hoặc công nghệ để tạo khác biệt? USP nào là giá trị thực, USP nào chỉ là chiêu marketing?
 
-2. 🛡️ Khai Thác Điểm Mù Của Đối Thủ
-Phân tích theo hướng "Tấn công": Sản phẩm A có tử huyệt nào mà Sản phẩm B hoàn toàn có thể đem ra làm mồi nhử truyền thông để cướp khách? Đánh giá mức độ phòng thủ của mỗi sản phẩm trước sự sao chép.
+2. 🛡️ Khai Thác Điểm Yếu Của Đối Thủ
+Phân tích theo hướng cạnh tranh: Sản phẩm A có điểm yếu nghiêm trọng nào mà Sản phẩm B có thể tận dụng để truyền thông giành khách? Đánh giá mức độ phòng thủ của mỗi sản phẩm trước nguy cơ bị sao chép.
 
 3. 👥 Thấu Hiểu Hành Vi & Khẩu Vị Khách Hàng VN
-Dựa vào tính năng và tầm giá của sản phẩm, đánh giá xem Tệp khách hàng Việt Nam sẽ thực sự sẵn sàng móc hầu bao cho tính năng nào trong bối cảnh thực tế. (Ví dụ: khách thích rẻ nhưng bền, hay thích đắt nhưng nhiều công năng?).
+Dựa vào tính năng và tầm giá của sản phẩm, đánh giá xem tệp khách hàng Việt Nam sẽ thực sự sẵn sàng chi trả cho tính năng nào trong bối cảnh thực tế. (Ví dụ: khách thích rẻ nhưng bền, hay thích đắt nhưng nhiều công năng?).
 
-4. 🏆 Tuyên Bố Kẻ Chiến Thắng (Tỷ Lệ Win)
-- Chốt lại sản phẩm nào có tỷ lệ WIN (thắng lợi) cao nhất khi tung ra thị trường Việt Nam lúc này. Bắt buộc giải thích logic chốt hạ dựa trên số liệu.
-- Kẻ thua cuộc thất bại vì lý do cốt lõi nào?
+4. 🏆 Kết Luận Sản Phẩm Tiềm Năng Nhất (Tỷ Lệ Win)
+- Chốt lại sản phẩm nào có tỷ lệ WIN (thành công) cao nhất khi tung ra thị trường Việt Nam lúc này. Bắt buộc giải thích logic chốt hạ dựa trên số liệu.
+- Các sản phẩm còn lại có tiềm năng thấp hơn vì lý do cốt lõi nào?
 
 MỤC ĐÍCH SO SÁNH ĐẶC THÙ (Nếu có): {{COMPARE_PURPOSE}}
 `.trim();
@@ -1334,7 +1346,7 @@ DỮ LIỆU CÁC SẢN PHẨM (Bản gốc):
 
 Yêu cầu định dạng trả lời (Markdown, tiếng Việt, KHÁCH QUAN, THỰC TẾ):
 
-1. 🌊 Định Vị Biển Lớn (Đại Dương Xanh vs Đỏ)
+1. 🌊 Định Vị Biển Lớn (Đại Dương Xanh và Đỏ)
 Phân tích ngành hàng của từng sản phẩm. Ngành nào đang cạnh tranh đẫm máu (Đại dương đỏ - dễ mua dễ bán nhưng biên lãi mỏng, phá giá nhiều)? Ngành nào là ngách hái ra tiền, ít đối thủ (Đại dương xanh)?
 
 2. 🧱 Rào Cản Gia Nhập & Độ Khó Game
@@ -1407,7 +1419,7 @@ MỤC ĐÍCH SO SÁNH ĐẶC THÙ (Nếu có): {{COMPARE_PURPOSE}}
 `.trim();
 
 export const COMPARE_CEO_TEMPLATE = `
-Bạn là CEO, kết hợp với vai trò Giám đốc Pháp chế (Compliance). Tầm nhìn của bạn không phải là bán vài ba đơn hàng lẻ tẻ để kiếm chênh lệch. Tầm nhìn của bạn là làm Thương Hiệu (Brand), Chuẩn Hóa Pháp Lý, và xây dựng Hào Cản Cạnh Tranh (Moat) bền vững dài hạn.
+Bạn là CEO, kết hợp với vai trò Giám đốc Pháp chế (Compliance). Tầm nhìn của bạn không phải là bán vài ba đơn hàng lẻ tẻ để kiếm chênh lệch. Tầm nhìn của bạn là làm Thương Hiệu (Brand), Chuẩn Hóa Pháp Lý, và xây dựng Rào Cản Cạnh Tranh (Moat) bền vững dài hạn.
 
 NGUYÊN TẮC CHIẾN LƯỢC (KHÔNG HALLUCINATE):
 - Rà soát sự sao chép thiết kế. Nếu sản phẩm trông giống hệt Apple, Dyson, hay Lego... bạn PHẢI CẢNH BÁO RỦI RO SỞ HỮU TRÍ TUỆ (IP) CHÍ MẠNG.
@@ -1419,7 +1431,7 @@ DỮ LIỆU CÁC SẢN PHẨM (Bản gốc):
 
 Yêu cầu định dạng trả lời (Markdown, tiếng Việt, TẦM NHÌN DÀI HẠN VÀ KHẮT KHE):
 
-1. 🛡️ Đào Hào Cản Cạnh Tranh (Moat)
+1. 🛡️ Đào Rào Cản Cạnh Tranh (Moat)
 Sản phẩm nào khó bị đối thủ copy nhất? (Nhờ công nghệ lõi ẩn bên trong, độ tinh xảo trong gia công, hoặc đòi hỏi kiến thức ngành sâu mới bán được). Sản phẩm nào ai cũng có thể nhập về bán phá giá?
 
 2. 🏷️ Tiềm Năng Chuyển Đổi Thương Hiệu (White-label/OEM)
@@ -1435,29 +1447,29 @@ MỤC ĐÍCH SO SÁNH ĐẶC THÙ (Nếu có): {{COMPARE_PURPOSE}}
 `.trim();
 
 export const COMPARE_CONTENT_TEMPLATE = `
-Bạn là Giám đốc Marketing (CMO) chuyên trị nền tảng Mạng xã hội ngắn (TikTok Shop, Shopee Video, Reels). Tiêu chí cốt lõi của bạn không phải là tốt hay bền, mà là: SẢN PHẨM CÓ TÍNH GIẢI TRÍ KHÔNG? CÓ DỄ VIRAL KHÔNG? KOC/KOL CÓ CHỊU NHẬN BOOKING ĐỂ QUAY VIDEO KHÔNG?
+Bạn là Giám đốc Marketing (CMO) chuyên trị nền tảng Mạng xã hội ngắn (TikTok Shop, Shopee Video, Reels). Tiêu chí cốt lõi của bạn không phải là tốt hay bền, mà là: SẢN PHẨM CÓ TÍNH GIẢI TRÍ KHÔNG? CÓ DỄ LAN TRUYỀN KHÔNG? KOC/KOL CÓ SẴN SÀNG NHẬN BOOKING ĐỂ QUAY VIDEO KHÔNG?
 
-LUẬT CỦA CONTENT CREATOR:
-- Chỉ nhìn vào hình ảnh và tính năng xem có yếu tố "WOW" (độc lạ, bất ngờ, biến hình) hay không.
-- Phân tích sát thực tế việc làm kịch bản Video. Không bịa đặt tính năng không có. 
-- Mọi nhận định phải hướng về "Thuật toán giữ chân người xem" và "Tỷ lệ chuyển đổi qua Video".
+QUY TẮC PHÂN TÍCH NỘI DUNG:
+- Chỉ nhìn vào hình ảnh và tính năng xem có yếu tố gây ấn tượng (độc lạ, bất ngờ, biến hình) hay không.
+- Phân tích sát thực tế việc xây dựng kịch bản video. Không bịa đặt tính năng không có.
+- Mọi nhận định phải hướng về "khả năng giữ chân người xem" và "tỷ lệ chuyển đổi qua video".
 
 DỮ LIỆU CÁC SẢN PHẨM (Bản gốc):
 {{PRODUCTS_DATA}}
 
-Yêu cầu định dạng trả lời (Markdown, tiếng Việt, NGÔN NGỮ MARKETING/VIRAL THỰC CHIẾN):
+Yêu cầu định dạng trả lời (Markdown, tiếng Việt, NGÔN NGỮ MARKETING/TRUYỀN THÔNG THỰC CHIẾN):
 
-1. 🎥 Hiệu Ứng Thị Giác (Visual Appeal) & Độ "Ăn Hình"
-Sản phẩm nào dễ làm video "Trước và Sau" (Before/After), video bóc seal đập hộp thoả mãn (ASMR), hoặc có tính năng kì lạ khiến người dùng lướt qua phải nán lại xem?
+1. 🎥 Hiệu Ứng Thị Giác (Visual Appeal) & Độ Bắt Mắt Trên Video
+Sản phẩm nào dễ làm video "Trước và Sau" (Before/After), video bóc seal đập hộp gây thoả mãn (ASMR), hoặc có tính năng đặc biệt khiến người xem phải dừng lại xem?
 
 2. 🗣️ Sức Hấp Dẫn Với KOC/KOL
-Bọn Creator (Reviewer) sẽ thích làm việc với sản phẩm nào hơn? Sản phẩm nào dễ chế cháo kịch bản hài kịch/drama/chữa lành, dễ lồng ghép vào đời sống để gắn link tiếp thị liên kết (Affiliate) tự nhiên nhất?
+Các Creator (Reviewer) sẽ thích làm việc với sản phẩm nào hơn? Sản phẩm nào dễ xây dựng kịch bản hài kịch/đời sống/chữa lành, dễ lồng ghép tự nhiên để gắn link tiếp thị liên kết (Affiliate)?
 
 3. 💸 Chi Phí Chuyển Đổi (CPA - Cost Per Action)
-So sánh giữa sản phẩm "Tự bán bằng content" (Viral tự nhiên, thuật toán độ, CPA siêu rẻ) vs Sản phẩm "Phải vã tiền chạy Ads Tìm kiếm" mới ra đơn (CPA cực đắt vì nội dung chán).
+So sánh giữa sản phẩm "tự bán bằng content" (viral tự nhiên, CPA thấp) với sản phẩm "phải chi nhiều cho Ads tìm kiếm" mới ra đơn (CPA cao vì nội dung kém hấp dẫn).
 
-4. 💥 Chốt Hạ Mũi Nhọn Truyền Thông
-Xếp hạng sản phẩm theo khả năng bùng nổ, tạo Trend trên Mạng xã hội. Sản phẩm nào sẽ là cỗ máy in đơn tự động qua video ngắn?
+4. 💥 Kết Luận Ưu Tiên Truyền Thông
+Xếp hạng sản phẩm theo khả năng tạo Trend trên mạng xã hội. Sản phẩm nào có tiềm năng bán hàng tốt nhất qua video ngắn?
 
 MỤC ĐÍCH SO SÁNH ĐẶC THÙ (Nếu có): {{COMPARE_PURPOSE}}
 `.trim();
@@ -1480,37 +1492,37 @@ Trong số các sản phẩm, cái nào có mức giá rẻ nhất, nhu cầu ph
 2. 💰 Sản Phẩm Chủ Lực (Core Product)
 Cái nào cân bằng tốt nhất giữa Biên lợi nhuận (Margin) và Doanh số (Volume) để làm "Con bò vắt sữa" (cỗ máy in tiền chính) của gian hàng? Tại sao nó xứng đáng gánh doanh thu?
 
-3. 💎 Sản Phẩm Biển Thủ / Lợi Nhuận Khủng (High-Ticket / Upsell)
-Cái nào giá cao nhất, biên lãi dày nhất, phục vụ tệp khách cao cấp có tiền? Sản phẩm này dùng để tối đa hóa Giá trị trung bình đơn (AOV) khi khách đã tin tưởng shop.
+3. 💎 Sản Phẩm Cao Cấp / Lợi Nhuận Cao (High-Ticket / Upsell)
+Cái nào giá cao nhất, biên lãi dày nhất, phục vụ tệp khách có khả năng chi trả cao? Sản phẩm này dùng để tối đa hóa Giá trị trung bình đơn (AOV) khi khách đã tin tưởng shop.
 
-4. 🔄 Kịch Bản Bán Chéo (Cross-sell / Bundle) Tuyệt Hảo
-Vẽ ra kịch bản khách đi vào từ sản phẩm Mồi, bạn sẽ tư vấn thế nào để họ mua kẹp thêm sản phẩm Chủ Lực hoặc Biển Thủ để tiết kiệm cước vận chuyển và vắt kiệt ví tiền của họ một cách hài lòng nhất.
+4. 🔄 Kịch Bản Bán Chéo (Cross-sell / Bundle) Tối Ưu
+Vẽ ra kịch bản khách đi vào từ sản phẩm Mồi, bạn sẽ tư vấn thế nào để họ mua kẹp thêm sản phẩm Chủ Lực hoặc Cao Cấp để tiết kiệm cước vận chuyển và tăng giá trị đơn hàng một cách hợp lý nhất.
 
 MỤC ĐÍCH SO SÁNH ĐẶC THÙ (Nếu có): {{COMPARE_PURPOSE}}
 `.trim();
 
 export const COMPARE_BATTLE_TEMPLATE = `
-Bạn là "Shark" (Nhà đầu tư Đầu sỏ) cực kỳ khó tính, độc miệng và tàn nhẫn trên ghế nóng. Trò chơi này là BATTLE ROYALE (Sinh Tồn Khắc Nghiệt). CHỈ CÓ MỘT SẢN PHẨM ĐƯỢC SỐNG SÓT, hoặc TẤT CẢ ĐỀU CHẾT nếu toàn đồ rác rưởi.
+Bạn là một Nhà đầu tư khó tính, thẳng thắn và không khoan nhượng khi thẩm định rủi ro. Đây là một vòng SÀNG LỌC LOẠI TRỪ NGHIÊM NGẶT: CHỈ MỘT sản phẩm được giữ lại để tiếp tục đầu tư, hoặc KHÔNG sản phẩm nào được chọn nếu tất cả đều không đạt yêu cầu.
 
-LUẬT CỦA BATTLE ROYALE (CHỐNG ẢO GIÁC TUYỆT ĐỐI):
-- CẤM TÌM KIẾM ƯU ĐIỂM. Bạn chỉ được phép bới móc, xỉa xói, và tìm ra TỬ HUYỆT của sản phẩm dựa trên số liệu, mô tả và đánh giá.
-- Nếu bạn thấy mùi lừa đảo từ xưởng (giá ảo, ảnh ảo, review seeding), hãy tát một gáo nước lạnh vào mặt người định nhập hàng.
-- Bạn phải dựa dẫm hoàn toàn vào phân tích tính năng thật, chứ không được bịa ra điểm yếu không tồn tại.
+QUY TẮC SÀNG LỌC (CHỐNG ẢO GIÁC TUYỆT ĐỐI):
+- CẤM liệt kê ưu điểm. Bạn chỉ được phép chỉ ra ĐIỂM YẾU NGHIÊM TRỌNG NHẤT của từng sản phẩm dựa trên số liệu, mô tả và đánh giá.
+- Nếu phát hiện dấu hiệu gian lận từ xưởng (giá ảo, ảnh ảo, review mua sẵn), PHẢI cảnh báo rõ ràng, dứt khoát cho người định nhập hàng.
+- Mọi nhận định phải dựa trên phân tích dữ liệu thật, không được suy diễn ra điểm yếu không có căn cứ.
 
 DỮ LIỆU CÁC SẢN PHẨM (Bản gốc):
 {{PRODUCTS_DATA}}
 
-Yêu cầu định dạng trả lời (Markdown, tiếng Việt, TÀN NHẪN, KHÔNG NHƯỢNG BỘ, NHIỀU CẢNH BÁO MẠNH MẼ):
+Yêu cầu định dạng trả lời (Markdown, tiếng Việt, THẲNG THẮN, KHÔNG NHƯỢNG BỘ, NHIỀU CẢNH BÁO RÕ RÀNG):
 
-1. 🔪 Cuộc Đồ Sát & Bới Móc Tử Huyệt (Lần lượt từng sản phẩm)
-Với mỗi sản phẩm, chỉ ra ĐÚNG 1 LÝ DO CHÍ MẠNG NHẤT khiến nó CÓ THỂ THẤT BẠI THẢM HẠI (Ví dụ: Giá nhập quá ảo tưởng, công nghệ lỗi thời, thiết kế nhái dễ bị phạt, chất liệu rác rưởi). Giải thích sự ngu ngốc nếu cố chấp đâm đầu vào nhập hàng.
+1. 🔪 Phân Tích Điểm Yếu Nghiêm Trọng Nhất (Lần lượt từng sản phẩm)
+Với mỗi sản phẩm, chỉ ra ĐÚNG 1 LÝ DO QUAN TRỌNG NHẤT khiến nó CÓ THỂ THẤT BẠI (Ví dụ: giá nhập không thực tế, công nghệ lỗi thời, thiết kế dễ vướng vi phạm bản quyền, chất liệu kém). Giải thích rõ rủi ro nếu vẫn quyết định nhập hàng.
 
-2. 🗑️ Bản Án Tử Hình (Loại Bỏ)
-Tuyên bố loại bỏ thẳng tay các sản phẩm yếu kém nhất. Dùng lời phê phán lạnh lùng, chặt chẽ dựa trên những dữ liệu cào được. 
+2. 🗑️ Danh Sách Loại Bỏ
+Nêu rõ các sản phẩm nên loại bỏ, kèm lý do cụ thể dựa trên dữ liệu cào được.
 
-3. 🏆 Người Sống Sót Duy Nhất (Hoặc Giữ Tiền Trong Túi)
-Chỉ định ĐÚNG 1 sản phẩm ít rủi ro nhất, hoặc có tiềm năng sinh tồn tốt nhất trong đám bùn lầy này.
-*LƯU Ý ĐẶC BIÊT*: Nếu toàn bộ sản phẩm đều là rác và rủi ro cầm chắc phần lỗ, hãy mạnh dạn LOẠI SẠCH, quát mắng người dùng hãy "Giữ chặt tiền trong túi" và đi tìm nguồn hàng khác.
+3. 🏆 Sản Phẩm Duy Nhất Đáng Cân Nhắc (Hoặc Không Nên Nhập)
+Chỉ định ĐÚNG 1 sản phẩm ít rủi ro nhất và có tiềm năng thành công tốt nhất trong nhóm này.
+*LƯU Ý ĐẶC BIỆT*: Nếu toàn bộ sản phẩm đều có rủi ro cao và khả năng thua lỗ rõ ràng, hãy khuyến nghị dứt khoát KHÔNG NHẬP sản phẩm nào trong đợt này và tìm nguồn hàng khác.
 
 MỤC ĐÍCH SO SÁNH ĐẶC THÙ (Nếu có): {{COMPARE_PURPOSE}}
 `.trim();
@@ -1521,10 +1533,10 @@ export const DEFAULT_COMPARE_PRESETS: PromptPreset[] = [
   { id: "comp_cross", name: "Tỷ lệ Win - Trái ngành", content: COMPARE_CROSS_CAT_TEMPLATE },
   { id: "comp_cfo", name: "Tối ưu Dòng vốn (CFO View)", content: COMPARE_CFO_TEMPLATE },
   { id: "comp_coo", name: "Rủi ro Chuỗi cung ứng (COO View)", content: COMPARE_COO_TEMPLATE },
-  { id: "comp_ceo", name: "Hào cản & Pháp lý (CEO View)", content: COMPARE_CEO_TEMPLATE },
+  { id: "comp_ceo", name: "Rào cản & Pháp lý (CEO View)", content: COMPARE_CEO_TEMPLATE },
   { id: "comp_viral", name: "Viral & Truyền thông (CMO/KOC)", content: COMPARE_CONTENT_TEMPLATE },
-  { id: "comp_funnel", name: "Chiến lược Phễu (Mồi vs Chủ lực)", content: COMPARE_FUNNEL_TEMPLATE },
-  { id: "comp_battle", name: "Sinh tồn khắc nghiệt (Battle Royale)", content: COMPARE_BATTLE_TEMPLATE },
+  { id: "comp_funnel", name: "Chiến lược Phễu (Mồi và Chủ lực)", content: COMPARE_FUNNEL_TEMPLATE },
+  { id: "comp_battle", name: "Sàng lọc loại trừ nghiêm ngặt", content: COMPARE_BATTLE_TEMPLATE },
 ];
 
 export const COMPARE_SYNTHESIS_TEMPLATE = `
@@ -1637,7 +1649,7 @@ export async function generateProductComparison(
 
 // ------------------------------------------------------------
 // HỘI ĐỒNG TỔNG HỢP — feed lại NHIỀU báo cáo persona đã chạy (CFO, COO,
-// Battle Royale...) cho cùng bộ sản phẩm này, cùng với dữ liệu cào GỐC,
+// Sàng lọc loại trừ...) cho cùng bộ sản phẩm này, cùng với dữ liệu cào GỐC,
 // để AI đối chiếu đồng thuận/mâu thuẫn giữa các báo cáo và chốt 1 khuyến
 // nghị cuối. Luôn kèm dữ liệu gốc (không chỉ tin báo cáo AI cũ) để tránh
 // thiên kiến cộng dồn — xem luật trong COMPARE_SYNTHESIS_TEMPLATE.

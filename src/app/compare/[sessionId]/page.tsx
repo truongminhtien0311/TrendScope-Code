@@ -93,6 +93,7 @@ export default async function EvaluationSessionPage({
     status: s.status as "PENDING" | "DONE" | "FAILED",
     axesJson: s.axesJson,
     errorMessage: s.errorMessage,
+    startedAt: s.startedAt.getTime(),
   }));
 
   return (

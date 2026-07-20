@@ -31,30 +31,12 @@ async function main() {
   // ngành hàng, 5 nhóm chính thức) + đối chiếu TikTok Shop VN, mỗi
   // ngành có emoji đại diện để hiển thị đẹp hơn (emoji + tên ghép lại).
   // Người dùng vẫn tự thêm/sửa/xóa được ở trang "Tag & Ngành hàng".
-  const DEFAULT_CATEGORIES: { name: string; icon: string }[] = [
-    { name: "Thời trang nữ", icon: "👗" },
-    { name: "Phụ kiện & Túi ví nữ", icon: "👜" },
-    { name: "Giày dép nữ", icon: "👠" },
-    { name: "Thời trang nam", icon: "👔" },
-    { name: "Giày dép nam", icon: "👞" },
-    { name: "Thời trang trẻ em", icon: "🧒" },
-    { name: "Đồng hồ", icon: "⌚" },
-    { name: "Thể thao & Du lịch", icon: "🏃" },
-    { name: "Điện thoại & Phụ kiện", icon: "📱" },
-    { name: "Thiết bị điện tử", icon: "🔌" },
-    { name: "Máy tính & Laptop", icon: "💻" },
-    { name: "Máy ảnh", icon: "📷" },
-    { name: "Điện gia dụng", icon: "🧺" },
-    { name: "Sắc đẹp & Sức khỏe", icon: "💄" },
-    { name: "Mẹ và bé", icon: "👶" },
-    { name: "Giặt giũ & Chăm sóc nhà cửa", icon: "🧼" },
-    { name: "Bách hóa Online", icon: "🛒" },
-    { name: "Chăm sóc thú cưng", icon: "🐾" },
-    { name: "Nhà cửa & Đời sống", icon: "🏠" },
-    { name: "Ô tô, xe máy & Phụ kiện", icon: "🏍️" },
-    { name: "Đồ chơi", icon: "🧸" },
-    { name: "Nhà sách Online", icon: "📚" },
-  ];
+  // Danh sách nằm trong electron/default-categories.json — dùng CHUNG với
+  // electron/seed-categories.js (bản đóng gói không chạy file seed.ts này,
+  // xem electron/main.js) để tránh lệch danh sách giữa 2 nơi.
+  const DEFAULT_CATEGORIES = (
+    await import("../electron/default-categories.json", { with: { type: "json" } })
+  ).default as { name: string; icon: string }[];
   const categories = await Promise.all(
     DEFAULT_CATEGORIES.map((c) =>
       prisma.category.upsert({ where: { name: c.name }, update: { icon: c.icon }, create: c })

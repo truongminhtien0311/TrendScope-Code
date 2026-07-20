@@ -6,8 +6,14 @@ import { z } from "zod";
 import { resolveShortLink } from "@/lib/taobao-login";
 import { logActivity } from "@/lib/log";
 import { friendlyError } from "@/lib/errors";
+import { extractUrlFromText } from "@/lib/url-text";
 
-const schema = z.object({ url: z.string().url() });
+// preprocess: lọc link thuần ra khỏi text dán vào trước khi validate —
+// xem src/lib/url-text.ts (trường hợp dán nguyên "淘口令" từ app mobile,
+// short link thường bị kẹp giữa text quảng cáo).
+const schema = z.object({
+  url: z.preprocess((val) => (typeof val === "string" ? extractUrlFromText(val) : val), z.string().url()),
+});
 
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null);

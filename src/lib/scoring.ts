@@ -52,7 +52,7 @@ export const SCORE_GROUPS: ScoreGroup[] = [
     label: "Thị trường & Cạnh tranh",
     icon: "📊",
     axes: [
-      { id: "mkt_opportunity", label: "Cơ hội thị trường (đại dương xanh vs đỏ)" },
+      { id: "mkt_opportunity", label: "Cơ hội thị trường (đại dương xanh và đỏ)" },
       { id: "mkt_price_tolerance", label: "Mức độ khách ít nhạy cảm giá" },
       { id: "mkt_trend_durability", label: "Tính bền vững xu hướng (không phải trend lướt sóng)" },
     ],

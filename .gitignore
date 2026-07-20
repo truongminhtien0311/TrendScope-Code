@@ -23,6 +23,7 @@
 # tự cài lại lúc build (npm run electron:build) — xem package.json > scripts.electron:build
 /build/prisma-runtime/node_modules
 /build/prisma-runtime/package-lock.json
+/build/resources-node-modules
 
 # misc
 .DS_Store

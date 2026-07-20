@@ -49,7 +49,7 @@ export default function AddProductForm() {
       router.push(`/products/${created.id}?from=${encodeURIComponent("/")}`);
       router.refresh();
     } else {
-      toast.error("Không tạo được sản phẩm, thử lại nhé.");
+      toast.error("Không tạo được sản phẩm, vui lòng thử lại.");
     }
   }
 

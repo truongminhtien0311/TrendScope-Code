@@ -6,8 +6,8 @@
 // liệu Original, không dùng bản đã AI hóa để tránh thiên kiến cộng dồn).
 // Cùng cơ chế PENDING -> chạy nền -> poll như AiAnalysisPanel.tsx.
 //
-// Nhiều lượt chạy (mỗi lượt 1 góc nhìn persona khác nhau: CFO, COO, Battle
-// Royale...) được giữ lại trong `runs` SUỐT PHIÊN mở trang này (không lưu
+// Nhiều lượt chạy (mỗi lượt 1 góc nhìn persona khác nhau: CFO, COO, Sàng
+// lọc loại trừ...) được giữ lại trong `runs` SUỐT PHIÊN mở trang này (không lưu
 // lại sau khi F5, giống hành vi cũ) để người dùng có thể tick chọn ≥2 lượt
 // ĐÃ XONG rồi bấm "🧑‍⚖️ Tổng hợp hội đồng" — gộp các báo cáo đó lại thành 1
 // kết luận cuối (xem generateComparisonSynthesis, lib/llm/index.ts).
@@ -270,7 +270,7 @@ export default function CompareTable({
       ]);
     } else {
       const data = await res.json().catch(() => null);
-      setError(data?.error ?? "So sánh AI thất bại, thử lại nhé.");
+      setError(data?.error ?? "So sánh AI thất bại, vui lòng thử lại.");
     }
   }
 
@@ -302,7 +302,7 @@ export default function CompareTable({
       setSelectedForSynthesis(new Set());
     } else {
       const data = await res.json().catch(() => null);
-      setSynthesisError(data?.error ?? "Tổng hợp thất bại, thử lại nhé.");
+      setSynthesisError(data?.error ?? "Tổng hợp thất bại, vui lòng thử lại.");
     }
   }
 
@@ -454,7 +454,7 @@ export default function CompareTable({
 
                 {run.status === "PENDING" && (
                   <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
-                    ⏳ Đang chờ Gemini xử lý... đã {elapsedSec}s (có thể mất tới vài chục giây).
+                    ⏳ Đang chờ Gemini xử lý (có thể mất tới vài chục giây) — theo dõi số giây ngay ở trên.
                   </p>
                 )}
                 {run.status === "FAILED" && (

@@ -30,7 +30,7 @@ export default function SetupForm() {
       setSaved(true);
     } else {
       const data = await res.json().catch(() => null);
-      setError(data?.error ?? "Thiết lập thất bại, thử lại nhé.");
+      setError(data?.error ?? "Thiết lập thất bại, vui lòng thử lại.");
     }
   }
 

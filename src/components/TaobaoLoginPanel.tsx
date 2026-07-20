@@ -39,7 +39,7 @@ export default function TaobaoLoginPanel() {
     const res = await fetch("/api/taobao-login/start", { method: "POST" });
     if (!res.ok) {
       const data = await res.json().catch(() => null);
-      setError(data?.error ?? "Không mở được trang đăng nhập, thử lại nhé.");
+      setError(data?.error ?? "Không mở được trang đăng nhập, vui lòng thử lại.");
       setScanning(false);
       return;
     }

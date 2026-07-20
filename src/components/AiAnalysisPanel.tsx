@@ -21,6 +21,7 @@ import { notifyDone } from "@/lib/notify";
 import { friendlyGeminiError, type PromptPreset } from "@/lib/llm";
 import SmartImage from "@/components/SmartImage";
 import { useConfirm } from "@/components/ConfirmDialogProvider";
+import ElapsedBadge from "@/components/ElapsedBadge";
 
 export interface ProductAiAnalysisData {
   id: number;
@@ -84,7 +85,7 @@ const SECTIONS: { key: keyof ContentFields; icon: string; label: string; placeho
     key: "aiFeasibility",
     icon: "📊",
     label: "Đánh giá tính khả thi kinh doanh",
-    placeholder: "Mô hình tổng kho vs tự bán online, bóc tách chi phí ẩn, chiến lược giá.",
+    placeholder: "Mô hình tổng kho so với tự bán online, bóc tách chi phí ẩn, chiến lược giá.",
   },
 ];
 
@@ -260,7 +261,7 @@ export default function AiAnalysisPanel({
       router.refresh();
     } else {
       const data = await res.json().catch(() => null);
-      setError(data?.error ?? "Tạo phân tích AI thất bại, thử lại nhé.");
+      setError(data?.error ?? "Tạo phân tích AI thất bại, vui lòng thử lại.");
     }
   }
 
@@ -290,7 +291,7 @@ export default function AiAnalysisPanel({
       setEditingId(null);
       router.refresh();
     } else {
-      toast.error("Lưu thất bại, thử lại nhé.");
+      toast.error("Lưu thất bại, vui lòng thử lại.");
     }
   }
 
@@ -307,7 +308,7 @@ export default function AiAnalysisPanel({
       router.refresh();
     } else {
       const data = await res.json().catch(() => null);
-      toast.error(data?.error ?? "Xóa thất bại, thử lại nhé.");
+      toast.error(data?.error ?? "Xóa thất bại, vui lòng thử lại.");
     }
   }
 
@@ -341,11 +342,16 @@ export default function AiAnalysisPanel({
             disabled={generateDisabled}
             className="text-xs rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-3 py-1.5"
           >
-            {generating
-              ? "Đang gửi yêu cầu..."
-              : pending && !isStale
-                ? "⏳ Đang tạo..."
-                : "✨AI Phân tích🔍"}
+            {generating ? (
+              "Đang gửi yêu cầu..."
+            ) : pending && !isStale ? (
+              <span className="inline-flex items-center gap-1.5">
+                ⏳ Đang tạo...
+                <ElapsedBadge seconds={Math.floor(pendingAgeMs / 1000)} />
+              </span>
+            ) : (
+              "✨AI Phân tích🔍"
+            )}
           </button>
         </div>
       </div>
@@ -362,8 +368,8 @@ export default function AiAnalysisPanel({
 
       {pending && !isStale && (
         <p className="text-sm text-amber-600 dark:text-amber-400">
-          ⏳ Đang chờ Gemini phản hồi... đã {Math.floor(pendingAgeMs / 1000)}s (có thể mất tới vài chục giây, tra
-          cứu cả luật nhập khẩu) — cứ chuyển sang trang khác, quay lại vẫn thấy tiếp tục đếm.
+          ⏳ Đang chờ Gemini phản hồi (có thể mất tới vài chục giây, tra cứu cả luật nhập khẩu) — cứ chuyển sang
+          trang khác, quay lại vẫn thấy nút &quot;⏳ Đang tạo...&quot; tiếp tục đếm.
         </p>
       )}
       {pending && isStale && (

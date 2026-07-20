@@ -56,9 +56,31 @@ export const taobaoDataHubScraper: ScraperProvider = {
   },
 };
 
+// Link Taobao thường dùng "?id=" (item.taobao.com/item.htm?id=...), nhưng
+// link chia sẻ từ app mobile (vd pages-fast.m.taobao.com/.../externalDetail)
+// lại dùng "itemIds=" (số nhiều, đôi khi "itemId=" số ít tùy trang) — khớp
+// cả 2 dạng, ưu tiên "id=" trước vì phổ biến hơn. Link gợi ý/quảng cáo
+// trong app (vd uland.taobao.com/...&forward=https%3A%2F%2Fitem.taobao...)
+// bọc URL đích ĐÃ ENCODE trong 1 tham số khác — "id=" lúc đó thành
+// "id%3D", không khớp regex trần — thử decode nguyên URL rồi tìm lại
+// trước khi chịu thua.
 function extractItemId(url: string): string | null {
-  const match = url.match(/[?&]id=(\d+)/);
-  return match ? match[1] : null;
+  const direct = extractItemIdRaw(url);
+  if (direct) return direct;
+  try {
+    const decoded = decodeURIComponent(url);
+    if (decoded !== url) return extractItemIdRaw(decoded);
+  } catch {
+    // URL chứa % không hợp lệ để decode — bỏ qua, coi như không tách được
+  }
+  return null;
+}
+
+function extractItemIdRaw(url: string): string | null {
+  const idMatch = url.match(/[?&]id=(\d+)/);
+  if (idMatch) return idMatch[1];
+  const itemIdsMatch = url.match(/[?&]itemIds?=(\d+)/);
+  return itemIdsMatch ? itemIdsMatch[1] : null;
 }
 
 async function fetchItemDetail(itemId: string, apiKey: string): Promise<DataHubItem> {

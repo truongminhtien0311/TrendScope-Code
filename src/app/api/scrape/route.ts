@@ -10,10 +10,16 @@ import { logActivity } from "@/lib/log";
 import { detectPlatform, getScraperFor, platformToSourceType } from "@/lib/scrapers";
 import { REVIEW_IMAGE_MAX_DIMENSION, saveScrapedImages } from "@/lib/storage";
 import { friendlyError } from "@/lib/errors";
+import { extractUrlFromText } from "@/lib/url-text";
 
 const schema = z.object({
   productId: z.number(),
-  url: z.string().url("Link không hợp lệ"),
+  // preprocess: lọc link thuần ra khỏi text dán vào trước khi validate —
+  // xem src/lib/url-text.ts (trường hợp dán nguyên "淘口令" từ app mobile).
+  url: z.preprocess(
+    (val) => (typeof val === "string" ? extractUrlFromText(val) : val),
+    z.string().url("Link không hợp lệ")
+  ),
   externalId: z.string().optional(),
 });
 

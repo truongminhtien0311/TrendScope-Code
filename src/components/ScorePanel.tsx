@@ -24,12 +24,14 @@ import {
   type AxesScoreMap,
 } from "@/lib/scoring";
 import { friendlyGeminiError } from "@/lib/llm";
+import ElapsedBadge from "@/components/ElapsedBadge";
 
 interface ProductScoreData {
   productId: number;
   status: "PENDING" | "DONE" | "FAILED";
   axesJson: string | null;
   errorMessage: string | null;
+  startedAt: number;
 }
 
 const POLL_MS = 2500;
@@ -59,9 +61,23 @@ export default function ScorePanel({
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
   const [expandedProductId, setExpandedProductId] = useState<number | null>(products[0]?.id ?? null);
+  const [now, setNow] = useState(() => Date.now());
 
   const hasPending = scores.some((s) => s.status === "PENDING");
   const hasAny = scores.length > 0;
+
+  // Đếm giờ real-time trên chính nút bấm — cùng cơ chế với AiAnalysisPanel.tsx,
+  // tick mỗi giây, tự dừng khi hết PENDING.
+  useEffect(() => {
+    if (!hasPending) return;
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [hasPending]);
+
+  const earliestPendingStartedAt = scores
+    .filter((s) => s.status === "PENDING")
+    .reduce((min, s) => (min === null || s.startedAt < min ? s.startedAt : min), null as number | null);
+  const elapsedSec = earliestPendingStartedAt !== null ? Math.max(0, Math.floor((now - earliestPendingStartedAt) / 1000)) : 0;
 
   useEffect(() => {
     if (!hasPending) return;
@@ -79,10 +95,11 @@ export default function ScorePanel({
     setError("");
     const res = await fetch(`/api/sessions/${sessionId}/score`, { method: "POST" });
     if (res.ok) {
-      setScores(products.map((p) => ({ productId: p.id, status: "PENDING", axesJson: null, errorMessage: null })));
+      const startedAt = Date.now();
+      setScores(products.map((p) => ({ productId: p.id, status: "PENDING", axesJson: null, errorMessage: null, startedAt })));
     } else {
       const data = await res.json().catch(() => null);
-      setError(data?.error ?? "Chấm điểm thất bại, thử lại nhé.");
+      setError(data?.error ?? "Chấm điểm thất bại, vui lòng thử lại.");
     }
     setGenerating(false);
   }
@@ -127,14 +144,23 @@ export default function ScorePanel({
           disabled={generating || hasPending}
           className="text-xs rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-3 py-1.5"
         >
-          {generating || hasPending ? "⏳ Đang chấm..." : hasAny ? "🔄 Chấm lại" : "📊 Chấm điểm đa trục"}
+          {generating || hasPending ? (
+            <span className="inline-flex items-center gap-1.5">
+              ⏳ Đang chấm...
+              <ElapsedBadge seconds={elapsedSec} />
+            </span>
+          ) : hasAny ? (
+            "🔄 Chấm lại"
+          ) : (
+            "📊 Chấm điểm đa trục"
+          )}
         </button>
       </div>
 
       {error && <p className="text-sm text-red-500">{error}</p>}
       {hasPending && (
         <p className="text-sm text-amber-600 dark:text-amber-400">
-          ⏳ AI đang chấm 15 trục cho {products.length} sản phẩm... có thể mất tới vài chục giây.
+          ⏳ AI đang chấm 15 trục cho {products.length} sản phẩm — cứ chuyển sang trang khác, quay lại vẫn thấy tiếp tục đếm.
         </p>
       )}
       {scores.some((s) => s.status === "FAILED") && (

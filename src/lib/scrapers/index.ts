@@ -20,7 +20,12 @@ const providers: ScraperProvider[] = [otapiTaobaoTmallScraper, taobaoDataHubScra
 export function detectPlatform(url: string): Platform | null {
   const u = url.toLowerCase();
   if (u.includes("detail.tmall.com") || u.includes("tmall.com")) return "TMALL";
-  if (u.includes("taobao.com")) return "TAOBAO";
+  // "tb.cn" là domain link rút gọn RIÊNG của Taobao (vd https://tb.cn/h.xxxx,
+  // https://e.tb.cn/..., https://m.tb.cn/...) — KHÔNG chứa chuỗi "taobao.com"
+  // nên phải check domain gốc riêng, không phải lỗi loose-match như các
+  // domain phụ khác (xem SHORT_LINK_PATTERN ở AddListingForm.tsx — link
+  // dạng này cần giải mã qua đăng nhập Taobao trước khi tách được id).
+  if (u.includes("taobao.com") || u.includes("tb.cn")) return "TAOBAO";
   if (u.includes("jd.com") || u.includes("jd.hk")) return "JD";
   if (u.includes("1688.com")) return "C1688";
   if (u.includes("alibaba.com")) return "ALIBABA";

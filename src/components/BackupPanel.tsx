@@ -48,7 +48,7 @@ export default function BackupPanel() {
       load();
     } else {
       const data = await res.json().catch(() => null);
-      setError(data?.error ?? "Sao lưu thất bại, thử lại nhé.");
+      setError(data?.error ?? "Sao lưu thất bại, vui lòng thử lại.");
     }
   }
 

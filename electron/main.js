@@ -78,11 +78,24 @@ function runMigrations(resourcesPath, databaseUrl) {
   const result = spawnSync(process.execPath, [prismaCli, "migrate", "deploy", "--schema", schemaPath], {
     env: { ...process.env, ...NODE_ENV_OVERRIDE, DATABASE_URL: databaseUrl },
     cwd: resourcesPath,
-    stdio: "inherit",
+    encoding: "utf8",
   });
   if (result.status !== 0) {
-    throw new Error("Chạy migration thất bại — xem log ở trên.");
+    throw new Error(`Chạy migration thất bại.${formatSpawnFailureDetail(result)}`);
   }
+}
+
+// App đóng gói chạy bằng bấm đúp KHÔNG có console đính kèm — "stdio:
+// inherit" cũ đẩy log của prisma vào một cửa sổ dòng lệnh không tồn tại,
+// nên hộp thoại lỗi chỉ hiện được dòng "xem log ở trên" mà chẳng có log
+// nào thật sự hiện ra. Tự lấy stdout/stderr/lỗi spawn rồi gắn thẳng vào
+// nội dung lỗi để hộp thoại (dialog.showErrorBox) hiện được lý do thật.
+function formatSpawnFailureDetail(result) {
+  const detail = [result.error ? String(result.error) : null, result.stdout, result.stderr]
+    .filter(Boolean)
+    .join("\n")
+    .trim();
+  return detail ? `\n\n${detail}` : "";
 }
 
 // Bản đóng gói không chạy prisma/seed.ts (cố tình bỏ dữ liệu sản phẩm mẫu),
@@ -94,10 +107,27 @@ function seedProviders(resourcesPath, databaseUrl) {
   const result = spawnSync(process.execPath, [seedScript, resourcesPath], {
     env: { ...process.env, ...NODE_ENV_OVERRIDE, DATABASE_URL: databaseUrl },
     cwd: resourcesPath,
-    stdio: "inherit",
+    encoding: "utf8",
   });
   if (result.status !== 0) {
-    throw new Error("Seed danh sách provider thất bại — xem log ở trên.");
+    throw new Error(`Seed danh sách provider thất bại.${formatSpawnFailureDetail(result)}`);
+  }
+}
+
+// Cùng lý do với seedProviders() ở trên — bản đóng gói không chạy
+// prisma/seed.ts nên ngành hàng mặc định (gộp từ Shopee VN + đối chiếu
+// TikTok Shop VN) cũng cần seed riêng để trang "Tag & Ngành hàng" và mục
+// "Tỷ lệ markup theo ngành hàng" trong Cài đặt không trống trơn trên máy
+// mới cài — xem electron/seed-categories.js. An toàn gọi mỗi lần khởi động.
+function seedCategories(resourcesPath, databaseUrl) {
+  const seedScript = path.join(__dirname, "seed-categories.js");
+  const result = spawnSync(process.execPath, [seedScript, resourcesPath], {
+    env: { ...process.env, ...NODE_ENV_OVERRIDE, DATABASE_URL: databaseUrl },
+    cwd: resourcesPath,
+    encoding: "utf8",
+  });
+  if (result.status !== 0) {
+    throw new Error(`Seed ngành hàng mặc định thất bại.${formatSpawnFailureDetail(result)}`);
   }
 }
 
@@ -146,6 +176,7 @@ function startPackagedServer() {
 
   runMigrations(resourcesPath, databaseUrl);
   seedProviders(resourcesPath, databaseUrl);
+  seedCategories(resourcesPath, databaseUrl);
 
   const serverEntry = path.join(resourcesPath, "standalone", "server.js");
   serverProcess = spawn(process.execPath, [serverEntry], {
