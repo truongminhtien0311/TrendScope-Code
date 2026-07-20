@@ -68,10 +68,20 @@
     }
   },
   "dependencies": {
+    "electron-updater": "^6.8.9"
+  },
+  "devDependencies": {
     "@google/genai": "^2.10.0",
     "@prisma/client": "^6.19.3",
+    "@tailwindcss/postcss": "^4",
     "@tailwindcss/typography": "^0.5.20",
-    "electron-updater": "^6.8.9",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "electron": "^43.1.0",
+    "electron-builder": "^26.15.3",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.10",
     "exceljs": "^4.4.0",
     "iron-session": "^8.0.4",
     "next": "16.2.10",
@@ -89,19 +99,9 @@
     "remark-math": "^6.0.0",
     "sharp": "^0.35.3",
     "sonner": "^2.0.7",
-    "zod": "^4.4.3"
-  },
-  "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "electron": "^43.1.0",
-    "electron-builder": "^26.15.3",
-    "eslint": "^9",
-    "eslint-config-next": "16.2.10",
     "tailwindcss": "^4",
     "tsx": "^4.22.4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "zod": "^4.4.3"
   }
 }
