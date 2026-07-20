@@ -15,6 +15,7 @@ import { prisma } from "@/lib/db";
 import { logActivity } from "@/lib/log";
 import { detectPlatform, getScraperFor } from "@/lib/scrapers";
 import { REVIEW_IMAGE_MAX_DIMENSION, saveScrapedImages } from "@/lib/storage";
+import { friendlyError } from "@/lib/errors";
 
 export async function POST(
   _request: NextRequest,
@@ -46,8 +47,8 @@ export async function POST(
   try {
     scraped = await scraper.scrape(listing.url, listing.externalId ?? undefined, config);
   } catch (err) {
-    await logActivity("listing.rescrape_failed", `Cào lại thất bại: ${listing.url}`);
-    return NextResponse.json({ error: "Cào dữ liệu thất bại: " + String(err) }, { status: 502 });
+    await logActivity("listing.rescrape_failed", `Cào lại thất bại: ${listing.url} (${String(err)})`);
+    return NextResponse.json({ error: "Cào dữ liệu thất bại: " + friendlyError(err) }, { status: 502 });
   }
 
   // Lưu ảnh — LUÔN lưu local trước, Google Drive (nếu bật) đồng bộ ngầm

@@ -85,6 +85,7 @@ export default async function EvaluationSessionPage({
     errorMessage: c.errorMessage ?? undefined,
     isSynthesis: !!c.sourceComparisonIds,
     expanded: false,
+    startedAt: c.startedAt.getTime(),
   }));
 
   const initialScores = session.scores.map((s) => ({

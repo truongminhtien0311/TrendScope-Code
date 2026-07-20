@@ -7,10 +7,11 @@
 //      bằng mắt. Người dùng thường CHỈ COPY ĐƯỢC ảnh + text tiếng
 //      Trung (không hiểu nghĩa) — để trống ô tiếng Việt cũng được,
 //      bản dịch tự điền khi chạy "Phân tích AI" (gộp chung 1 request).
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { notifyDone } from "@/lib/notify";
 import type { PriceUnit } from "@/lib/currency";
+import ElapsedBadge from "@/components/ElapsedBadge";
 
 const PLATFORM_SUGGESTIONS = ["Taobao", "Tmall", "JD.com", "Alibaba.com", "1688.com"];
 
@@ -80,17 +81,32 @@ function AutoForm({ productId }: { productId: number }) {
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [resolving, setResolving] = useState(false);
+  const [resolveStart, setResolveStart] = useState<number | null>(null);
   const [error, setError] = useState("");
+
+  // Đếm giây trôi qua trong lúc chờ giải mã link rút gọn (Playwright mở
+  // trình duyệt ẩn, tải trang thật — có thể mất vài giây tới nửa phút) —
+  // interval CHỈ chạy khi đang resolving, tự dừng ngay khi xong/lỗi, nên
+  // không tốn tài nguyên lúc không có thao tác nào đang chạy.
+  const [resolveNow, setResolveNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!resolving) return;
+    const timer = setInterval(() => setResolveNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [resolving]);
+  const resolveElapsedSec = resolveStart ? Math.max(0, Math.floor((resolveNow - resolveStart) / 1000)) : 0;
 
   async function resolveShortLink() {
     setError("");
     setResolving(true);
+    setResolveStart(Date.now());
     const res = await fetch("/api/taobao-login/resolve-link", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ url: url.trim() }),
     });
     setResolving(false);
+    setResolveStart(null);
     if (res.ok) {
       const { resolvedUrl } = await res.json();
       setUrl(resolvedUrl);
@@ -142,7 +158,14 @@ function AutoForm({ productId }: { productId: number }) {
             className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm whitespace-nowrap hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50"
             title="Link rút gọn từ mobile — giải mã ra link đầy đủ trước khi cào"
           >
-            {resolving ? "Đang giải mã..." : "🔓 Giải mã link"}
+            {resolving ? (
+              <span className="inline-flex items-center gap-1.5">
+                Đang giải mã...
+                <ElapsedBadge seconds={resolveElapsedSec} />
+              </span>
+            ) : (
+              "🔓 Giải mã link"
+            )}
           </button>
         )}
         <button

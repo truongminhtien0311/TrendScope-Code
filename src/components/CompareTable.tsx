@@ -22,6 +22,7 @@ import "katex/dist/katex.min.css";
 import { toast } from "sonner";
 import { cnyToVnd, formatVnd } from "@/lib/currency";
 import SmartImage from "@/components/SmartImage";
+import ElapsedBadge from "@/components/ElapsedBadge";
 import { friendlyGeminiError, type PromptPreset } from "@/lib/llm";
 
 export interface CompareProductData {
@@ -45,6 +46,9 @@ interface CompareRun {
   errorMessage?: string;
   isSynthesis: boolean;
   expanded: boolean;
+  // Mốc thời gian bắt đầu chạy (epoch ms) — dùng để tính số giây đã chờ,
+  // hiển thị ngay trên dòng lượt chạy khi còn PENDING (xem `now` bên dưới).
+  startedAt: number;
 }
 
 const POLL_MS = 2500;
@@ -167,6 +171,18 @@ export default function CompareTable({
 
   const hasPending = runs.some((r) => r.status === "PENDING");
 
+  // Đồng hồ đếm giờ CHUNG cho mọi lượt PENDING (không phải 1 interval riêng
+  // cho mỗi lượt) — dù nhiều lượt chạy song song vẫn chỉ 1 interval duy
+  // nhất, tick mỗi giây, TỰ DỪNG khi hết PENDING để không ảnh hưởng hiệu
+  // năng trang lúc không có gì đang chạy. Mỗi dòng lượt tự tính số giây
+  // đã chờ từ `now - run.startedAt`.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!hasPending) return;
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [hasPending]);
+
   // 1 interval duy nhất poll TẤT CẢ lượt đang PENDING — thực tế hiếm khi
   // có nhiều lượt PENDING song song, nhưng vẫn xử lý đúng nếu xảy ra.
   useEffect(() => {
@@ -249,6 +265,7 @@ export default function CompareTable({
           resultMarkdown: "",
           isSynthesis: false,
           expanded: true,
+          startedAt: Date.now(),
         },
       ]);
     } else {
@@ -279,6 +296,7 @@ export default function CompareTable({
           resultMarkdown: "",
           isSynthesis: true,
           expanded: true,
+          startedAt: Date.now(),
         },
       ]);
       setSelectedForSynthesis(new Set());
@@ -392,7 +410,9 @@ export default function CompareTable({
 
         {runs.length > 0 && (
           <div className="space-y-3 pt-2">
-            {runs.map((run, runIndex) => (
+            {runs.map((run, runIndex) => {
+              const elapsedSec = run.status === "PENDING" ? Math.max(0, Math.floor((now - run.startedAt) / 1000)) : 0;
+              return (
               <div
                 key={run.comparisonId}
                 className={`rounded-lg border-2 p-3 ${
@@ -417,8 +437,16 @@ export default function CompareTable({
                   >
                     <span className="text-xl">{run.isSynthesis ? "🧑‍⚖️" : "🧠"}</span>
                     <span>{run.presetName}</span>
-                    <span className="text-xs font-normal text-slate-500 dark:text-slate-400">
-                      {run.status === "PENDING" ? "⏳ đang chạy..." : run.status === "FAILED" ? "❌ thất bại" : "✅"}
+                    <span className="text-xs font-normal text-slate-500 dark:text-slate-400 inline-flex items-center gap-1.5">
+                      {run.status === "PENDING" ? (
+                        <>
+                          ⏳ đang chạy... <ElapsedBadge seconds={elapsedSec} />
+                        </>
+                      ) : run.status === "FAILED" ? (
+                        "❌ thất bại"
+                      ) : (
+                        "✅"
+                      )}
                     </span>
                     <span className="ml-auto text-sm text-slate-500 dark:text-slate-400">{run.expanded ? "▲" : "▼"}</span>
                   </button>
@@ -426,7 +454,7 @@ export default function CompareTable({
 
                 {run.status === "PENDING" && (
                   <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
-                    ⏳ Đang chờ Gemini xử lý... có thể mất tới vài chục giây.
+                    ⏳ Đang chờ Gemini xử lý... đã {elapsedSec}s (có thể mất tới vài chục giây).
                   </p>
                 )}
                 {run.status === "FAILED" && (
@@ -448,7 +476,8 @@ export default function CompareTable({
                   </div>
                 )}
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
 

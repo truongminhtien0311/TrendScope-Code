@@ -1,6 +1,6 @@
 {
   "name": "trendscope",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "private": true,
   "main": "electron/main.js",
   "scripts": {
@@ -56,7 +56,10 @@
     },
     "nsis": {
       "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "createStartMenuShortcut": true,
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "runAfterFinish": true
     },
     "publish": {
       "provider": "github",

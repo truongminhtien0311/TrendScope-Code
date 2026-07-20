@@ -9,6 +9,7 @@ import { prisma } from "@/lib/db";
 import { logActivity } from "@/lib/log";
 import { detectPlatform, getScraperFor, platformToSourceType } from "@/lib/scrapers";
 import { REVIEW_IMAGE_MAX_DIMENSION, saveScrapedImages } from "@/lib/storage";
+import { friendlyError } from "@/lib/errors";
 
 const schema = z.object({
   productId: z.number(),
@@ -49,7 +50,7 @@ export async function POST(request: NextRequest) {
     scraped = await scraper.scrape(url, externalId, config);
   } catch (err) {
     await logActivity("listing.scrape_failed", `Cào thất bại: ${url} (${String(err)})`);
-    return NextResponse.json({ error: "Cào dữ liệu thất bại: " + String(err) }, { status: 502 });
+    return NextResponse.json({ error: "Cào dữ liệu thất bại: " + friendlyError(err) }, { status: 502 });
   }
 
   // 4. Lưu ảnh — LUÔN lưu local trước (nhanh, có bản dự phòng), Google

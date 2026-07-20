@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { resolveShortLink } from "@/lib/taobao-login";
 import { logActivity } from "@/lib/log";
+import { friendlyError } from "@/lib/errors";
 
 const schema = z.object({ url: z.string().url() });
 
@@ -24,6 +25,6 @@ export async function POST(request: NextRequest) {
     // được lịch sử thử/lỗi thật trong "Log hoạt động" khi debug, không
     // phải dò DB tay như trước.
     await logActivity("taobao_login.resolve_link_failed", `Giải mã link rút gọn lỗi: ${parsed.data.url} — ${String(err)}`);
-    return NextResponse.json({ error: String(err) }, { status: 502 });
+    return NextResponse.json({ error: friendlyError(err) }, { status: 502 });
   }
 }

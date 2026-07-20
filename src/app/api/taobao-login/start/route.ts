@@ -3,6 +3,7 @@
 import { NextResponse } from "next/server";
 import { startLogin } from "@/lib/taobao-login";
 import { logActivity } from "@/lib/log";
+import { friendlyError } from "@/lib/errors";
 
 export async function POST() {
   try {
@@ -10,6 +11,6 @@ export async function POST() {
     await logActivity("taobao_login.start", "Bắt đầu đăng nhập Taobao qua QR");
     return NextResponse.json({ token, qrImage: `data:image/png;base64,${qrImageBase64}` });
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 502 });
+    return NextResponse.json({ error: friendlyError(err) }, { status: 502 });
   }
 }
