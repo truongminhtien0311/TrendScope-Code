@@ -64,7 +64,7 @@
     "publish": {
       "provider": "github",
       "owner": "truongminhtien0311",
-      "repo": "TrendScope-Code"
+      "repo": "TrendSopce"
     }
   },
   "dependencies": {
