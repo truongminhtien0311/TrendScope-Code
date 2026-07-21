@@ -78,10 +78,32 @@ function ModeCard({
 // "tb.cn" (không chỉ "e."/"m.") để không bỏ sót các tiền tố khác.
 const SHORT_LINK_PATTERN = /tb\.cn/i;
 
+// Key lưu link đang dán dở vào localStorage, riêng theo từng sản phẩm —
+// để lỡ đóng app/tắt máy giữa chừng (kể cả khi đang chờ giải mã link rút
+// gọn) thì mở lại vẫn còn nguyên link, không phải dán/giải mã lại từ đầu.
+function draftUrlKey(productId: number) {
+  return `addListing:draftUrl:${productId}`;
+}
+
 function AutoForm({ productId }: { productId: number }) {
   const router = useRouter();
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Nạp link còn dang dở (nếu có) ngay khi mở form — chạy trên client nên
+  // phải dùng useEffect, không đọc localStorage trực tiếp trong useState().
+  useEffect(() => {
+    const saved = localStorage.getItem(draftUrlKey(productId));
+    if (saved) setUrl(saved);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productId]);
+
+  // Lưu lại mỗi khi url đổi (gõ tay, dán, hoặc sau khi giải mã xong) —
+  // xóa khỏi localStorage khi ô trống để không tồn đọng rác.
+  useEffect(() => {
+    if (url) localStorage.setItem(draftUrlKey(productId), url);
+    else localStorage.removeItem(draftUrlKey(productId));
+  }, [url, productId]);
   const [resolving, setResolving] = useState(false);
   const [resolveStart, setResolveStart] = useState<number | null>(null);
   const [error, setError] = useState("");
@@ -97,6 +119,18 @@ function AutoForm({ productId }: { productId: number }) {
     return () => clearInterval(timer);
   }, [resolving]);
   const resolveElapsedSec = resolveStart ? Math.max(0, Math.floor((resolveNow - resolveStart) / 1000)) : 0;
+
+  // Đếm giây trong lúc chờ /api/scrape cào dữ liệu (mở trình duyệt ẩn, tải
+  // trang thật — có thể mất vài giây tới cả phút) — cùng cơ chế với
+  // resolveElapsedSec ở trên, interval riêng vì 2 thao tác không chạy cùng lúc.
+  const [scrapeStart, setScrapeStart] = useState<number | null>(null);
+  const [scrapeNow, setScrapeNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!loading) return;
+    const timer = setInterval(() => setScrapeNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [loading]);
+  const scrapeElapsedSec = scrapeStart ? Math.max(0, Math.floor((scrapeNow - scrapeStart) / 1000)) : 0;
 
   async function resolveShortLink() {
     setError("");
@@ -130,6 +164,7 @@ function AutoForm({ productId }: { productId: number }) {
       return;
     }
     setLoading(true);
+    setScrapeStart(Date.now());
     setError("");
 
     const res = await fetch("/api/scrape", {
@@ -139,6 +174,7 @@ function AutoForm({ productId }: { productId: number }) {
     });
 
     setLoading(false);
+    setScrapeStart(null);
     if (res.ok) {
       setUrl("");
       notifyDone("Đã cào xong dữ liệu link mới 🎉");
@@ -183,7 +219,14 @@ function AutoForm({ productId }: { productId: number }) {
           disabled={loading}
           className="rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-4 py-2 text-sm whitespace-nowrap"
         >
-          {loading ? "Đang cào dữ liệu..." : "🔗 Thêm link"}
+          {loading ? (
+            <span className="inline-flex items-center gap-1.5">
+              Đang cào dữ liệu...
+              <ElapsedBadge seconds={scrapeElapsedSec} />
+            </span>
+          ) : (
+            "🔗 Thêm link"
+          )}
         </button>
       </div>
       {isShortLink && (

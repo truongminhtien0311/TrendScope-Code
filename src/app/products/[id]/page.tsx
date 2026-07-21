@@ -103,8 +103,11 @@ export default async function ProductDetailPage({
   };
   const retailRange = priceRange("RETAIL");
   const factoryRange = priceRange("MANUFACTURER");
-  const soldTotal = product.listings.reduce((s, l) => s + (l.soldTotal ?? 0), 0);
+  const soldTotalRaw = product.listings.reduce((s, l) => s + (l.soldTotal ?? 0), 0);
   const soldMonthly = product.listings.reduce((s, l) => s + (l.soldMonthly ?? 0), 0);
+  // Tổng lượt bán nhỏ hơn lượt bán tháng là vô lý (dữ liệu "TotalSales" từ
+  // OTAPI không đáng tin với nhiều sản phẩm Taobao) — ẩn thay vì hiện số sai.
+  const soldTotal = soldTotalRaw >= soldMonthly ? soldTotalRaw : 0;
 
   const retailListings = product.listings.filter((l) => l.sourceType === "RETAIL");
   const factoryListings = product.listings.filter((l) => l.sourceType === "MANUFACTURER");

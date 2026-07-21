@@ -85,24 +85,53 @@ function extractItemIdRaw(url: string): string | null {
   return itemIdsMatch ? itemIdsMatch[1] : null;
 }
 
+// Lần đầu gọi 1 sản phẩm CHƯA từng cào, OTAPI mới bắt đầu tự cào ở phía họ
+// (bất đồng bộ) và trả lỗi "NotAvailable"/"ItemIsNotComplete" ("Full
+// information of item has not yet been received") trong lúc chờ — gọi lại
+// sau vài giây thường sẽ có đầy đủ dữ liệu, KHÔNG phải lỗi id/link sai.
+// Tự retry vài lần thay vì bắt người dùng bấm "Thêm link" lại tay.
+const ITEM_NOT_READY_RETRY_DELAYS_MS = [3000, 5000, 8000, 8000];
+
+function isItemNotReady(data: OtapiResponse): boolean {
+  return data.ErrorCode === "NotAvailable" && data.SubErrorCode?.Value === "ItemIsNotComplete";
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function fetchItemDetail(itemId: string, apiKey: string): Promise<OtapiItem> {
-  const res = await fetch(
-    `https://${HOST}/BatchGetItemFullInfo?language=vi&itemId=${itemId}&TargetAreaCode=110103`,
-    { headers: { "x-rapidapi-host": HOST, "x-rapidapi-key": apiKey } }
-  );
-  if (!res.ok) {
-    const bodyText = await res.text().catch(() => "");
-    // RapidAPI báo hết quota sẽ trả 429 kèm message rõ ràng trong body,
-    // vd "You have exceeded the DAILY quota..." — hiện nguyên văn cho dễ hiểu.
-    throw new Error(`Otapi trả lỗi HTTP ${res.status}${bodyText ? ": " + bodyText : ""}`);
+  let lastData: OtapiResponse | null = null;
+
+  for (let attempt = 0; attempt <= ITEM_NOT_READY_RETRY_DELAYS_MS.length; attempt++) {
+    const res = await fetch(
+      `https://${HOST}/BatchGetItemFullInfo?language=vi&itemId=${itemId}&TargetAreaCode=110103`,
+      { headers: { "x-rapidapi-host": HOST, "x-rapidapi-key": apiKey } }
+    );
+    if (!res.ok) {
+      const bodyText = await res.text().catch(() => "");
+      // RapidAPI báo hết quota sẽ trả 429 kèm message rõ ràng trong body,
+      // vd "You have exceeded the DAILY quota..." — hiện nguyên văn cho dễ hiểu.
+      throw new Error(`Otapi trả lỗi HTTP ${res.status}${bodyText ? ": " + bodyText : ""}`);
+    }
+    const data = (await res.json()) as OtapiResponse;
+    if (data.ErrorCode === "Ok" && data.Result?.Item) {
+      return data.Result.Item;
+    }
+
+    lastData = data;
+    if (!isItemNotReady(data) || attempt === ITEM_NOT_READY_RETRY_DELAYS_MS.length) break;
+    await sleep(ITEM_NOT_READY_RETRY_DELAYS_MS[attempt]);
   }
-  const data = (await res.json()) as OtapiResponse;
-  if (data.ErrorCode !== "Ok" || !data.Result?.Item) {
-    // Hiện nguyên văn JSON lỗi (không chỉ mã lỗi ngắn gọn) để dễ tra —
-    // OTAPI thường kèm mô tả chi tiết hơn trong các field khác của response.
-    throw new Error(`Otapi báo lỗi: ${data.ErrorCode} — chi tiết: ${JSON.stringify(data)}`);
+
+  if (lastData && isItemNotReady(lastData)) {
+    throw new Error(
+      "Otapi vẫn chưa cào xong sản phẩm này ở phía họ sau nhiều lần thử — sản phẩm có thể ít người xem nên chưa được họ index, thử lại sau 1-2 phút."
+    );
   }
-  return data.Result.Item;
+  // Hiện nguyên văn JSON lỗi (không chỉ mã lỗi ngắn gọn) để dễ tra —
+  // OTAPI thường kèm mô tả chi tiết hơn trong các field khác của response.
+  throw new Error(`Otapi báo lỗi: ${lastData?.ErrorCode} — chi tiết: ${JSON.stringify(lastData)}`);
 }
 
 // KHÔNG giới hạn số review/ảnh lấy về nữa (yêu cầu người dùng — chấp nhận
@@ -218,6 +247,7 @@ function buildImages(item: OtapiItem): ScrapedImage[] {
 // toàn bộ 40+ field, chỉ những gì app thực sự đọc) ----
 interface OtapiResponse {
   ErrorCode: string;
+  SubErrorCode?: { Value?: string };
   Result?: { Item?: OtapiItem };
 }
 interface OtapiFeaturedValue {
