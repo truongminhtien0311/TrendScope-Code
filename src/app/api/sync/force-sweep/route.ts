@@ -1,9 +1,10 @@
 // API: POST /api/sync/force-sweep — ép chạy ngay việc đồng bộ ảnh lên
-// Drive, không đợi chu kỳ 5 phút (xem src/instrumentation.ts). Dùng trước
-// khi xuất dữ liệu để dọn sạch hàng chờ, tránh mang ảnh vỡ sang máy khác.
-// Mỗi lượt runDriveSyncSweep() chỉ xử lý SWEEP_BATCH_SIZE=10 ảnh/bảng —
-// gọi lặp lại tới khi hết hàng chờ hoặc chạm giới hạn lặp (tránh 1 request
-// treo vô hạn nếu hàng chờ quá lớn).
+// Drive, không đợi chu kỳ quét định kỳ (xem src/instrumentation.ts). Dùng
+// trước khi xuất dữ liệu để dọn sạch hàng chờ, tránh mang ảnh vỡ sang máy
+// khác. runDriveSyncSweep() giờ xử lý HẾT hàng chờ mỗi lượt (không còn
+// giới hạn số ảnh/lượt) nên vòng lặp dưới đây thường chỉ chạy 1 lần —
+// giữ lại lặp tối đa MAX_ITERATIONS để chống trường hợp ảnh mới liên tục
+// được thêm vào giữa lúc đang quét (cào dữ liệu đang chạy song song).
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { runDriveSyncSweep } from "@/lib/storage";

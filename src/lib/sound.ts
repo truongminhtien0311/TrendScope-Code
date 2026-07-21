@@ -21,32 +21,48 @@ export function setSoundEnabled(enabled: boolean) {
 
 type Note = { freq: number; start: number; duration?: number; gain?: number };
 
+// 1 AudioContext DÙNG CHUNG, sống suốt phiên làm việc — trước đây mỗi lần
+// phát âm tự tạo 1 AudioContext MỚI rồi tự đóng bằng setTimeout, nên khi 2
+// hành động kích hoạt gần như đồng thời (vd bấm Xóa: tap của click + warning
+// của hộp thoại xác nhận cùng lúc) sẽ có 2 context tách biệt tranh giành
+// thiết bị âm thanh hệ điều hành cùng lúc — gây rè/tịt/cắt tiếng. Dùng lại
+// 1 context duy nhất, không bao giờ đóng, để mọi âm lên lịch chung — đúng
+// cách Web Audio API được thiết kế để phát nhiều âm gối nhau êm ái.
+let sharedCtx: AudioContext | null = null;
+
+function getSharedAudioContext(): AudioContext | null {
+  try {
+    if (!sharedCtx) {
+      const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      sharedCtx = new Ctx();
+    }
+    // Electron/trình duyệt có thể tự treo context khi mất focus/im lặng lâu
+    // — không resume trước thì lần phát tiếp theo im re, tưởng "tịt tiếng".
+    if (sharedCtx.state === "suspended") sharedCtx.resume().catch(() => {});
+    return sharedCtx;
+  } catch {
+    return null;
+  }
+}
+
 function playNotes(notes: Note[]) {
   if (!isSoundEnabled()) return;
-  try {
-    const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    const ctx = new Ctx();
-    const now = ctx.currentTime;
-    let maxEnd = 0;
+  const ctx = getSharedAudioContext();
+  if (!ctx) return; // trình duyệt chặn audio tự động (chưa có tương tác) — bỏ qua, im lặng
+  const now = ctx.currentTime;
 
-    notes.forEach(({ freq, start, duration = 0.3, gain = 0.15 }) => {
-      const osc = ctx.createOscillator();
-      const g = ctx.createGain();
-      osc.type = "sine";
-      osc.frequency.value = freq;
-      g.gain.setValueAtTime(0, now + start);
-      g.gain.linearRampToValueAtTime(gain, now + start + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.001, now + start + duration);
-      osc.connect(g).connect(ctx.destination);
-      osc.start(now + start);
-      osc.stop(now + start + duration + 0.02);
-      maxEnd = Math.max(maxEnd, start + duration);
-    });
-
-    setTimeout(() => ctx.close(), maxEnd * 1000 + 400);
-  } catch {
-    // Trình duyệt chặn audio tự động (chưa có tương tác) — bỏ qua, im lặng
-  }
+  notes.forEach(({ freq, start, duration = 0.3, gain = 0.15 }) => {
+    const osc = ctx.createOscillator();
+    const g = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.value = freq;
+    g.gain.setValueAtTime(0, now + start);
+    g.gain.linearRampToValueAtTime(gain, now + start + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.001, now + start + duration);
+    osc.connect(g).connect(ctx.destination);
+    osc.start(now + start);
+    osc.stop(now + start + duration + 0.02);
+  });
 }
 
 // Thành công: 2 nốt sine ngắn đi lên, êm (C6 → E6)

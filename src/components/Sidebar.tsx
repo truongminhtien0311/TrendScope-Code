@@ -3,7 +3,7 @@
 // Thanh điều hướng bên trái: phân nhóm NavGroups để dễ mở rộng module sau.
 // Mỗi nhóm là một object riêng — thêm route mới chỉ cần thêm vào đúng nhóm.
 // Thu gọn được (chỉ còn icon) — trạng thái nhớ qua localStorage.
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { SyncStatus } from "@/lib/storage/sync-status";
@@ -216,6 +216,39 @@ export default function Sidebar({ userEmail }: { userEmail?: string | null }) {
 
   const pendingSyncCount = syncStatus ? syncStatus.pendingListingImages + syncStatus.pendingReviewImages : null;
 
+  // Tiến trình đồng bộ tương đối (ảnh đã lên Drive / tổng số ảnh) — hiện
+  // dưới dạng thanh mảnh dưới mục "Đồng bộ dữ liệu" trong sidebar. Tính lại
+  // mỗi lần poll (xem pollSyncStatus ở trên) nên nếu có ảnh mới phát sinh
+  // giữa lúc đang đồng bộ (cào thêm dữ liệu), tổng số + số đã xong đều tự
+  // cập nhật theo, thanh bar tự lùi lại đúng tỉ lệ thật chứ không "tưởng đã
+  // xong" — không cần xử lý gì thêm ở đây.
+  const totalSyncImages = syncStatus ? syncStatus.totalListingImages + syncStatus.totalReviewImages : 0;
+  const syncedImages = pendingSyncCount != null ? totalSyncImages - pendingSyncCount : 0;
+  const syncPercent = totalSyncImages > 0 ? Math.round((syncedImages / totalSyncImages) * 100) : 100;
+
+  // Vị trí THẬT (px, đã kẹp trong khung) của nhãn nổi trên thanh tiến trình —
+  // kẹp theo % không đủ vì nhãn dài ngắn khác nhau ("Đã đồng bộ xong" dài
+  // hơn hẳn "5/20 ảnh (25%)"), kẹp cứng 1 mốc % cố định vẫn tràn viền sidebar
+  // với nhãn dài. Đo kích thước THẬT bằng ref sau khi render rồi tự tính lại
+  // — luôn vừa khung dù nhãn dài ngắn thế nào.
+  const gaugeTrackRef = useRef<HTMLDivElement>(null);
+  const gaugeMarkerRef = useRef<HTMLDivElement>(null);
+  const [markerLeftPx, setMarkerLeftPx] = useState<number | null>(null);
+
+  useLayoutEffect(() => {
+    const track = gaugeTrackRef.current;
+    const marker = gaugeMarkerRef.current;
+    if (!track || !marker) {
+      setMarkerLeftPx(null);
+      return;
+    }
+    const trackWidth = track.getBoundingClientRect().width;
+    const markerWidth = marker.getBoundingClientRect().width;
+    const half = markerWidth / 2;
+    const raw = (syncPercent / 100) * trackWidth;
+    setMarkerLeftPx(Math.min(trackWidth - half, Math.max(half, raw)));
+  }, [syncPercent, collapsed, totalSyncImages]);
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- đồng bộ từ localStorage, không có trên server nên không thể tính lúc render
     setCollapsed(localStorage.getItem("sidebarCollapsed") === "1");
@@ -252,6 +285,22 @@ export default function Sidebar({ userEmail }: { userEmail?: string | null }) {
     return href === bestMatch;
   }
 
+  // Màu tiến trình đồng bộ — pha MƯỢT liên tục theo % thật (đỏ→cam→xanh lá)
+  // bằng CSS color-mix(), không dùng dải màu cố định tô sẵn: thanh chạy tới
+  // đâu thì đúng màu ở đó, giống cảm giác "sức khỏe" tăng dần chứ không phải
+  // thước kẻ vạch sẵn. Dùng thẳng 3 biến màu --accent-danger/--accent-warning/
+  // --accent-success đã có sẵn của app (không bịa màu mới) nên tự đúng tông ở
+  // cả 2 theme sáng/tối — dùng chung cho cả thanh đầy đủ lẫn chấm tròn collapsed.
+  function syncProgressColor(percent: number): string {
+    const p = Math.min(100, Math.max(0, percent));
+    if (p <= 50) {
+      const t = Math.round((p / 50) * 100);
+      return `color-mix(in srgb, var(--accent-warning) ${t}%, var(--accent-danger) ${100 - t}%)`;
+    }
+    const t = Math.round(((p - 50) / 50) * 100);
+    return `color-mix(in srgb, var(--accent-success) ${t}%, var(--accent-warning) ${100 - t}%)`;
+  }
+
   return (
     <aside
       className={`sidebar-glass shrink-0 flex flex-col transition-all duration-300 ${
@@ -282,46 +331,98 @@ export default function Sidebar({ userEmail }: { userEmail?: string | null }) {
           logo) phải khai báo "no-drag" ngược lại, không thì Electron sẽ
           coi thao tác bấm chúng là kéo cửa sổ thay vì click. */}
       <div
-        className="flex items-center justify-between px-3 py-4"
+        className="flex flex-col px-3 py-4"
         style={{ borderBottom: "1px solid var(--border-sidebar)", ...dragRegionStyle }}
       >
-        {collapsed ? (
-          <button
-            onClick={toggleCollapsed}
-            className="mx-auto flex items-center justify-center rounded-lg p-1.5 transition-all hover:scale-110"
-            title="Mở rộng sidebar"
-            style={{ color: "var(--accent-primary)", ...noDragStyle }}
-          >
-            <LogoIcon size={26} />
-          </button>
-        ) : (
-          <>
-            <Link href="/" className="flex items-center gap-2.5 min-w-0" title="TrendScope" style={noDragStyle}>
+        <div className="flex items-center justify-between">
+          {collapsed ? (
+            <button
+              onClick={toggleCollapsed}
+              className="mx-auto flex items-center justify-center rounded-lg p-1.5 transition-all hover:scale-110"
+              title="Mở rộng sidebar"
+              style={{ color: "var(--accent-primary)", ...noDragStyle }}
+            >
               <LogoIcon size={26} />
-              <div className="min-w-0">
-                <div className="logo-text truncate">TrendScope</div>
-                {appVersion && (
-                  <div className="text-xs" style={{ color: "var(--text-sidebar-muted)", marginTop: "-1px" }}>
-                    v{appVersion}
-                  </div>
-                )}
+            </button>
+          ) : (
+            <>
+              <Link href="/" className="flex items-center gap-2.5 min-w-0" title="TrendScope" style={noDragStyle}>
+                <LogoIcon size={26} />
+                <div className="min-w-0">
+                  <div className="logo-text truncate">TrendScope</div>
+                  {appVersion && (
+                    <div className="text-xs" style={{ color: "var(--text-sidebar-muted)", marginTop: "-1px" }}>
+                      v{appVersion}
+                    </div>
+                  )}
+                </div>
+              </Link>
+              <div className="flex items-center gap-0.5 shrink-0">
+                <SyncCenterButton status={syncStatus} onRefresh={pollSyncStatus} />
+                <button
+                  onClick={toggleCollapsed}
+                  title="Thu gọn sidebar"
+                  className="shrink-0 rounded-lg p-1.5 transition-all"
+                  style={{ color: "var(--text-sidebar-muted)", ...noDragStyle }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "var(--accent-primary)"; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "var(--text-sidebar-muted)"; }}
+                >
+                  <IconChevronLeft />
+                </button>
               </div>
-            </Link>
-            <div className="flex items-center gap-0.5 shrink-0">
-              <SyncCenterButton status={syncStatus} onRefresh={pollSyncStatus} />
-              <button
-                onClick={toggleCollapsed}
-                title="Thu gọn sidebar"
-                className="shrink-0 rounded-lg p-1.5 transition-all"
-                style={{ color: "var(--text-sidebar-muted)", ...noDragStyle }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "var(--accent-primary)"; }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "var(--text-sidebar-muted)"; }}
+            </>
+          )}
+        </div>
+
+        {/* ── Thước đo tiến trình đồng bộ ảnh — luôn hiện ngay dưới logo,
+            không chôn trong danh sách menu. Khung (track) chỉ là nền trung
+            tính, thanh tô màu bên trong chạy dài theo % thật và TỰ ĐỔI MÀU
+            liên tục theo đúng mức đang đạt (xem syncProgressColor ở trên) —
+            không phải thước kẻ vạch màu cố định. */}
+        {totalSyncImages > 0 && (() => {
+          const fillColor = syncProgressColor(syncPercent);
+          const glow = `0 0 6px color-mix(in srgb, ${fillColor} 55%, transparent)`;
+          const tooltip = syncPercent >= 100
+            ? `Đã đồng bộ xong ${totalSyncImages}/${totalSyncImages} ảnh`
+            : `Đã đồng bộ ${syncedImages}/${totalSyncImages} ảnh (${syncPercent}%)`;
+          const isSyncingNow = !!syncStatus?.syncing && syncPercent < 100;
+
+          return collapsed ? (
+            <div
+              className="sync-gauge-dot"
+              title={tooltip}
+              style={{
+                backgroundColor: fillColor,
+                boxShadow: glow,
+                animationPlayState: isSyncingNow ? "running" : "paused",
+              }}
+            />
+          ) : (
+            <div className="sync-gauge" title={tooltip}>
+              <div
+                ref={gaugeMarkerRef}
+                className="sync-gauge-marker"
+                style={{
+                  // Trước khi đo xong (frame đầu) dùng tạm % kẹp thô — sau đó
+                  // useLayoutEffect tính lại bằng px thật, luôn vừa khung.
+                  left: markerLeftPx != null ? `${markerLeftPx}px` : `${Math.min(92, Math.max(8, syncPercent))}%`,
+                  animationPlayState: isSyncingNow ? "running" : "paused",
+                }}
               >
-                <IconChevronLeft />
-              </button>
+                <span className="sync-gauge-label" style={{ borderColor: fillColor }}>
+                  {syncPercent >= 100 ? "Đã đồng bộ xong" : `${syncedImages}/${totalSyncImages} ảnh (${syncPercent}%)`}
+                </span>
+                <span className="sync-gauge-caret" style={{ borderTopColor: fillColor }} />
+              </div>
+              <div ref={gaugeTrackRef} className="sync-gauge-track">
+                <div
+                  className="sync-gauge-fill"
+                  style={{ width: `${syncPercent}%`, backgroundColor: fillColor, boxShadow: glow }}
+                />
+              </div>
             </div>
-          </>
-        )}
+          );
+        })()}
       </div>
 
       {/* ── Navigation Groups ──────────────────────────────────── */}

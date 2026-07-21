@@ -36,7 +36,11 @@ export default function SoundBridge() {
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       const target = e.target as HTMLElement | null;
-      const el = target?.closest<HTMLElement>('button, a.nav-item, [data-sound-tap]');
+      // "a[href]" (không chỉ "a.nav-item") — mọi <Link> của Next.js đều
+      // render ra thẻ <a> thường, không riêng menu sidebar. Thiếu vế này thì
+      // thẻ sản phẩm, nút "Quay lại" dạng Link, link "Mở link gốc"... đều im
+      // re vì chúng không phải <button> và không có class nav-item.
+      const el = target?.closest<HTMLElement>('button, a[href], [data-sound-tap]');
       if (!el || el.hasAttribute("data-sound-skip")) return;
       if (el instanceof HTMLButtonElement && el.disabled) return;
       playTap();

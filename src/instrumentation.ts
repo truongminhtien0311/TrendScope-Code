@@ -4,7 +4,7 @@
 // spawn tiến trình Next thật, không phải serverless). Dùng để đăng ký lịch
 // quét ảnh chờ đồng bộ Drive ở nền — xem runDriveSyncSweep() trong
 // src/lib/storage/index.ts.
-const SWEEP_INTERVAL_MS = 5 * 60 * 1000; // mỗi 5 phút
+const SWEEP_INTERVAL_MS = 60 * 1000; // mỗi 1 phút — mỗi lượt quét hết sạch hàng chờ (xem src/lib/storage/index.ts), không cần chu kỳ dài
 
 export async function register() {
   // Chỉ chạy ở Node.js runtime thật (có fs/prisma) — bỏ qua nếu Next chạy

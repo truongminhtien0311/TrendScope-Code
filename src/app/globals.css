@@ -494,6 +494,108 @@ body {
   animation: shimmer 0.7s ease forwards;
 }
 
+/* === SYNC GAUGE (thước đo tiến trình đồng bộ ảnh, ngay dưới logo sidebar —
+   xem Sidebar.tsx) ===
+   KHÔNG dùng dải màu cố định tô sẵn từ 0-100 (nhìn rối, không hợp giao diện
+   tối giản của app) — track chỉ là 1 "khung" trung tính (đúng tông kính mờ
+   sidebar đang dùng cho nav-item/nút), phần TÔ MÀU (.sync-gauge-fill) mới là
+   thanh trạng thái thật, chạy dài theo đúng % và ĐỔI MÀU LIÊN TỤC theo đúng
+   mức đang đạt (đỏ→cam→xanh lá, pha bằng color-mix() từ chính 3 biến màu
+   --accent-danger/--accent-warning/--accent-success sẵn có của app — không
+   bịa màu mới, nên tự đúng tông ở cả 2 theme sáng/tối). Xem hàm
+   syncProgressColor() trong Sidebar.tsx. */
+.sync-gauge {
+  position: relative;
+  /* padding (không phải margin) — .sync-gauge-marker định vị "absolute"
+     tính theo padding-box, đứng ở top:0 (ngay mép trên) trong khi track
+     (flow thường) bị đẩy xuống dưới đúng khoảng padding-top này, tạo
+     khoảng trống cho nhãn nổi bên trên track mà không chồng lên nhau. */
+  padding-top: 22px;
+}
+
+.sync-gauge-track {
+  position: relative;
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  /* khung trung tính — cùng tông với nav-item/button hover trong sidebar,
+     không phải màu trang trí riêng, để phần tô màu bên trong luôn nổi rõ
+     tương phản trên cả 2 theme. */
+  background: var(--bg-sidebar-hover);
+  border: 1px solid var(--border-sidebar);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+
+.sync-gauge-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: 999px;
+  /* lớp bóng nhẹ phủ lên trên màu nền (đặt qua background-color inline ở
+     Sidebar.tsx) — tạo cảm giác "bóng bẩy" thay vì màu phẳng thô. */
+  background-image: linear-gradient(to bottom, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0) 55%);
+  /* mượt: width + màu đều chuyển từ từ mỗi lần poll trạng thái thay vì nhảy cứng */
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.6s ease, box-shadow 0.6s ease;
+}
+
+.sync-gauge-marker {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: left 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: sync-gauge-pulse 1.4s ease-in-out infinite;
+  animation-play-state: paused; /* bật lại qua inline style khi đang tải thật */
+}
+
+.sync-gauge-label {
+  white-space: nowrap;
+  font-size: 0.625rem;
+  font-weight: 600;
+  /* Nền ĐẶC (không dùng lớp phủ trong suốt --bg-sidebar-hover nữa) — nhãn
+     nổi lên trên track nên cần tự đứng được, không "rỗng"/lộ nền phía sau
+     dù đứng trên sidebar tối hay tràn ra vùng khác. */
+  color: var(--text-primary);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-card);
+  border-radius: 999px;
+  padding: 2px 8px;
+  line-height: 1.3;
+  transition: border-color 0.6s ease;
+}
+
+.sync-gauge-caret {
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  /* border-top-color set qua inline style (khớp đúng màu tiến trình hiện
+     tại) — để trống ở đây thì mũi tên gần như vô hình trên nền sidebar tối. */
+  margin-top: -1px;
+  transition: border-top-color 0.6s ease;
+}
+
+@keyframes sync-gauge-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Chấm tròn thay thế lúc sidebar thu gọn (không đủ chỗ hiện thanh đầy đủ) —
+   cùng công thức màu color-mix() với .sync-gauge-fill để nhất quán. */
+.sync-gauge-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin: 8px auto 0;
+  transition: background-color 0.6s ease, box-shadow 0.6s ease;
+  animation: sync-gauge-pulse 1.4s ease-in-out infinite;
+  animation-play-state: paused;
+}
+
 /* === PULSE DOT (active nav indicator) === */
 .pulse-dot {
   width: 6px;

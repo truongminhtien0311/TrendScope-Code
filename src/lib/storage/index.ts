@@ -141,8 +141,14 @@ const EXT_TO_MIME: Record<string, string> = {
 // Chưa xử lý xong lượt trước thì bỏ qua lượt gọi mới — tránh 2 lượt sweep
 // chồng lấp đọc/ghi cùng dữ liệu nếu 1 lượt chạy lâu hơn chu kỳ gọi.
 let isSweeping = false;
-const SWEEP_BATCH_SIZE = 10; // mỗi bảng (ListingImage/ReviewImage) tối đa từng này ảnh/lượt
-const SWEEP_CONCURRENCY = 3; // upload Drive song song tối đa từng này ảnh 1 lúc
+// Không giới hạn số ảnh/lượt nữa — mỗi lượt quét HẾT SẠCH ảnh đang chờ,
+// không dừng ở 1 con số cố định. Quota thật của Google Drive API rất cao
+// (325.000 unit/phút/user, upload chỉ tốn ~5 unit/ảnh — xem
+// https://developers.google.com/workspace/drive/api/guides/limits), số
+// SWEEP_BATCH_SIZE=10 trước đây chỉ là giới hạn tự đặt, không phải giới
+// hạn của Google. isSweeping ở trên vẫn đảm bảo không có 2 lượt chạy
+// chồng nhau.
+const SWEEP_CONCURRENCY = 8; // upload Drive song song tối đa từng này ảnh 1 lúc
 
 // Cho khung trạng thái (src/lib/storage/sync-status.ts) biết đang có lượt
 // quét chạy hay không, để hiện icon xoay tròn thay vì chỉ tĩnh.
@@ -205,8 +211,8 @@ export async function runDriveSyncSweep(): Promise<void> {
     const { googleDriveProvider } = await import("./providers/google-drive");
 
     const [pendingListingImages, pendingReviewImages] = await Promise.all([
-      prisma.listingImage.findMany({ where: PENDING_IMAGE_WHERE, take: SWEEP_BATCH_SIZE, orderBy: { id: "asc" } }),
-      prisma.reviewImage.findMany({ where: PENDING_IMAGE_WHERE, take: SWEEP_BATCH_SIZE, orderBy: { id: "asc" } }),
+      prisma.listingImage.findMany({ where: PENDING_IMAGE_WHERE, orderBy: { id: "asc" } }),
+      prisma.reviewImage.findMany({ where: PENDING_IMAGE_WHERE, orderBy: { id: "asc" } }),
     ]);
 
     await runInChunks(pendingListingImages, SWEEP_CONCURRENCY, (row) =>
