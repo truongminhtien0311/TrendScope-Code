@@ -6,6 +6,7 @@ import "./globals.css";
 import Sidebar from "@/components/Sidebar";
 import UpdateNotifier from "@/components/UpdateNotifier";
 import ConfirmDialogProvider from "@/components/ConfirmDialogProvider";
+import SoundBridge from "@/components/SoundBridge";
 import { getCurrentUser } from "@/lib/auth";
 import { ensureExchangeRateSchedulerStarted } from "@/lib/exchange-rate";
 
@@ -66,6 +67,7 @@ export default async function RootLayout({
       </head>
       <body className="min-h-screen">
         <Toaster richColors position="top-right" />
+        <SoundBridge />
         <UpdateNotifier />
         <ConfirmDialogProvider>
           {user && !hideChrome ? (

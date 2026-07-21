@@ -29,6 +29,7 @@ import DeviceLabelForm from "@/components/DeviceLabelForm";
 import SettingsDriveSyncPanel from "@/components/SettingsDriveSyncPanel";
 import CopyApiConfigButton from "@/components/CopyApiConfigButton";
 import ThemeToggle from "@/components/ThemeToggle";
+import SoundToggle from "@/components/SoundToggle";
 import SettingsTabs from "@/components/SettingsTabs";
 import ExchangeRateAutoPanel from "@/components/ExchangeRateAutoPanel";
 import { getCurrentUser } from "@/lib/auth";
@@ -178,8 +179,9 @@ export default async function SettingsPage() {
               <p className="text-sm text-slate-600 dark:text-slate-300 mb-3">
                 Dark/Light mode — chuyển vào đây thay vì để ở sidebar (bị trôi dài theo trang dài).
               </p>
-              <div className="max-w-xs">
+              <div className="max-w-xs space-y-2">
                 <ThemeToggle />
+                <SoundToggle />
               </div>
             </Section>
 

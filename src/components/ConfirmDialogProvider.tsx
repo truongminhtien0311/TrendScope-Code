@@ -5,7 +5,8 @@
 // Bọc 1 lần ở layout gốc (xem src/app/layout.tsx), rồi ở bất kỳ component
 // nào chỉ cần gọi hook useConfirm() lấy về hàm confirm(message) trả về
 // Promise<boolean> — dùng y hệt cú pháp window.confirm() cũ, chỉ thêm await.
-import { createContext, useCallback, useContext, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { playWarning } from "@/lib/sound";
 
 interface ConfirmOptions {
   title?: string;
@@ -62,6 +63,13 @@ export default function ConfirmDialogProvider({ children }: { children: React.Re
     resolveRef.current = null;
     setRequest(null);
   }
+
+  // Cảnh báo xóa: phát âm ngay khi hộp thoại "nguy hiểm" (xóa, không hoàn
+  // tác...) hiện ra — trước cả khi người dùng bấm gì, giống cue cảnh báo
+  // của iOS khi có hành động phá hủy sắp diễn ra.
+  useEffect(() => {
+    if (request?.danger) playWarning();
+  }, [request]);
 
   return (
     <ConfirmContext.Provider value={confirm}>
