@@ -21,6 +21,7 @@ import { notifyDone } from "@/lib/notify";
 import { friendlyGeminiError, type PromptPreset } from "@/lib/llm";
 import SmartImage from "@/components/SmartImage";
 import { useConfirm } from "@/components/ConfirmDialogProvider";
+import { useBackgroundTasks } from "@/components/BackgroundTaskProvider";
 import ElapsedBadge from "@/components/ElapsedBadge";
 
 export interface ProductAiAnalysisData {
@@ -124,9 +125,12 @@ const MARKDOWN_COMPONENTS = {
     <a target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline" {...props} />
   ),
   img: ({ node, src, alt, ...props }: any) => (
-    <div className="my-4 overflow-hidden rounded-lg max-w-sm">
-      <SmartImage src={src || ""} alt={alt || ""} {...props} />
-    </div>
+    <SmartImage
+      src={src || ""}
+      alt={alt || ""}
+      className="my-4 overflow-hidden rounded-lg max-w-sm"
+      {...props}
+    />
   ),
   h2: ({ node, ...props }: any) => (
     <h2
@@ -144,12 +148,16 @@ const MARKDOWN_COMPONENTS = {
 
 export default function AiAnalysisPanel({
   productId,
+  productName,
   analyses,
   presets,
   activePresetId,
   hasFactoryPrice,
 }: {
   productId: number;
+  // Chỉ dùng để đặt tên thân thiện cho dòng tác vụ trong widget "Tác vụ AI"
+  // toàn app (xem BackgroundTaskProvider.tsx) — không có thì rơi về "#id".
+  productName?: string;
   analyses: ProductAiAnalysisData[];
   // Danh sách preset để chọn NGAY tại nút "Tạo bằng AI" — không bắt buộc
   // vào Cài đặt đổi preset "đang dùng" trước mỗi lần muốn xem góc nhìn
@@ -163,6 +171,7 @@ export default function AiAnalysisPanel({
 }) {
   const router = useRouter();
   const confirmDialog = useConfirm();
+  const { registerTask } = useBackgroundTasks();
   const [generating, setGenerating] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [error, setError] = useState("");
@@ -247,21 +256,53 @@ export default function AiAnalysisPanel({
     })();
   }, [analyses, productId, router]);
 
+  // Gọi endpoint tạo phân tích, dùng chung cho lần bấm đầu và lần "Phân
+  // tích lại" từ widget "Tác vụ AI" toàn app (xem BackgroundTaskProvider.tsx).
+  async function postAnalyze(presetIdToUse: string): Promise<{ analysisId: number } | { error: string }> {
+    const res = await fetch(`/api/products/${productId}/analyze`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ presetId: presetIdToUse }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return { analysisId: data.analysisId };
+    }
+    const data = await res.json().catch(() => null);
+    return { error: data?.error ?? "Tạo phân tích AI thất bại, vui lòng thử lại." };
+  }
+
+  function makeAnalysisPoll(analysisId: number) {
+    return async () => {
+      const res = await fetch(`/api/products/${productId}/ai-analyses/${analysisId}`);
+      if (!res.ok) return null;
+      const data = await res.json();
+      return { status: data.status, errorMessage: data.errorMessage };
+    };
+  }
+
   async function confirmGenerate() {
     setShowPreview(false);
     setGenerating(true);
     setError("");
-    const res = await fetch(`/api/products/${productId}/analyze`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ presetId: chosenPresetId }),
-    });
+    const presetIdToUse = chosenPresetId;
+    const result = await postAnalyze(presetIdToUse);
     setGenerating(false);
-    if (res.ok) {
+    if ("analysisId" in result) {
+      registerTask({
+        kind: "analyze",
+        label: `🧠 Phân tích AI — ${productName || `#${productId}`}`,
+        targetHref: `/products/${productId}`,
+        poll: makeAnalysisPoll(result.analysisId),
+        retry: async () => {
+          const r = await postAnalyze(presetIdToUse);
+          if (!("analysisId" in r)) return null;
+          return { poll: makeAnalysisPoll(r.analysisId) };
+        },
+      });
       router.refresh();
     } else {
-      const data = await res.json().catch(() => null);
-      setError(data?.error ?? "Tạo phân tích AI thất bại, vui lòng thử lại.");
+      setError(result.error);
     }
   }
 
@@ -366,12 +407,6 @@ export default function AiAnalysisPanel({
 
       {error && <p className="text-sm text-red-500">{error}</p>}
 
-      {pending && !isStale && (
-        <p className="text-sm text-amber-600 dark:text-amber-400">
-          ⏳ Đang chờ Gemini phản hồi (có thể mất tới vài chục giây, tra cứu cả luật nhập khẩu) — cứ chuyển sang
-          trang khác, quay lại vẫn thấy nút &quot;⏳ Đang tạo...&quot; tiếp tục đếm.
-        </p>
-      )}
       {pending && isStale && (
         <p className="text-sm text-red-500">
           ⚠️ Bản đang chờ này đã quá 5 phút, có thể đã bị treo (vd server khởi động lại giữa chừng) — bấm &quot;✨AI Phân tích🔍&quot; để thử tạo bản mới.

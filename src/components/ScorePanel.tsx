@@ -25,6 +25,7 @@ import {
 } from "@/lib/scoring";
 import { friendlyGeminiError } from "@/lib/llm";
 import ElapsedBadge from "@/components/ElapsedBadge";
+import { useBackgroundTasks } from "@/components/BackgroundTaskProvider";
 
 interface ProductScoreData {
   productId: number;
@@ -55,6 +56,7 @@ export default function ScorePanel({
   products: { id: number; name: string }[];
   initialScores: ProductScoreData[];
 }) {
+  const { registerTask } = useBackgroundTasks();
   const [scores, setScores] = useState<ProductScoreData[]>(initialScores);
   const scoresRef = useRef(scores);
   scoresRef.current = scores;
@@ -90,18 +92,50 @@ export default function ScorePanel({
     return () => clearInterval(poll);
   }, [hasPending, sessionId]);
 
+  // Poll cả phiên — chấm điểm là 1 lượt DUY NHẤT cho tất cả sản phẩm trong
+  // phiên (không có id riêng như phân tích/so sánh), nên "xong" nghĩa là
+  // không còn sản phẩm nào PENDING. Tái dùng cho widget "Tác vụ AI" toàn
+  // app (BackgroundTaskProvider.tsx).
+  async function pollScoring() {
+    const res = await fetch(`/api/sessions/${sessionId}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const sessionScores: ProductScoreData[] = data.scores ?? [];
+    if (sessionScores.some((s) => s.status === "PENDING")) return { status: "PENDING" as const };
+    const failed = sessionScores.find((s) => s.status === "FAILED");
+    if (failed) return { status: "FAILED" as const, errorMessage: failed.errorMessage };
+    return { status: "DONE" as const };
+  }
+
+  async function postScoring(): Promise<{ ok: true } | { error: string }> {
+    const res = await fetch(`/api/sessions/${sessionId}/score`, { method: "POST" });
+    if (res.ok) return { ok: true };
+    const data = await res.json().catch(() => null);
+    return { error: data?.error ?? "Chấm điểm thất bại, vui lòng thử lại." };
+  }
+
   async function runScoring() {
     setGenerating(true);
     setError("");
-    const res = await fetch(`/api/sessions/${sessionId}/score`, { method: "POST" });
-    if (res.ok) {
+    const result = await postScoring();
+    setGenerating(false);
+    if ("ok" in result) {
       const startedAt = Date.now();
       setScores(products.map((p) => ({ productId: p.id, status: "PENDING", axesJson: null, errorMessage: null, startedAt })));
+      registerTask({
+        kind: "score",
+        label: "📊 Chấm điểm đa trục",
+        targetHref: `/compare/${sessionId}`,
+        poll: pollScoring,
+        retry: async () => {
+          const r = await postScoring();
+          if (!("ok" in r)) return null;
+          return { poll: pollScoring };
+        },
+      });
     } else {
-      const data = await res.json().catch(() => null);
-      setError(data?.error ?? "Chấm điểm thất bại, vui lòng thử lại.");
+      setError(result.error);
     }
-    setGenerating(false);
   }
 
   async function overrideAxis(productId: number, axisId: string, value: number | null) {

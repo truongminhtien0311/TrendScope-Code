@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import { cnyToVnd, formatVnd } from "@/lib/currency";
 import SmartImage from "@/components/SmartImage";
 import ElapsedBadge from "@/components/ElapsedBadge";
+import { useBackgroundTasks } from "@/components/BackgroundTaskProvider";
 import { friendlyGeminiError, type PromptPreset } from "@/lib/llm";
 
 export interface CompareProductData {
@@ -154,6 +155,7 @@ export default function CompareTable({
   // lại trang — thay vì luôn bắt đầu rỗng như hành vi cũ.
   initialRuns?: CompareRun[];
 }) {
+  const { registerTask } = useBackgroundTasks();
   const [presetId, setPresetId] = useState(presets[0]?.id);
   const [comparePurpose, setComparePurpose] = useState("");
   const [showPreview, setShowPreview] = useState(false);
@@ -243,23 +245,44 @@ export default function CompareTable({
     });
   }
 
-  async function confirmGenerate() {
-    setShowPreview(false);
-    setGenerating(true);
-    setError("");
-    const presetName = presets.find((p) => p.id === presetId)?.name ?? "";
+  // Poll dùng chung cho cả lượt so sánh và lượt tổng hợp hội đồng — cùng 1
+  // GET endpoint (xem /api/compare/[id]/route.ts). Tái dùng cho widget
+  // "Tác vụ AI" toàn app (BackgroundTaskProvider.tsx).
+  function makeComparePoll(comparisonId: number) {
+    return async () => {
+      const res = await fetch(`/api/compare/${comparisonId}`);
+      if (!res.ok) return null;
+      const data = await res.json();
+      return { status: data.status, errorMessage: data.errorMessage };
+    };
+  }
+
+  async function postCompare(): Promise<{ comparisonId: number } | { error: string }> {
     const res = await fetch("/api/compare", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ productIds: products.map((p) => p.id), presetId, comparePurpose, sessionId }),
     });
-    setGenerating(false);
     if (res.ok) {
       const data = await res.json();
+      return { comparisonId: data.comparisonId };
+    }
+    const data = await res.json().catch(() => null);
+    return { error: data?.error ?? "So sánh AI thất bại, vui lòng thử lại." };
+  }
+
+  async function confirmGenerate() {
+    setShowPreview(false);
+    setGenerating(true);
+    setError("");
+    const presetName = presets.find((p) => p.id === presetId)?.name ?? "";
+    const result = await postCompare();
+    setGenerating(false);
+    if ("comparisonId" in result) {
       setRuns((prev) => [
         ...prev,
         {
-          comparisonId: data.comparisonId,
+          comparisonId: result.comparisonId,
           presetName,
           status: "PENDING",
           resultMarkdown: "",
@@ -268,10 +291,36 @@ export default function CompareTable({
           startedAt: Date.now(),
         },
       ]);
+      if (sessionId) {
+        registerTask({
+          kind: "compare",
+          label: `🧠 So sánh AI — ${presetName}`,
+          targetHref: `/compare/${sessionId}`,
+          poll: makeComparePoll(result.comparisonId),
+          retry: async () => {
+            const r = await postCompare();
+            if (!("comparisonId" in r)) return null;
+            return { poll: makeComparePoll(r.comparisonId) };
+          },
+        });
+      }
     } else {
-      const data = await res.json().catch(() => null);
-      setError(data?.error ?? "So sánh AI thất bại, vui lòng thử lại.");
+      setError(result.error);
     }
+  }
+
+  async function postSynthesize(sourceIds: number[]): Promise<{ comparisonId: number } | { error: string }> {
+    const res = await fetch("/api/compare/synthesize", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ productIds: products.map((p) => p.id), sourceComparisonIds: sourceIds, sessionId }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return { comparisonId: data.comparisonId };
+    }
+    const data = await res.json().catch(() => null);
+    return { error: data?.error ?? "Tổng hợp thất bại, vui lòng thử lại." };
   }
 
   async function confirmSynthesize() {
@@ -279,18 +328,13 @@ export default function CompareTable({
     setSynthesizing(true);
     setSynthesisError("");
     const sourceIds = [...selectedForSynthesis];
-    const res = await fetch("/api/compare/synthesize", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ productIds: products.map((p) => p.id), sourceComparisonIds: sourceIds, sessionId }),
-    });
+    const result = await postSynthesize(sourceIds);
     setSynthesizing(false);
-    if (res.ok) {
-      const data = await res.json();
+    if ("comparisonId" in result) {
       setRuns((prev) => [
         ...prev,
         {
-          comparisonId: data.comparisonId,
+          comparisonId: result.comparisonId,
           presetName: "🧑‍⚖️ Tổng hợp hội đồng",
           status: "PENDING",
           resultMarkdown: "",
@@ -300,9 +344,21 @@ export default function CompareTable({
         },
       ]);
       setSelectedForSynthesis(new Set());
+      if (sessionId) {
+        registerTask({
+          kind: "synthesize",
+          label: "🧑‍⚖️ Tổng hợp hội đồng",
+          targetHref: `/compare/${sessionId}`,
+          poll: makeComparePoll(result.comparisonId),
+          retry: async () => {
+            const r = await postSynthesize(sourceIds);
+            if (!("comparisonId" in r)) return null;
+            return { poll: makeComparePoll(r.comparisonId) };
+          },
+        });
+      }
     } else {
-      const data = await res.json().catch(() => null);
-      setSynthesisError(data?.error ?? "Tổng hợp thất bại, vui lòng thử lại.");
+      setSynthesisError(result.error);
     }
   }
 

@@ -187,6 +187,7 @@ export default async function ProductDetailPage({
            AI gộp dữ liệu của TẤT CẢ các link vào 1 request, sinh đủ 6 mục ---- */}
       <AiAnalysisPanel
         productId={product.id}
+        productName={product.name}
         analyses={product.aiAnalyses.map((a) => ({
           ...a,
           startedAt: a.startedAt.toISOString(),

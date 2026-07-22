@@ -174,6 +174,23 @@ export default function GuidePage() {
         </p>
       </Section>
 
+      <Section title="⏳ Theo dõi tác vụ AI đang chạy nền">
+        <p>
+          Mọi việc nhờ AI làm mất thời gian (Phân tích sản phẩm, So sánh, Tổng hợp hội đồng, Chấm
+          điểm đa trục) đều hiện ở <strong>1 huy hiệu nhỏ cố định góc dưới-phải màn hình</strong> —
+          bấm &lsquo;✨ Tạo bằng AI&rsquo; hay &lsquo;🚀 So sánh&rsquo; xong là cứ yên tâm{" "}
+          <strong>chuyển sang trang khác làm việc khác</strong>, huy hiệu vẫn âm thầm theo dõi,
+          không cần đứng chờ tại chỗ.
+        </p>
+        <ul className="list-disc pl-5 space-y-1.5 mt-2">
+          <li>Bấm vào huy hiệu để mở danh sách từng việc: đang chạy (kèm đồng hồ đếm giây), đã xong (nút &lsquo;✅ Xem kết quả&rsquo; đưa thẳng tới đúng chỗ, kèm nút &lsquo;⬅ Quay lại&rsquo; để về đúng vị trí đang làm dở), hoặc lỗi (kèm nút &lsquo;🔄 Thử lại&rsquo;).</li>
+          <li>Việc xong dù đang ở trang khác vẫn có <strong>toast báo + tiếng &lsquo;ding&rsquo;</strong> — không cần mở huy hiệu ra mới biết.</li>
+          <li>Nếu dùng bản cài đặt (.exe) và đang thu nhỏ cửa sổ / làm việc ở cửa sổ khác lúc chờ (vd xem lại trang nguồn hàng), còn có thêm <strong>thông báo hệ thống Windows</strong> để không phải cứ mở app lên nhìn chừng.</li>
+          <li>Việc treo quá 5 phút không xong (vd server khởi động lại giữa chừng) sẽ tự báo <strong>⚠️ &lsquo;có thể đã treo&rsquo;</strong> ngay trong huy hiệu thay vì hiện &lsquo;đang chạy&rsquo; mãi, kèm nút thử tạo lại ngay tại đó.</li>
+          <li>Chạy nhiều việc cùng lúc (vd phân tích 2 sản phẩm + 1 lượt so sánh) thì huy hiệu hiện đủ số lượng từng loại cùng lúc (vd &lsquo;⏳2 · ❌1&rsquo;), không bị che mất việc nào.</li>
+        </ul>
+      </Section>
+
       <Section title="🏷️ Tỷ lệ markup theo ngành hàng">
         <p>
           Sản phẩm chỉ có giá bán lẻ (chưa có link Alibaba/1688) thì AI phải ước tính giá xưởng để

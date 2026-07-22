@@ -1106,6 +1106,12 @@ export async function generateProductAnalysis(
       })
     );
   } catch (err) {
+    // Đã HẾT HẠN MỨC (RESOURCE_EXHAUSTED/PerDay) thì gọi lại lần 2 (dù tắt
+    // Search Grounding) cũng chắc chắn lỗi y vậy — báo lỗi ngay, khỏi tốn
+    // thêm 1 lượt gọi vô ích.
+    const message = err instanceof Error ? err.message : String(err);
+    if (/RESOURCE_EXHAUSTED|PerDay/.test(message)) throw err;
+
     console.error("Gemini + Search Grounding lỗi, thử lại không có Search Grounding:", err);
     response = await withGeminiRetry(() =>
       ai.models.generateContent({

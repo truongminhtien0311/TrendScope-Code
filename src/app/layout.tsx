@@ -6,6 +6,7 @@ import "./globals.css";
 import Sidebar from "@/components/Sidebar";
 import UpdateNotifier from "@/components/UpdateNotifier";
 import ConfirmDialogProvider from "@/components/ConfirmDialogProvider";
+import BackgroundTaskProvider from "@/components/BackgroundTaskProvider";
 import SoundBridge from "@/components/SoundBridge";
 import { getCurrentUser } from "@/lib/auth";
 import { ensureExchangeRateSchedulerStarted } from "@/lib/exchange-rate";
@@ -69,32 +70,34 @@ export default async function RootLayout({
         <Toaster richColors position="top-right" />
         <SoundBridge />
         <UpdateNotifier />
-        <ConfirmDialogProvider>
-          {user && !hideChrome ? (
-          <div className="flex min-h-screen" style={{ background: "var(--bg-base)" }}>
-              <Sidebar userEmail={user.email} />
-              <main
-                className="flex-1 p-6 lg:p-8 overflow-x-hidden"
-                style={{ background: "var(--bg-base)", position: "relative" }}
-              >
-                {/* Dải trống phía trên nội dung (nằm gọn trong vùng padding
-                    p-6/p-8, không đè lên nội dung thật) — khai báo
-                    "-webkit-app-region: drag" để kéo di chuyển được cửa sổ
-                    Electron từ phần bên phải sidebar. Trình duyệt thường bỏ
-                    qua thuộc tính này, không ảnh hưởng gì. */}
-                <div
-                  aria-hidden
-                  style={{ position: "absolute", top: 0, left: 0, right: 0, height: 24, ...({ WebkitAppRegion: "drag" } as React.CSSProperties) }}
-                />
-                {children}
-              </main>
-            </div>
-          ) : (
-            // Chưa đăng nhập (trang /login), hoặc trang trình bày/PDF (/report)
-            // — không hiện khung sidebar/nav
-            children
-          )}
-        </ConfirmDialogProvider>
+        <BackgroundTaskProvider>
+          <ConfirmDialogProvider>
+            {user && !hideChrome ? (
+            <div className="flex min-h-screen" style={{ background: "var(--bg-base)" }}>
+                <Sidebar userEmail={user.email} />
+                <main
+                  className="flex-1 p-6 lg:p-8 overflow-x-hidden"
+                  style={{ background: "var(--bg-base)", position: "relative" }}
+                >
+                  {/* Dải trống phía trên nội dung (nằm gọn trong vùng padding
+                      p-6/p-8, không đè lên nội dung thật) — khai báo
+                      "-webkit-app-region: drag" để kéo di chuyển được cửa sổ
+                      Electron từ phần bên phải sidebar. Trình duyệt thường bỏ
+                      qua thuộc tính này, không ảnh hưởng gì. */}
+                  <div
+                    aria-hidden
+                    style={{ position: "absolute", top: 0, left: 0, right: 0, height: 24, ...({ WebkitAppRegion: "drag" } as React.CSSProperties) }}
+                  />
+                  {children}
+                </main>
+              </div>
+            ) : (
+              // Chưa đăng nhập (trang /login), hoặc trang trình bày/PDF (/report)
+              // — không hiện khung sidebar/nav
+              children
+            )}
+          </ConfirmDialogProvider>
+        </BackgroundTaskProvider>
       </body>
     </html>
   );
